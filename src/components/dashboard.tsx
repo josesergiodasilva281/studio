@@ -161,6 +161,18 @@ function EmployeeTable() {
                   <Label htmlFor="name" className="text-right">Nome</Label>
                   <Input id="name" value={selectedEmployee.name} onChange={(e) => setSelectedEmployee({...selectedEmployee, name: e.target.value})} className="col-span-3" />
                </div>
+               <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="department" className="text-right">Setor</Label>
+                  <Input id="department" value={selectedEmployee.department} onChange={(e) => setSelectedEmployee({...selectedEmployee, department: e.target.value})} className="col-span-3" />
+               </div>
+               <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="plate" className="text-right">Placa</Label>
+                  <Input id="plate" value={selectedEmployee.plate} onChange={(e) => setSelectedEmployee({...selectedEmployee, plate: e.target.value})} className="col-span-3" />
+               </div>
+               <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="ramal" className="text-right">Ramal</Label>
+                  <Input id="ramal" value={selectedEmployee.ramal} onChange={(e) => setSelectedEmployee({...selectedEmployee, ramal: e.target.value})} className="col-span-3" />
+               </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="status" className="text-right">Status</Label>
                    <Select
