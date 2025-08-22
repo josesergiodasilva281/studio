@@ -80,12 +80,14 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
     const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const isBarcodeSupported = typeof window !== 'undefined' && 'BarcodeDetector' in window;
+    const stopScanningRef = useRef(false);
 
     useEffect(() => {
         if (open) {
-            setNewEmployee(emptyEmployee); // Reseta o formulário ao abrir
-            setIsCameraOpen(false); // Garante que a câmera esteja fechada
+            setNewEmployee(emptyEmployee); // Resets the form when opening
+            setIsCameraOpen(false); // Ensures the camera is closed
             setHasCameraPermission(null);
+            stopScanningRef.current = false;
         }
     }, [open]);
 
@@ -115,10 +117,13 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
         });
 
         const detectBarcode = async () => {
-            if (videoRef.current && videoRef.current.readyState === 4) {
+            if (stopScanningRef.current) return;
+
+            if (videoRef.current && videoRef.current.readyState === 4 && !stopScanningRef.current) {
                 try {
                     const barcodes = await barcodeDetector.detect(videoRef.current);
-                    if (barcodes.length > 0) {
+                    if (barcodes.length > 0 && !stopScanningRef.current) {
+                        stopScanningRef.current = true; // Stop scanning after a successful read
                         const scannedId = barcodes[0].rawValue;
                         setNewEmployee(prev => ({ ...prev, id: scannedId }));
                         toast({
@@ -131,7 +136,8 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
                     console.error('Barcode detection failed:', error);
                 }
             }
-            if (isCameraOpen) { // Keep scanning if camera is still open
+            // Keep scanning if camera is still open and no barcode has been found
+            if (isCameraOpen && !stopScanningRef.current) {
                 animationFrameId = requestAnimationFrame(detectBarcode);
             }
         };
@@ -143,8 +149,10 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
 
                 if (videoRef.current) {
                     videoRef.current.srcObject = stream;
-                    await videoRef.current.play(); // Ensure video is playing
-                    animationFrameId = requestAnimationFrame(detectBarcode);
+                    videoRef.current.onloadedmetadata = () => {
+                       videoRef.current?.play();
+                       animationFrameId = requestAnimationFrame(detectBarcode);
+                    }
                 }
             } catch (error) {
                 console.error('Error accessing camera:', error);
@@ -188,6 +196,7 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
             });
             return;
         }
+        stopScanningRef.current = false;
         setIsCameraOpen(true);
     }
 
