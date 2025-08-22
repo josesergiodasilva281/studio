@@ -79,6 +79,13 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
     const [isCameraOpen, setIsCameraOpen] = useState(false);
     const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
+    const [isBarcodeSupported, setIsBarcodeSupported] = useState(true);
+
+    useEffect(() => {
+        if (!('BarcodeDetector' in window)) {
+            setIsBarcodeSupported(false);
+        }
+    }, []);
 
     useEffect(() => {
         if (open) {
@@ -92,6 +99,28 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
         if (!isCameraOpen) return;
 
         let stream: MediaStream;
+        let intervalId: NodeJS.Timeout | null = null;
+
+        const startScan = (videoElement: HTMLVideoElement, detector: any) => {
+            intervalId = setInterval(async () => {
+                if (videoElement.readyState < 2) return; // Aguarda o vídeo estar pronto
+                try {
+                    const barcodes = await detector.detect(videoElement);
+                    if (barcodes.length > 0) {
+                        const scannedId = barcodes[0].rawValue;
+                        setNewEmployee(prev => ({ ...prev, id: scannedId }));
+                        toast({
+                            title: 'Código Lido com Sucesso!',
+                            description: `Matrícula preenchida: ${scannedId}`,
+                        });
+                        setIsCameraOpen(false); // Fecha a câmera após a leitura
+                    }
+                } catch (error) {
+                    console.error('Barcode detection failed:', error);
+                }
+            }, 500); // Tenta detectar a cada 500ms
+        };
+
         const getCameraPermission = async () => {
             try {
                 stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
@@ -99,18 +128,15 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
 
                 if (videoRef.current) {
                     videoRef.current.srcObject = stream;
-                }
-
-                // Simula a leitura do código de barras após 3 segundos
-                setTimeout(() => {
-                    const scannedId = Math.random().toString(36).substring(2, 10).toUpperCase();
-                    setNewEmployee(prev => ({ ...prev, id: scannedId }));
-                    toast({
-                        title: 'Código Lido com Sucesso!',
-                        description: `Matrícula preenchida: ${scannedId}`,
+                    
+                    const barcodeDetector = new (window as any).BarcodeDetector({
+                        formats: ['qr_code', 'code_128', 'ean_13', 'upc_a']
                     });
-                    setIsCameraOpen(false); // Fecha a câmera após a "leitura"
-                }, 3000);
+
+                    videoRef.current.onloadedmetadata = () => {
+                       startScan(videoRef.current!, barcodeDetector);
+                    }
+                }
 
             } catch (error) {
                 console.error('Error accessing camera:', error);
@@ -124,15 +150,19 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
             }
         };
 
-        getCameraPermission();
+        if (isBarcodeSupported) {
+             getCameraPermission();
+        }
+
 
         return () => {
-            // Limpa o stream da câmera ao desmontar
+            // Limpa o stream e o intervalo
+            if (intervalId) clearInterval(intervalId);
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
             }
         };
-    }, [isCameraOpen, toast]);
+    }, [isCameraOpen, toast, isBarcodeSupported]);
 
 
     const handleSaveClick = () => {
@@ -147,6 +177,18 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
         onSave(newEmployee);
         onOpenChange(false);
     }
+    
+    const openCamera = () => {
+        if (!isBarcodeSupported) {
+             toast({
+                variant: 'destructive',
+                title: 'Função não suportada',
+                description: 'Seu navegador não suporta a leitura de código de barras.',
+            });
+            return;
+        }
+        setIsCameraOpen(true);
+    }
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -160,7 +202,7 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
                  <div className="flex flex-col gap-4 py-4">
                      {isCameraOpen ? (
                         <div className="flex flex-col items-center gap-2">
-                            <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay muted />
+                            <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay muted playsInline />
                             {hasCameraPermission === null && <p>Solicitando permissão...</p>}
                             {hasCameraPermission === true && <p className="text-sm text-muted-foreground">Aponte para o código de barras...</p>}
                             {hasCameraPermission === false && (
@@ -178,7 +220,7 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
                                 <Label htmlFor="id" className="text-right">Matrícula</Label>
                                 <div className="col-span-3 flex items-center gap-2">
                                      <Input id="id" value={newEmployee.id} onChange={(e) => setNewEmployee({...newEmployee, id: e.target.value})} className="flex-grow" placeholder="Digite ou leia o código" />
-                                     <Button type="button" variant="outline" size="icon" onClick={() => setIsCameraOpen(true)}>
+                                     <Button type="button" variant="outline" size="icon" onClick={openCamera}>
                                         <Camera className="h-4 w-4" />
                                      </Button>
                                 </div>
@@ -218,7 +260,10 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
                     )}
                 </div>
                 <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+                     <Button type="button" variant="outline" onClick={() => {
+                        setIsCameraOpen(false); // Garante que a camera feche
+                        onOpenChange(false);
+                    }}>Cancelar</Button>
                     <Button type="submit" onClick={handleSaveClick} disabled={isCameraOpen}>Salvar</Button>
                 </DialogFooter>
             </DialogContent>
