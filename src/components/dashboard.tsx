@@ -75,65 +75,13 @@ const emptyEmployee: Employee = {
 
 function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, onSave: (employee: Employee) => void }) {
     const { toast } = useToast();
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
     const [newEmployee, setNewEmployee] = useState<Employee>(emptyEmployee);
 
-    useEffect(() => {
-        if (!open) return;
-
-        const getCameraPermission = async () => {
-          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            toast({
-              variant: 'destructive',
-              title: 'Erro de Câmera',
-              description: 'Seu navegador não suporta o acesso à câmera.',
-            });
-            setHasCameraPermission(false);
-            return;
-          }
-
-          try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-            setHasCameraPermission(true);
-
-            if (videoRef.current) {
-              videoRef.current.srcObject = stream;
-            }
-          } catch (error) {
-            console.error('Erro ao acessar a câmera:', error);
-            setHasCameraPermission(false);
-            toast({
-              variant: 'destructive',
-              title: 'Acesso à Câmera Negado',
-              description: 'Por favor, habilite a permissão de câmera nas configurações do seu navegador.',
-            });
-          }
-        };
-
-        getCameraPermission();
-
-        // Mock de leitura de código para preencher a matrícula
-        const mockScan = setTimeout(() => {
-            const scannedId = `MOCK-${Math.floor(Math.random() * 10000)}`;
-            setNewEmployee(e => ({...e, id: scannedId}));
-             toast({
-                title: 'Código Lido',
-                description: `Matrícula preenchida: ${scannedId}`,
-            });
-        }, 5000); // Simula a leitura após 5 segundos
-
-        return () => {
-            clearTimeout(mockScan);
-            // Desligar a câmera ao fechar o modal
-            if (videoRef.current && videoRef.current.srcObject) {
-                const stream = videoRef.current.srcObject as MediaStream;
-                stream.getTracks().forEach(track => track.stop());
-                videoRef.current.srcObject = null;
-            }
+     useEffect(() => {
+        if (open) {
+            setNewEmployee(emptyEmployee); // Reseta o formulário ao abrir
         }
-
-    }, [open, toast]);
+    }, [open]);
 
     const handleSaveClick = () => {
         // Validação simples
@@ -146,7 +94,6 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
             return;
         }
         onSave(newEmployee);
-        setNewEmployee(emptyEmployee); // Reseta o formulário
         onOpenChange(false);
     }
 
@@ -156,24 +103,13 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
                 <DialogHeader>
                     <DialogTitle>Cadastrar Novo Funcionário</DialogTitle>
                     <DialogDescription>
-                       Aponte a câmera para o QR Code ou código de barras para preencher a matrícula.
+                       Preencha os dados abaixo para cadastrar um novo funcionário.
                     </DialogDescription>
                 </DialogHeader>
-                 <div className="flex flex-col gap-4">
-                     <div className="w-full aspect-video bg-muted rounded-md overflow-hidden flex items-center justify-center">
-                        <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
-                    </div>
-                    {hasCameraPermission === false && (
-                        <Alert variant="destructive">
-                            <AlertTitle>Acesso à Câmera Necessário</AlertTitle>
-                            <AlertDescription>
-                            Por favor, permita o acesso à câmera para utilizar esta funcionalidade.
-                            </AlertDescription>
-                        </Alert>
-                    )}
+                 <div className="flex flex-col gap-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="id" className="text-right">Matrícula</Label>
-                        <Input id="id" value={newEmployee.id} onChange={(e) => setNewEmployee({...newEmployee, id: e.target.value})} className="col-span-3" placeholder="Aguardando leitura..." />
+                        <Input id="id" value={newEmployee.id} onChange={(e) => setNewEmployee({...newEmployee, id: e.target.value})} className="col-span-3" placeholder="Digite a matrícula" />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="name" className="text-right">Nome</Label>
@@ -481,3 +417,5 @@ export function Dashboard({ role }: { role: string | null }) {
     </div>
   );
 }
+
+    
