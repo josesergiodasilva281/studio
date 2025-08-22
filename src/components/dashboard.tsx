@@ -2,17 +2,15 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { Bot, Clock, QrCode, ScanLine, ShieldCheck, ShieldX, User, Wand2 } from 'lucide-react';
+import { Clock, QrCode, ScanLine, ShieldCheck, ShieldX, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { performLogAnalysis } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import type { LogEntry } from '@/lib/types';
-import { Skeleton } from './ui/skeleton';
 
 const VALID_CODES = ['USER-123-VALID', 'VISITOR-456-OK', 'ADMIN-789-MASTER'];
 
@@ -20,8 +18,6 @@ export function Dashboard() {
   const [userInput, setUserInput] = useState<string>('');
   const [qrValue, setQrValue] = useState<string>('');
   const [accessLogs, setAccessLogs] = useState<LogEntry[]>([]);
-  const [analysisResult, setAnalysisResult] = useState<string>('');
-  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const { toast } = useToast();
 
   const handleGenerateQr = () => {
@@ -58,14 +54,6 @@ export function Dashboard() {
     }
   };
 
-  const handleAnalyze = async () => {
-    setIsAnalyzing(true);
-    setAnalysisResult('');
-    const result = await performLogAnalysis(accessLogs);
-    setAnalysisResult(result);
-    setIsAnalyzing(false);
-  };
-  
   return (
     <div className="container mx-auto grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       <Card className="lg:col-span-1 flex flex-col">
@@ -142,32 +130,6 @@ export function Dashboard() {
               </TableBody>
             </Table>
           </ScrollArea>
-        </CardContent>
-      </Card>
-      
-      <Card className="lg:col-span-3">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Bot className="text-primary"/>Análise de Segurança com IA</CardTitle>
-          <CardDescription>Use IA para detectar padrões de acesso suspeitos nos registros.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button onClick={handleAnalyze} disabled={isAnalyzing || accessLogs.length === 0} className="bg-accent hover:bg-accent/90 text-accent-foreground">
-            <Wand2 className="mr-2" /> {isAnalyzing ? 'Analisando...' : 'Analisar Logs'}
-          </Button>
-          <div className="mt-4 p-4 bg-muted/50 rounded-lg min-h-[100px] border">
-            <h4 className="font-semibold mb-2">Resultados da Análise:</h4>
-            {isAnalyzing ? (
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-4/5" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-2/3" />
-              </div>
-            ) : (
-              <p className="text-sm text-foreground/80 whitespace-pre-wrap">
-                {analysisResult || 'Nenhuma análise realizada ainda. Clique no botão acima para começar.'}
-              </p>
-            )}
-          </div>
         </CardContent>
       </Card>
     </div>
