@@ -27,13 +27,13 @@ export function Dashboard() {
   };
 
   return (
-    <div className="container mx-auto grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-      <Card className="lg:col-span-3 flex flex-col">
+    <div className="container mx-auto">
+      <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><QrCode className="text-primary"/>Gerador de Código</CardTitle>
           <CardDescription>Insira um ID para gerar um QR Code.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4 flex flex-col flex-1">
+        <CardContent className="space-y-4">
           <div className="flex gap-2">
             <Input 
               placeholder="Ex: Visitante01" 
