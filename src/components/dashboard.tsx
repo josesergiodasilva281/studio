@@ -21,9 +21,9 @@ interface DashboardProps {
 }
 
 const employees = [
-  { id: '12345', name: 'João da Silva', department: 'Produção', plate: 'ABC-1234' },
-  { id: '67890', name: 'Maria Oliveira', department: 'Logística', plate: 'DEF-5678' },
-  { id: '11223', name: 'Pedro Souza', department: 'Administrativo', plate: 'GHI-9012' },
+  { id: '12345', name: 'João da Silva', department: 'Produção', plate: 'ABC-1234', ramal: '2101' },
+  { id: '67890', name: 'Maria Oliveira', department: 'Logística', plate: 'DEF-5678', ramal: '2102' },
+  { id: '11223', name: 'Pedro Souza', department: 'Administrativo', plate: 'GHI-9012', ramal: '2103' },
 ];
 
 function EmployeeTable() {
@@ -40,6 +40,7 @@ function EmployeeTable() {
               <TableHead>Nome</TableHead>
               <TableHead>Setor</TableHead>
               <TableHead>Placa</TableHead>
+              <TableHead>Ramal</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -49,6 +50,7 @@ function EmployeeTable() {
                 <TableCell>{employee.name}</TableCell>
                 <TableCell>{employee.department}</TableCell>
                 <TableCell>{employee.plate}</TableCell>
+                <TableCell>{employee.ramal}</TableCell>
               </TableRow>
             ))}
           </TableBody>
