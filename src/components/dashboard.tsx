@@ -8,7 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-export function Dashboard() {
+interface DashboardProps {
+  role: string | null;
+}
+
+export function Dashboard({ role }: DashboardProps) {
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
@@ -47,9 +51,33 @@ export function Dashboard() {
     getCameraPermission();
   }, [toast]);
 
+  const getRoleName = (role: string | null) => {
+    switch (role) {
+      case 'rh':
+        return 'Recursos Humanos';
+      case 'portaria1':
+        return 'Portaria 1';
+      case 'portaria2':
+        return 'Portaria 2';
+      case 'supervisor':
+        return 'Supervisor';
+      default:
+        return 'Usuário';
+    }
+  }
+
   return (
     <div className="container mx-auto">
       <div className="grid gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Painel de Controle - {getRoleName(role)}</CardTitle>
+          </CardHeader>
+          <CardContent>
+             {/* Futuramente, aqui podemos adicionar componentes específicos para cada perfil */}
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Leitor de QR Code e Código de Barras</CardTitle>

@@ -22,9 +22,8 @@ export function LoginForm() {
         (role === 'portaria1' && password === 'portaria123') ||
         (role === 'portaria2' && password === 'portaria123') ||
         (role === 'supervisor' && password === 'supervisor123')) {
-      // In a real app, you'd set some auth state here
-      // For now, we'll just redirect
-      router.push('/dashboard');
+      // Pass role as a query parameter to the dashboard
+      router.push(`/dashboard?role=${role}`);
     } else {
       toast({
         variant: 'destructive',
@@ -63,7 +62,7 @@ export function LoginForm() {
           </div>
           <div className="grid gap-2">
             <Label htmlFor="password">Senha</Label>
-            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleLogin()} />
           </div>
           <Button onClick={handleLogin} className="w-full">
             Entrar
