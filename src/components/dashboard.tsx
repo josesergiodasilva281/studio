@@ -7,10 +7,57 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 
 interface DashboardProps {
   role: string | null;
 }
+
+const employees = [
+  { id: '12345', name: 'João da Silva', department: 'Produção', plate: 'ABC-1234' },
+  { id: '67890', name: 'Maria Oliveira', department: 'Logística', plate: 'DEF-5678' },
+  { id: '11223', name: 'Pedro Souza', department: 'Administrativo', plate: 'GHI-9012' },
+];
+
+function EmployeeTable() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Funcionários</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Matrícula</TableHead>
+              <TableHead>Nome</TableHead>
+              <TableHead>Setor</TableHead>
+              <TableHead>Placa</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {employees.map((employee) => (
+              <TableRow key={employee.id}>
+                <TableCell>{employee.id}</TableCell>
+                <TableCell>{employee.name}</TableCell>
+                <TableCell>{employee.department}</TableCell>
+                <TableCell>{employee.plate}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
 
 export function Dashboard({ role }: DashboardProps) {
   const { toast } = useToast();
@@ -100,6 +147,8 @@ export function Dashboard({ role }: DashboardProps) {
             </div>
           </CardContent>
         </Card>
+
+        {role === 'rh' && <EmployeeTable />}
       </div>
     </div>
   );
