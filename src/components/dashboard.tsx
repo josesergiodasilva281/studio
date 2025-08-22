@@ -2,22 +2,15 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { Clock, QrCode, ScanLine, ShieldCheck, ShieldX, User } from 'lucide-react';
+import { QrCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Badge } from '@/components/ui/badge';
-import type { LogEntry } from '@/lib/types';
-
-const VALID_CODES = ['USER-123-VALID', 'VISITOR-456-OK', 'ADMIN-789-MASTER'];
 
 export function Dashboard() {
   const [userInput, setUserInput] = useState<string>('');
   const [qrValue, setQrValue] = useState<string>('');
-  const [accessLogs, setAccessLogs] = useState<LogEntry[]>([]);
   const { toast } = useToast();
 
   const handleGenerateQr = () => {
@@ -33,30 +26,9 @@ export function Dashboard() {
     setUserInput('');
   };
 
-  const handleScan = () => {
-    const possibleScanResults = [...VALID_CODES, 'INVALID-CODE-1', 'INVALID-CODE-2', 'USER-123-EXPIRED'];
-    const scannedCode = possibleScanResults[Math.floor(Math.random() * possibleScanResults.length)];
-    const isValid = VALID_CODES.includes(scannedCode);
-    const newLog: LogEntry = {
-      timestamp: new Date(),
-      user: scannedCode,
-      status: isValid ? 'granted' : 'denied',
-    };
-    
-    setAccessLogs(prevLogs => [newLog, ...prevLogs]);
-
-    if (!isValid) {
-        toast({
-            title: 'Acesso Negado',
-            description: `O código "${scannedCode}" é inválido ou expirou.`,
-            variant: 'destructive',
-        });
-    }
-  };
-
   return (
     <div className="container mx-auto grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-      <Card className="lg:col-span-1 flex flex-col">
+      <Card className="lg:col-span-3 flex flex-col">
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><QrCode className="text-primary"/>Gerador de Código</CardTitle>
           <CardDescription>Insira um ID para gerar um QR Code.</CardDescription>
@@ -84,52 +56,6 @@ export function Dashboard() {
               <p className="font-semibold text-center">{qrValue}</p>
             </div>
           )}
-        </CardContent>
-      </Card>
-      
-      <Card className="lg:col-span-2">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Clock />Registro de Acesso</CardTitle>
-          <CardDescription>Simule leituras e veja os eventos de acesso.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button onClick={handleScan} variant="outline" className="mb-4 w-full md:w-auto border-accent text-accent hover:bg-accent/10 hover:text-accent">
-            <ScanLine className="mr-2" /> Simular Leitura de Código
-          </Button>
-          <ScrollArea className="h-72 w-full rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Status</TableHead>
-                  <TableHead><User className="inline-block h-4 w-4" /> Usuário/ID</TableHead>
-                  <TableHead className="text-right"><Clock className="inline-block h-4 w-4" /> Horário</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {accessLogs.length > 0 ? (
-                  accessLogs.map((log) => (
-                    <TableRow key={log.timestamp.toISOString()}>
-                      <TableCell>
-                        {log.status === 'granted' ? (
-                          <Badge variant="default"><ShieldCheck className="h-4 w-4 mr-1" />Permitido</Badge>
-                        ) : (
-                          <Badge variant="destructive"><ShieldX className="h-4 w-4 mr-1" />Negado</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-medium font-code">{log.user}</TableCell>
-                      <TableCell className="text-right">{log.timestamp.toLocaleTimeString('pt-BR')}</TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-center text-muted-foreground py-10">
-                      Nenhum registro de acesso ainda.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </ScrollArea>
         </CardContent>
       </Card>
     </div>
