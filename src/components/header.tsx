@@ -7,7 +7,7 @@ export function Header() {
       <div className="flex items-center justify-center">
         <KeyRound className="h-7 w-7 text-primary" />
         <h1 className="ml-3 text-2xl font-bold tracking-tight text-foreground">
-          AccessKey
+          Videira
         </h1>
       </div>
       <div className="ml-auto">
