@@ -69,15 +69,15 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
     }, [open]);
 
     const handleSaveClick = () => {
-        if (!newEmployee.id || !newEmployee.name || !newEmployee.department) {
+        if (!newEmployee.name || !newEmployee.department) {
              toast({
                 variant: 'destructive',
                 title: 'Campos Obrigatórios',
-                description: 'Matrícula, Nome e Setor precisam ser preenchidos.',
+                description: 'Nome e Setor precisam ser preenchidos.',
             });
             return;
         }
-        onSave(newEmployee);
+        onSave({ ...newEmployee, id: new Date().getTime().toString() });
         onOpenChange(false);
     }
     
@@ -91,10 +91,6 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
                     </DialogDescription>
                 </DialogHeader>
                  <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="id" className="text-right">Matrícula</Label>
-                        <Input id="id" value={newEmployee.id} onChange={(e) => setNewEmployee({...newEmployee, id: e.target.value})} className="col-span-3" placeholder="Digite a matrícula" />
-                    </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="name" className="text-right">Nome</Label>
                         <Input id="name" value={newEmployee.name} onChange={(e) => setNewEmployee({...newEmployee, name: e.target.value})} className="col-span-3" />
