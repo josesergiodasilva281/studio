@@ -14,54 +14,236 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
+import { Button } from './ui/button';
+import { Pencil, Trash2, Calendar as CalendarIcon } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Calendar } from './ui/calendar';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
-interface DashboardProps {
-  role: string | null;
+
+interface Employee {
+  id: string;
+  name: string;
+  department: string;
+  plate: string;
+  ramal: string;
+  status: 'Ativo' | 'Inativo';
+  inactivationStart: Date | null;
+  inactivationEnd: Date | null;
 }
 
-const employees = [
-  { id: '12345', name: 'João da Silva', department: 'Produção', plate: 'ABC-1234', ramal: '2101' },
-  { id: '67890', name: 'Maria Oliveira', department: 'Logística', plate: 'DEF-5678', ramal: '2102' },
-  { id: '11223', name: 'Pedro Souza', department: 'Administrativo', plate: 'GHI-9012', ramal: '2103' },
+const initialEmployees: Employee[] = [
+  { id: '12345', name: 'João da Silva', department: 'Produção', plate: 'ABC-1234', ramal: '2101', status: 'Ativo', inactivationStart: null, inactivationEnd: null },
+  { id: '67890', name: 'Maria Oliveira', department: 'Logística', plate: 'DEF-5678', ramal: '2102', status: 'Ativo', inactivationStart: null, inactivationEnd: null },
+  { id: '11223', name: 'Pedro Souza', department: 'Administrativo', plate: 'GHI-9012', ramal: '2103', status: 'Ativo', inactivationStart: null, inactivationEnd: null },
 ];
 
 function EmployeeTable() {
+  const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+
+  const handleEditClick = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDeleteClick = (employeeId: string) => {
+    // Lógica para apagar (aqui apenas remove da lista de exemplo)
+    setEmployees(employees.filter(e => e.id !== employeeId));
+  };
+
+  const handleSave = () => {
+    if (selectedEmployee) {
+      setEmployees(employees.map(e => e.id === selectedEmployee.id ? selectedEmployee : e));
+    }
+    setIsEditDialogOpen(false);
+    setSelectedEmployee(null);
+  }
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Funcionários</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Matrícula</TableHead>
-              <TableHead>Nome</TableHead>
-              <TableHead>Setor</TableHead>
-              <TableHead>Placa</TableHead>
-              <TableHead>Ramal</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {employees.map((employee) => (
-              <TableRow key={employee.id}>
-                <TableCell>{employee.id}</TableCell>
-                <TableCell>{employee.name}</TableCell>
-                <TableCell>{employee.department}</TableCell>
-                <TableCell>{employee.plate}</TableCell>
-                <TableCell>{employee.ramal}</TableCell>
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Funcionários</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Matrícula</TableHead>
+                <TableHead>Nome</TableHead>
+                <TableHead>Setor</TableHead>
+                <TableHead>Placa</TableHead>
+                <TableHead>Ramal</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+            </TableHeader>
+            <TableBody>
+              {employees.map((employee) => (
+                <TableRow key={employee.id}>
+                  <TableCell>{employee.id}</TableCell>
+                  <TableCell>{employee.name}</TableCell>
+                  <TableCell>{employee.department}</TableCell>
+                  <TableCell>{employee.plate}</TableCell>
+                  <TableCell>{employee.ramal}</TableCell>
+                  <TableCell>
+                    <span className={cn("px-2 py-1 rounded-full text-xs font-medium", employee.status === 'Ativo' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')}>
+                      {employee.status}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" onClick={() => handleEditClick(employee)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                         <Button variant="ghost" size="icon">
+                           <Trash2 className="h-4 w-4" />
+                         </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Essa ação não pode ser desfeita. Isso irá apagar permanentemente o funcionário.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDeleteClick(employee.id)}>Apagar</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Editar Funcionário</DialogTitle>
+            <DialogDescription>
+              Altere os dados do funcionário. Clique em salvar para aplicar as mudanças.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedEmployee && (
+             <div className="grid gap-4 py-4">
+               <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="name" className="text-right">Nome</Label>
+                  <Input id="name" value={selectedEmployee.name} onChange={(e) => setSelectedEmployee({...selectedEmployee, name: e.target.value})} className="col-span-3" />
+               </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="status" className="text-right">Status</Label>
+                   <Select
+                      value={selectedEmployee.status}
+                      onValueChange={(value: 'Ativo' | 'Inativo') => setSelectedEmployee({...selectedEmployee, status: value})}
+                    >
+                      <SelectTrigger className="col-span-3">
+                        <SelectValue placeholder="Selecione o status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Ativo">Ativo</SelectItem>
+                        <SelectItem value="Inativo">Inativo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                </div>
+                {selectedEmployee.status === 'Inativo' && (
+                  <>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                       <Label className="text-right">Início</Label>
+                       <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-[240px] justify-start text-left font-normal col-span-3",
+                              !selectedEmployee.inactivationStart && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {selectedEmployee.inactivationStart ? format(selectedEmployee.inactivationStart, "PPP") : <span>Escolha uma data</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={selectedEmployee.inactivationStart ?? undefined}
+                            onSelect={(date) => setSelectedEmployee({...selectedEmployee, inactivationStart: date ?? null})}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                     <div className="grid grid-cols-4 items-center gap-4">
+                       <Label className="text-right">Fim</Label>
+                       <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-[240px] justify-start text-left font-normal col-span-3",
+                              !selectedEmployee.inactivationEnd && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {selectedEmployee.inactivationEnd ? format(selectedEmployee.inactivationEnd, "PPP") : <span>Escolha uma data</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={selectedEmployee.inactivationEnd ?? undefined}
+                            onSelect={(date) => setSelectedEmployee({...selectedEmployee, inactivationEnd: date ?? null})}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </>
+                )}
+             </div>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancelar</Button>
+            <Button type="submit" onClick={handleSave}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
 
-export function Dashboard({ role }: DashboardProps) {
+export function Dashboard({ role }: { role: string | null }) {
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
