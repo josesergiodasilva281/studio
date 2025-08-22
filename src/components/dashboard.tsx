@@ -16,7 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from './ui/button';
-import { Pencil, Trash2, Calendar as CalendarIcon } from 'lucide-react';
+import { Pencil, Trash2, Calendar as CalendarIcon, PlusCircle } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,8 +26,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -36,13 +35,12 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-
 
 interface Employee {
   id: string;
@@ -62,9 +60,166 @@ const initialEmployees: Employee[] = [
   { id: '11223', name: 'Pedro Souza', department: 'Administrativo', plate: 'GHI-9012', ramal: '2103', portaria: 'P1', status: 'Ativo', inactivationStart: null, inactivationEnd: null },
 ];
 
+const emptyEmployee: Employee = {
+    id: '',
+    name: '',
+    department: '',
+    plate: '',
+    ramal: '',
+    portaria: 'P1',
+    status: 'Ativo',
+    inactivationStart: null,
+    inactivationEnd: null
+};
+
+
+function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, onSave: (employee: Employee) => void }) {
+    const { toast } = useToast();
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+    const [newEmployee, setNewEmployee] = useState<Employee>(emptyEmployee);
+
+    useEffect(() => {
+        if (!open) return;
+
+        const getCameraPermission = async () => {
+          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            toast({
+              variant: 'destructive',
+              title: 'Erro de Câmera',
+              description: 'Seu navegador não suporta o acesso à câmera.',
+            });
+            setHasCameraPermission(false);
+            return;
+          }
+
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            setHasCameraPermission(true);
+
+            if (videoRef.current) {
+              videoRef.current.srcObject = stream;
+            }
+          } catch (error) {
+            console.error('Erro ao acessar a câmera:', error);
+            setHasCameraPermission(false);
+            toast({
+              variant: 'destructive',
+              title: 'Acesso à Câmera Negado',
+              description: 'Por favor, habilite a permissão de câmera nas configurações do seu navegador.',
+            });
+          }
+        };
+
+        getCameraPermission();
+
+        // Mock de leitura de código para preencher a matrícula
+        const mockScan = setTimeout(() => {
+            const scannedId = `MOCK-${Math.floor(Math.random() * 10000)}`;
+            setNewEmployee(e => ({...e, id: scannedId}));
+             toast({
+                title: 'Código Lido',
+                description: `Matrícula preenchida: ${scannedId}`,
+            });
+        }, 5000); // Simula a leitura após 5 segundos
+
+        return () => {
+            clearTimeout(mockScan);
+            // Desligar a câmera ao fechar o modal
+            if (videoRef.current && videoRef.current.srcObject) {
+                const stream = videoRef.current.srcObject as MediaStream;
+                stream.getTracks().forEach(track => track.stop());
+                videoRef.current.srcObject = null;
+            }
+        }
+
+    }, [open, toast]);
+
+    const handleSaveClick = () => {
+        // Validação simples
+        if (!newEmployee.id || !newEmployee.name || !newEmployee.department) {
+             toast({
+                variant: 'destructive',
+                title: 'Campos Obrigatórios',
+                description: 'Matrícula, Nome e Setor precisam ser preenchidos.',
+            });
+            return;
+        }
+        onSave(newEmployee);
+        setNewEmployee(emptyEmployee); // Reseta o formulário
+        onOpenChange(false);
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Cadastrar Novo Funcionário</DialogTitle>
+                    <DialogDescription>
+                       Aponte a câmera para o QR Code ou código de barras para preencher a matrícula.
+                    </DialogDescription>
+                </DialogHeader>
+                 <div className="flex flex-col gap-4">
+                     <div className="w-full aspect-video bg-muted rounded-md overflow-hidden flex items-center justify-center">
+                        <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
+                    </div>
+                    {hasCameraPermission === false && (
+                        <Alert variant="destructive">
+                            <AlertTitle>Acesso à Câmera Necessário</AlertTitle>
+                            <AlertDescription>
+                            Por favor, permita o acesso à câmera para utilizar esta funcionalidade.
+                            </AlertDescription>
+                        </Alert>
+                    )}
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="id" className="text-right">Matrícula</Label>
+                        <Input id="id" value={newEmployee.id} onChange={(e) => setNewEmployee({...newEmployee, id: e.target.value})} className="col-span-3" placeholder="Aguardando leitura..." />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="name" className="text-right">Nome</Label>
+                        <Input id="name" value={newEmployee.name} onChange={(e) => setNewEmployee({...newEmployee, name: e.target.value})} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="department" className="text-right">Setor</Label>
+                        <Input id="department" value={newEmployee.department} onChange={(e) => setNewEmployee({...newEmployee, department: e.target.value})} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="plate" className="text-right">Placa</Label>
+                        <Input id="plate" value={newEmployee.plate} onChange={(e) => setNewEmployee({...newEmployee, plate: e.target.value})} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="ramal" className="text-right">Ramal</Label>
+                        <Input id="ramal" value={newEmployee.ramal} onChange={(e) => setNewEmployee({...newEmployee, ramal: e.target.value})} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="portaria" className="text-right">Portaria</Label>
+                        <Select
+                            value={newEmployee.portaria}
+                            onValueChange={(value: 'P1' | 'P2') => setNewEmployee({...newEmployee, portaria: value})}
+                        >
+                            <SelectTrigger className="col-span-3">
+                                <SelectValue placeholder="Selecione a portaria" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="P1">P1</SelectItem>
+                                <SelectItem value="P2">P2</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+                    <Button type="submit" onClick={handleSaveClick}>Salvar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 function EmployeeTable() {
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
 
   const handleEditClick = (employee: Employee) => {
@@ -73,7 +228,6 @@ function EmployeeTable() {
   };
 
   const handleDeleteClick = (employeeId: string) => {
-    // Lógica para apagar (aqui apenas remove da lista de exemplo)
     setEmployees(employees.filter(e => e.id !== employeeId));
   };
 
@@ -83,13 +237,21 @@ function EmployeeTable() {
     }
     setIsEditDialogOpen(false);
     setSelectedEmployee(null);
-  }
+  };
+
+  const handleAddNewEmployee = (employee: Employee) => {
+    setEmployees([employee, ...employees]);
+  };
 
   return (
     <>
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Funcionários</CardTitle>
+           <Button onClick={() => setIsAddDialogOpen(true)}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Cadastrar Funcionário
+            </Button>
         </CardHeader>
         <CardContent>
           <Table>
@@ -149,6 +311,8 @@ function EmployeeTable() {
           </Table>
         </CardContent>
       </Card>
+
+      <AddEmployeeDialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} onSave={handleAddNewEmployee} />
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
@@ -274,44 +438,6 @@ function EmployeeTable() {
 
 
 export function Dashboard({ role }: { role: string | null }) {
-  const { toast } = useToast();
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-  const [scannedData, setScannedData] = useState<string>('');
-
-  useEffect(() => {
-    const getCameraPermission = async () => {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        toast({
-          variant: 'destructive',
-          title: 'Erro de Câmera',
-          description: 'Seu navegador não suporta o acesso à câmera.',
-        });
-        setHasCameraPermission(false);
-        return;
-      }
-
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        setHasCameraPermission(true);
-
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } catch (error) {
-        console.error('Erro ao acessar a câmera:', error);
-        setHasCameraPermission(false);
-        toast({
-          variant: 'destructive',
-          title: 'Acesso à Câmera Negado',
-          description: 'Por favor, habilite a permissão de câmera nas configurações do seu navegador.',
-        });
-      }
-    };
-
-    getCameraPermission();
-  }, [toast]);
-
   const getRoleName = (role: string | null) => {
     switch (role) {
       case 'rh':
@@ -339,30 +465,18 @@ export function Dashboard({ role }: { role: string | null }) {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Leitor de QR Code e Código de Barras</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <div className="w-full aspect-video bg-muted rounded-md overflow-hidden flex items-center justify-center">
-              <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
-            </div>
-            {hasCameraPermission === false && (
-              <Alert variant="destructive">
-                <AlertTitle>Acesso à Câmera Necessário</AlertTitle>
-                <AlertDescription>
-                  Por favor, permita o acesso à câmera para utilizar esta funcionalidade.
-                </AlertDescription>
-              </Alert>
-            )}
-            <div className="grid w-full max-w-sm items-center gap-1.5">
-              <Label htmlFor="code">Código Lido</Label>
-              <Input type="text" id="code" placeholder="Aguardando leitura..." value={scannedData} readOnly />
-            </div>
-          </CardContent>
-        </Card>
-
         {role === 'rh' && <EmployeeTable />}
+
+        {(role === 'portaria1' || role === 'portaria2' || role === 'supervisor') && (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Leitor de Acesso</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p>A funcionalidade de leitura de QR Code para acesso de portaria será implementada aqui.</p>
+                </CardContent>
+            </Card>
+        )}
       </div>
     </div>
   );
