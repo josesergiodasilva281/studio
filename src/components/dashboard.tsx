@@ -71,7 +71,6 @@ const emptyEmployee: Employee = {
     inactivationEnd: null
 };
 
-
 function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, onSave: (employee: Employee) => void }) {
     const { toast } = useToast();
     const [newEmployee, setNewEmployee] = useState<Employee>(emptyEmployee);
@@ -81,7 +80,6 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
             setNewEmployee(emptyEmployee);
         }
     }, [open]);
-
 
     const handleSaveClick = () => {
         if (!newEmployee.id || !newEmployee.name || !newEmployee.department) {
@@ -250,7 +248,7 @@ function EmployeeTable() {
       <AddEmployeeDialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} onSave={handleAddNewEmployee} />
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Editar Funcionário</DialogTitle>
             <DialogDescription>
@@ -372,51 +370,21 @@ function EmployeeTable() {
 }
 
 
-export function Dashboard({ role }: { role: string | null }) {
-  const getRoleName = (role: string | null) => {
-    switch (role) {
-      case 'rh':
-        return 'Recursos Humanos';
-      case 'portaria1':
-        return 'Portaria 1';
-      case 'portaria2':
-        return 'Portaria 2';
-      case 'supervisor':
-        return 'Supervisor';
-      default:
-        return 'Usuário';
-    }
-  }
-
+export function Dashboard() {
   return (
     <div className="container mx-auto">
       <div className="grid gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Painel de Controle - {getRoleName(role)}</CardTitle>
+            <CardTitle>Painel de Controle - Recursos Humanos</CardTitle>
           </CardHeader>
           <CardContent>
              {/* Futuramente, aqui podemos adicionar componentes específicos para cada perfil */}
           </CardContent>
         </Card>
 
-        {role === 'rh' && <EmployeeTable />}
-
-        {(role === 'portaria1' || role === 'portaria2' || role === 'supervisor') && (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Leitor de Acesso</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p>A funcionalidade de leitura de QR Code para acesso de portaria será implementada aqui.</p>
-                </CardContent>
-            </Card>
-        )}
+        <EmployeeTable />
       </div>
     </div>
   );
 }
-
-    
-
-    
