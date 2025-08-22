@@ -207,17 +207,17 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
             }
             onOpenChange(isOpen);
         }}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>Cadastrar Novo Funcionário</DialogTitle>
                     <DialogDescription>
-                       Preencha os dados abaixo para cadastrar um novo funcionário.
+                       Preencha os dados abaixo para cadastrar um novo funcionário. Use a câmera para ler a matrícula.
                     </DialogDescription>
                 </DialogHeader>
                  <div className="flex flex-col gap-4 py-4">
                      {isCameraOpen ? (
                         <div className="flex flex-col items-center gap-2">
-                            <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay muted playsInline />
+                            <video ref={videoRef} className="w-full h-auto max-h-[40vh] rounded-md bg-muted" autoPlay muted playsInline />
                             {hasCameraPermission === null && <p>Solicitando permissão...</p>}
                             {hasCameraPermission === true && <p className="text-sm text-muted-foreground">Aponte para o código de barras...</p>}
                             {hasCameraPermission === false && (
@@ -551,5 +551,7 @@ export function Dashboard({ role }: { role: string | null }) {
     </div>
   );
 }
+
+    
 
     
