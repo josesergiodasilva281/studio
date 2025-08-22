@@ -50,8 +50,7 @@ const initialEmployees: Employee[] = [
   { id: '11223', name: 'Pedro Souza', department: 'Administrativo', plate: 'GHI-9012', ramal: '2103' },
 ];
 
-const emptyEmployee: Employee = {
-    id: '',
+const emptyEmployee: Omit<Employee, 'id'> = {
     name: '',
     department: '',
     plate: '',
@@ -60,7 +59,7 @@ const emptyEmployee: Employee = {
 
 function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, onSave: (employee: Employee) => void }) {
     const { toast } = useToast();
-    const [newEmployee, setNewEmployee] = useState<Employee>(emptyEmployee);
+    const [newEmployee, setNewEmployee] = useState(emptyEmployee);
 
     useEffect(() => {
         if (open) {
@@ -118,39 +117,62 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
 }
 
 function EmployeeTable() {
-  const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+    const [employees, setEmployees] = useState<Employee[]>([]);
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+    const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
 
-  const handleEditClick = (employee: Employee) => {
-    setSelectedEmployee(JSON.parse(JSON.stringify(employee))); // Deep copy to avoid mutation
-    setIsEditDialogOpen(true);
-  };
+    useEffect(() => {
+        try {
+            const storedEmployees = localStorage.getItem('employees');
+            if (storedEmployees) {
+                setEmployees(JSON.parse(storedEmployees));
+            } else {
+                setEmployees(initialEmployees);
+            }
+        } catch (error) {
+            console.error("Error reading from localStorage", error);
+            setEmployees(initialEmployees);
+        }
+    }, []);
 
-  const handleDeleteClick = (employeeId: string) => {
-    setEmployees(employees.filter(e => e.id !== employeeId));
-  };
+    useEffect(() => {
+        try {
+            localStorage.setItem('employees', JSON.stringify(employees));
+        } catch (error) {
+            console.error("Error writing to localStorage", error);
+        }
+    }, [employees]);
 
-  const handleSave = () => {
-    if (selectedEmployee) {
-      setEmployees(employees.map(e => e.id === selectedEmployee.id ? selectedEmployee : e));
-    }
-    setIsEditDialogOpen(false);
-    setSelectedEmployee(null);
-  };
 
-  const handleAddNewEmployee = (employee: Employee) => {
-    setEmployees([employee, ...employees]);
-  };
+    const handleEditClick = (employee: Employee) => {
+        setSelectedEmployee(JSON.parse(JSON.stringify(employee))); // Deep copy to avoid mutation
+        setIsEditDialogOpen(true);
+    };
 
-  const filteredEmployees = employees.filter(employee =>
-    employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.plate.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.ramal.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+    const handleDeleteClick = (employeeId: string) => {
+        setEmployees(employees.filter(e => e.id !== employeeId));
+    };
+
+    const handleSave = () => {
+        if (selectedEmployee) {
+        setEmployees(employees.map(e => e.id === selectedEmployee.id ? selectedEmployee : e));
+        }
+        setIsEditDialogOpen(false);
+        setSelectedEmployee(null);
+    };
+
+    const handleAddNewEmployee = (employee: Employee) => {
+        setEmployees([employee, ...employees]);
+    };
+
+    const filteredEmployees = employees.filter(employee =>
+        employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        employee.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        employee.plate.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        employee.ramal.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
   return (
     <>
