@@ -50,15 +50,16 @@ interface Employee {
   department: string;
   plate: string;
   ramal: string;
+  portaria: 'P1' | 'P2';
   status: 'Ativo' | 'Inativo';
   inactivationStart: Date | null;
   inactivationEnd: Date | null;
 }
 
 const initialEmployees: Employee[] = [
-  { id: '12345', name: 'João da Silva', department: 'Produção', plate: 'ABC-1234', ramal: '2101', status: 'Ativo', inactivationStart: null, inactivationEnd: null },
-  { id: '67890', name: 'Maria Oliveira', department: 'Logística', plate: 'DEF-5678', ramal: '2102', status: 'Ativo', inactivationStart: null, inactivationEnd: null },
-  { id: '11223', name: 'Pedro Souza', department: 'Administrativo', plate: 'GHI-9012', ramal: '2103', status: 'Ativo', inactivationStart: null, inactivationEnd: null },
+  { id: '12345', name: 'João da Silva', department: 'Produção', plate: 'ABC-1234', ramal: '2101', portaria: 'P1', status: 'Ativo', inactivationStart: null, inactivationEnd: null },
+  { id: '67890', name: 'Maria Oliveira', department: 'Logística', plate: 'DEF-5678', ramal: '2102', portaria: 'P2', status: 'Ativo', inactivationStart: null, inactivationEnd: null },
+  { id: '11223', name: 'Pedro Souza', department: 'Administrativo', plate: 'GHI-9012', ramal: '2103', portaria: 'P1', status: 'Ativo', inactivationStart: null, inactivationEnd: null },
 ];
 
 function EmployeeTable() {
@@ -99,6 +100,7 @@ function EmployeeTable() {
                 <TableHead>Setor</TableHead>
                 <TableHead>Placa</TableHead>
                 <TableHead>Ramal</TableHead>
+                <TableHead>Portaria</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -111,6 +113,7 @@ function EmployeeTable() {
                   <TableCell>{employee.department}</TableCell>
                   <TableCell>{employee.plate}</TableCell>
                   <TableCell>{employee.ramal}</TableCell>
+                  <TableCell>{employee.portaria}</TableCell>
                   <TableCell>
                     <span className={cn("px-2 py-1 rounded-full text-xs font-medium", employee.status === 'Ativo' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')}>
                       {employee.status}
@@ -173,6 +176,21 @@ function EmployeeTable() {
                   <Label htmlFor="ramal" className="text-right">Ramal</Label>
                   <Input id="ramal" value={selectedEmployee.ramal} onChange={(e) => setSelectedEmployee({...selectedEmployee, ramal: e.target.value})} className="col-span-3" />
                </div>
+               <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="portaria" className="text-right">Portaria</Label>
+                   <Select
+                      value={selectedEmployee.portaria}
+                      onValueChange={(value: 'P1' | 'P2') => setSelectedEmployee({...selectedEmployee, portaria: value})}
+                    >
+                      <SelectTrigger className="col-span-3">
+                        <SelectValue placeholder="Selecione a portaria" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="P1">P1</SelectItem>
+                        <SelectItem value="P2">P2</SelectItem>
+                      </SelectContent>
+                    </Select>
+                </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="status" className="text-right">Status</Label>
                    <Select
