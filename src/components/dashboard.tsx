@@ -122,6 +122,7 @@ function EmployeeTable() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const handleEditClick = (employee: Employee) => {
     setSelectedEmployee(JSON.parse(JSON.stringify(employee))); // Deep copy to avoid mutation
@@ -144,6 +145,13 @@ function EmployeeTable() {
     setEmployees([employee, ...employees]);
   };
 
+  const filteredEmployees = employees.filter(employee =>
+    employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    employee.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    employee.plate.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    employee.ramal.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <>
       <Card>
@@ -155,6 +163,14 @@ function EmployeeTable() {
             </Button>
         </CardHeader>
         <CardContent>
+          <div className="flex items-center py-4">
+            <Input
+                placeholder="Filtrar funcionários..."
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                className="max-w-sm"
+            />
+          </div>
           <Table>
             <TableHeader>
               <TableRow>
@@ -166,7 +182,7 @@ function EmployeeTable() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {employees.map((employee) => (
+              {filteredEmployees.map((employee) => (
                 <TableRow key={employee.id}>
                   <TableCell>{employee.name}</TableCell>
                   <TableCell>{employee.department}</TableCell>
