@@ -79,13 +79,7 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
     const [isCameraOpen, setIsCameraOpen] = useState(false);
     const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
-    const [isBarcodeSupported, setIsBarcodeSupported] = useState(true);
-
-    useEffect(() => {
-        if (!('BarcodeDetector' in window)) {
-            setIsBarcodeSupported(false);
-        }
-    }, []);
+    const isBarcodeSupported = typeof window !== 'undefined' && 'BarcodeDetector' in window;
 
     useEffect(() => {
         if (open) {
@@ -96,16 +90,34 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
     }, [open]);
 
     useEffect(() => {
-        if (!isCameraOpen) return;
+        let stream: MediaStream | undefined;
+        let animationFrameId: number | undefined;
 
-        let stream: MediaStream;
-        let intervalId: NodeJS.Timeout | null = null;
+        const cleanup = () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            if (videoRef.current) {
+                videoRef.current.srcObject = null;
+            }
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+        };
 
-        const startScan = (videoElement: HTMLVideoElement, detector: any) => {
-            intervalId = setInterval(async () => {
-                if (videoElement.readyState < 2) return; // Aguarda o vídeo estar pronto
+        if (!isCameraOpen) {
+            cleanup();
+            return;
+        }
+
+        const barcodeDetector = new (window as any).BarcodeDetector({
+            formats: ['qr_code', 'code_128', 'ean_13', 'upc_a']
+        });
+
+        const detectBarcode = async () => {
+            if (videoRef.current && videoRef.current.readyState === 4) {
                 try {
-                    const barcodes = await detector.detect(videoElement);
+                    const barcodes = await barcodeDetector.detect(videoRef.current);
                     if (barcodes.length > 0) {
                         const scannedId = barcodes[0].rawValue;
                         setNewEmployee(prev => ({ ...prev, id: scannedId }));
@@ -113,31 +125,27 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
                             title: 'Código Lido com Sucesso!',
                             description: `Matrícula preenchida: ${scannedId}`,
                         });
-                        setIsCameraOpen(false); // Fecha a câmera após a leitura
+                        setIsCameraOpen(false);
                     }
                 } catch (error) {
                     console.error('Barcode detection failed:', error);
                 }
-            }, 500); // Tenta detectar a cada 500ms
+            }
+            if (isCameraOpen) { // Keep scanning if camera is still open
+                animationFrameId = requestAnimationFrame(detectBarcode);
+            }
         };
 
-        const getCameraPermission = async () => {
+        const startScan = async () => {
             try {
                 stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
                 setHasCameraPermission(true);
 
                 if (videoRef.current) {
                     videoRef.current.srcObject = stream;
-                    
-                    const barcodeDetector = new (window as any).BarcodeDetector({
-                        formats: ['qr_code', 'code_128', 'ean_13', 'upc_a']
-                    });
-
-                    videoRef.current.onloadedmetadata = () => {
-                       startScan(videoRef.current!, barcodeDetector);
-                    }
+                    await videoRef.current.play(); // Ensure video is playing
+                    animationFrameId = requestAnimationFrame(detectBarcode);
                 }
-
             } catch (error) {
                 console.error('Error accessing camera:', error);
                 setHasCameraPermission(false);
@@ -151,17 +159,10 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
         };
 
         if (isBarcodeSupported) {
-             getCameraPermission();
+             startScan();
         }
 
-
-        return () => {
-            // Limpa o stream e o intervalo
-            if (intervalId) clearInterval(intervalId);
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-            }
-        };
+        return cleanup;
     }, [isCameraOpen, toast, isBarcodeSupported]);
 
 
@@ -191,7 +192,12 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open={open} onOpenChange={(isOpen) => {
+            if (!isOpen) {
+                setIsCameraOpen(false);
+            }
+            onOpenChange(isOpen);
+        }}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle>Cadastrar Novo Funcionário</DialogTitle>
