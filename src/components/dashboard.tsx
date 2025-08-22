@@ -162,7 +162,6 @@ function EmployeeTable() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Matrícula</TableHead>
                 <TableHead>Nome</TableHead>
                 <TableHead>Setor</TableHead>
                 <TableHead>Placa</TableHead>
@@ -173,7 +172,6 @@ function EmployeeTable() {
             <TableBody>
               {employees.map((employee) => (
                 <TableRow key={employee.id}>
-                  <TableCell>{employee.id}</TableCell>
                   <TableCell>{employee.name}</TableCell>
                   <TableCell>{employee.department}</TableCell>
                   <TableCell>{employee.plate}</TableCell>
