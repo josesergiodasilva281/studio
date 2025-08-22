@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from './ui/button';
-import { Pencil, Trash2, Calendar as CalendarIcon, PlusCircle } from 'lucide-react';
+import { Pencil, Trash2, PlusCircle } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,11 +35,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Calendar } from './ui/calendar';
-import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
 
 interface Employee {
   id: string;
@@ -47,16 +42,12 @@ interface Employee {
   department: string;
   plate: string;
   ramal: string;
-  portaria: 'P1' | 'P2';
-  status: 'Ativo' | 'Inativo';
-  inactivationStart: Date | null;
-  inactivationEnd: Date | null;
 }
 
 const initialEmployees: Employee[] = [
-  { id: '12345', name: 'João da Silva', department: 'Produção', plate: 'ABC-1234', ramal: '2101', portaria: 'P1', status: 'Ativo', inactivationStart: null, inactivationEnd: null },
-  { id: '67890', name: 'Maria Oliveira', department: 'Logística', plate: 'DEF-5678', ramal: '2102', portaria: 'P2', status: 'Ativo', inactivationStart: null, inactivationEnd: null },
-  { id: '11223', name: 'Pedro Souza', department: 'Administrativo', plate: 'GHI-9012', ramal: '2103', portaria: 'P1', status: 'Ativo', inactivationStart: null, inactivationEnd: null },
+  { id: '12345', name: 'João da Silva', department: 'Produção', plate: 'ABC-1234', ramal: '2101' },
+  { id: '67890', name: 'Maria Oliveira', department: 'Logística', plate: 'DEF-5678', ramal: '2102' },
+  { id: '11223', name: 'Pedro Souza', department: 'Administrativo', plate: 'GHI-9012', ramal: '2103' },
 ];
 
 const emptyEmployee: Employee = {
@@ -65,10 +56,6 @@ const emptyEmployee: Employee = {
     department: '',
     plate: '',
     ramal: '',
-    portaria: 'P1',
-    status: 'Ativo',
-    inactivationStart: null,
-    inactivationEnd: null
 };
 
 function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, onSave: (employee: Employee) => void }) {
@@ -123,21 +110,6 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="ramal" className="text-right">Ramal</Label>
                         <Input id="ramal" value={newEmployee.ramal} onChange={(e) => setNewEmployee({...newEmployee, ramal: e.target.value})} className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="portaria" className="text-right">Portaria</Label>
-                        <Select
-                            value={newEmployee.portaria}
-                            onValueChange={(value: 'P1' | 'P2') => setNewEmployee({...newEmployee, portaria: value})}
-                        >
-                            <SelectTrigger className="col-span-3">
-                                <SelectValue placeholder="Selecione a portaria" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="P1">P1</SelectItem>
-                                <SelectItem value="P2">P2</SelectItem>
-                            </SelectContent>
-                        </Select>
                     </div>
                 </div>
                 <DialogFooter>
@@ -195,8 +167,6 @@ function EmployeeTable() {
                 <TableHead>Setor</TableHead>
                 <TableHead>Placa</TableHead>
                 <TableHead>Ramal</TableHead>
-                <TableHead>Portaria</TableHead>
-                <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -208,12 +178,6 @@ function EmployeeTable() {
                   <TableCell>{employee.department}</TableCell>
                   <TableCell>{employee.plate}</TableCell>
                   <TableCell>{employee.ramal}</TableCell>
-                  <TableCell>{employee.portaria}</TableCell>
-                  <TableCell>
-                    <span className={cn("px-2 py-1 rounded-full text-xs font-medium", employee.status === 'Ativo' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')}>
-                      {employee.status}
-                    </span>
-                  </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" onClick={() => handleEditClick(employee)}>
                       <Pencil className="h-4 w-4" />
@@ -273,90 +237,6 @@ function EmployeeTable() {
                   <Label htmlFor="ramal" className="text-right">Ramal</Label>
                   <Input id="ramal" value={selectedEmployee.ramal} onChange={(e) => setSelectedEmployee({...selectedEmployee, ramal: e.target.value})} className="col-span-3" />
                </div>
-               <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="portaria" className="text-right">Portaria</Label>
-                   <Select
-                      value={selectedEmployee.portaria}
-                      onValueChange={(value: 'P1' | 'P2') => setSelectedEmployee({...selectedEmployee, portaria: value})}
-                    >
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Selecione a portaria" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="P1">P1</SelectItem>
-                        <SelectItem value="P2">P2</SelectItem>
-                      </SelectContent>
-                    </Select>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="status" className="text-right">Status</Label>
-                   <Select
-                      value={selectedEmployee.status}
-                      onValueChange={(value: 'Ativo' | 'Inativo') => setSelectedEmployee({...selectedEmployee, status: value})}
-                    >
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Selecione o status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Ativo">Ativo</SelectItem>
-                        <SelectItem value="Inativo">Inativo</SelectItem>
-                      </SelectContent>
-                    </Select>
-                </div>
-                {selectedEmployee.status === 'Inativo' && (
-                  <>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                       <Label className="text-right">Início</Label>
-                       <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-[240px] justify-start text-left font-normal col-span-3",
-                              !selectedEmployee.inactivationStart && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {selectedEmployee.inactivationStart ? format(new Date(selectedEmployee.inactivationStart), "PPP") : <span>Escolha uma data</span>}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={selectedEmployee.inactivationStart ? new Date(selectedEmployee.inactivationStart) : undefined}
-                            onSelect={(date) => setSelectedEmployee({...selectedEmployee, inactivationStart: date ?? null})}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                     <div className="grid grid-cols-4 items-center gap-4">
-                       <Label className="text-right">Fim</Label>
-                       <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-[240px] justify-start text-left font-normal col-span-3",
-                              !selectedEmployee.inactivationEnd && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {selectedEmployee.inactivationEnd ? format(new Date(selectedEmployee.inactivationEnd), "PPP") : <span>Escolha uma data</span>}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={selectedEmployee.inactivationEnd ? new Date(selectedEmployee.inactivationEnd) : undefined}
-                            onSelect={(date) => setSelectedEmployee({...selectedEmployee, inactivationEnd: date ?? null})}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  </>
-                )}
              </div>
           )}
           <DialogFooter>
