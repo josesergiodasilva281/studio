@@ -16,7 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from './ui/button';
-import { Pencil, Trash2, Calendar as CalendarIcon, PlusCircle } from 'lucide-react';
+import { Pencil, Trash2, Calendar as CalendarIcon, PlusCircle, Camera } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -76,15 +76,66 @@ const emptyEmployee: Employee = {
 function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, onSave: (employee: Employee) => void }) {
     const { toast } = useToast();
     const [newEmployee, setNewEmployee] = useState<Employee>(emptyEmployee);
+    const [isCameraOpen, setIsCameraOpen] = useState(false);
+    const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
 
-     useEffect(() => {
+    useEffect(() => {
         if (open) {
             setNewEmployee(emptyEmployee); // Reseta o formulário ao abrir
+            setIsCameraOpen(false); // Garante que a câmera esteja fechada
+            setHasCameraPermission(null);
         }
     }, [open]);
 
+    useEffect(() => {
+        if (!isCameraOpen) return;
+
+        let stream: MediaStream;
+        const getCameraPermission = async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                setHasCameraPermission(true);
+
+                if (videoRef.current) {
+                    videoRef.current.srcObject = stream;
+                }
+
+                // Simula a leitura do código de barras após 3 segundos
+                setTimeout(() => {
+                    const scannedId = Math.random().toString(36).substring(2, 10).toUpperCase();
+                    setNewEmployee(prev => ({ ...prev, id: scannedId }));
+                    toast({
+                        title: 'Código Lido com Sucesso!',
+                        description: `Matrícula preenchida: ${scannedId}`,
+                    });
+                    setIsCameraOpen(false); // Fecha a câmera após a "leitura"
+                }, 3000);
+
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                setHasCameraPermission(false);
+                toast({
+                    variant: 'destructive',
+                    title: 'Acesso à Câmera Negado',
+                    description: 'Por favor, habilite a permissão da câmera no seu navegador.',
+                });
+                setIsCameraOpen(false);
+            }
+        };
+
+        getCameraPermission();
+
+        return () => {
+            // Limpa o stream da câmera ao desmontar
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        };
+    }, [isCameraOpen, toast]);
+
+
     const handleSaveClick = () => {
-        // Validação simples
         if (!newEmployee.id || !newEmployee.name || !newEmployee.department) {
              toast({
                 variant: 'destructive',
@@ -107,45 +158,68 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
                     </DialogDescription>
                 </DialogHeader>
                  <div className="flex flex-col gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="id" className="text-right">Matrícula</Label>
-                        <Input id="id" value={newEmployee.id} onChange={(e) => setNewEmployee({...newEmployee, id: e.target.value})} className="col-span-3" placeholder="Digite a matrícula" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="name" className="text-right">Nome</Label>
-                        <Input id="name" value={newEmployee.name} onChange={(e) => setNewEmployee({...newEmployee, name: e.target.value})} className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="department" className="text-right">Setor</Label>
-                        <Input id="department" value={newEmployee.department} onChange={(e) => setNewEmployee({...newEmployee, department: e.target.value})} className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="plate" className="text-right">Placa</Label>
-                        <Input id="plate" value={newEmployee.plate} onChange={(e) => setNewEmployee({...newEmployee, plate: e.target.value})} className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="ramal" className="text-right">Ramal</Label>
-                        <Input id="ramal" value={newEmployee.ramal} onChange={(e) => setNewEmployee({...newEmployee, ramal: e.target.value})} className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="portaria" className="text-right">Portaria</Label>
-                        <Select
-                            value={newEmployee.portaria}
-                            onValueChange={(value: 'P1' | 'P2') => setNewEmployee({...newEmployee, portaria: value})}
-                        >
-                            <SelectTrigger className="col-span-3">
-                                <SelectValue placeholder="Selecione a portaria" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="P1">P1</SelectItem>
-                                <SelectItem value="P2">P2</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
+                     {isCameraOpen ? (
+                        <div className="flex flex-col items-center gap-2">
+                            <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay muted />
+                            {hasCameraPermission === null && <p>Solicitando permissão...</p>}
+                            {hasCameraPermission === true && <p className="text-sm text-muted-foreground">Aponte para o código de barras...</p>}
+                            {hasCameraPermission === false && (
+                                <Alert variant="destructive">
+                                    <AlertTitle>Acesso à Câmera Requerido</AlertTitle>
+                                    <AlertDescription>
+                                        Por favor, permita o acesso à câmera para usar esta funcionalidade.
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+                        </div>
+                    ) : (
+                        <>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="id" className="text-right">Matrícula</Label>
+                                <div className="col-span-3 flex items-center gap-2">
+                                     <Input id="id" value={newEmployee.id} onChange={(e) => setNewEmployee({...newEmployee, id: e.target.value})} className="flex-grow" placeholder="Digite ou leia o código" />
+                                     <Button type="button" variant="outline" size="icon" onClick={() => setIsCameraOpen(true)}>
+                                        <Camera className="h-4 w-4" />
+                                     </Button>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="name" className="text-right">Nome</Label>
+                                <Input id="name" value={newEmployee.name} onChange={(e) => setNewEmployee({...newEmployee, name: e.target.value})} className="col-span-3" />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="department" className="text-right">Setor</Label>
+                                <Input id="department" value={newEmployee.department} onChange={(e) => setNewEmployee({...newEmployee, department: e.target.value})} className="col-span-3" />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="plate" className="text-right">Placa</Label>
+                                <Input id="plate" value={newEmployee.plate} onChange={(e) => setNewEmployee({...newEmployee, plate: e.target.value})} className="col-span-3" />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="ramal" className="text-right">Ramal</Label>
+                                <Input id="ramal" value={newEmployee.ramal} onChange={(e) => setNewEmployee({...newEmployee, ramal: e.target.value})} className="col-span-3" />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="portaria" className="text-right">Portaria</Label>
+                                <Select
+                                    value={newEmployee.portaria}
+                                    onValueChange={(value: 'P1' | 'P2') => setNewEmployee({...newEmployee, portaria: value})}
+                                >
+                                    <SelectTrigger className="col-span-3">
+                                        <SelectValue placeholder="Selecione a portaria" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="P1">P1</SelectItem>
+                                        <SelectItem value="P2">P2</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </>
+                    )}
                 </div>
                 <DialogFooter>
                     <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-                    <Button type="submit" onClick={handleSaveClick}>Salvar</Button>
+                    <Button type="submit" onClick={handleSaveClick} disabled={isCameraOpen}>Salvar</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -159,7 +233,7 @@ function EmployeeTable() {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
 
   const handleEditClick = (employee: Employee) => {
-    setSelectedEmployee(employee);
+    setSelectedEmployee(JSON.parse(JSON.stringify(employee))); // Deep copy to avoid mutation
     setIsEditDialogOpen(true);
   };
 
@@ -320,13 +394,13 @@ function EmployeeTable() {
                             )}
                           >
                             <CalendarIcon className="mr-2 h-4 w-4" />
-                            {selectedEmployee.inactivationStart ? format(selectedEmployee.inactivationStart, "PPP") : <span>Escolha uma data</span>}
+                            {selectedEmployee.inactivationStart ? format(new Date(selectedEmployee.inactivationStart), "PPP") : <span>Escolha uma data</span>}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
                             mode="single"
-                            selected={selectedEmployee.inactivationStart ?? undefined}
+                            selected={selectedEmployee.inactivationStart ? new Date(selectedEmployee.inactivationStart) : undefined}
                             onSelect={(date) => setSelectedEmployee({...selectedEmployee, inactivationStart: date ?? null})}
                             initialFocus
                           />
@@ -345,13 +419,13 @@ function EmployeeTable() {
                             )}
                           >
                             <CalendarIcon className="mr-2 h-4 w-4" />
-                            {selectedEmployee.inactivationEnd ? format(selectedEmployee.inactivationEnd, "PPP") : <span>Escolha uma data</span>}
+                            {selectedEmployee.inactivationEnd ? format(new Date(selectedEmployee.inactivationEnd), "PPP") : <span>Escolha uma data</span>}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
                             mode="single"
-                            selected={selectedEmployee.inactivationEnd ?? undefined}
+                            selected={selectedEmployee.inactivationEnd ? new Date(selectedEmployee.inactivationEnd) : undefined}
                             onSelect={(date) => setSelectedEmployee({...selectedEmployee, inactivationEnd: date ?? null})}
                             initialFocus
                           />
