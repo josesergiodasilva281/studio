@@ -1,4 +1,5 @@
 import { KeyRound } from 'lucide-react';
+import { ThemeToggle } from './theme-toggle';
 
 export function Header() {
   return (
@@ -8,6 +9,9 @@ export function Header() {
         <h1 className="ml-3 text-2xl font-bold tracking-tight text-foreground">
           AccessKey
         </h1>
+      </div>
+      <div className="ml-auto">
+        <ThemeToggle />
       </div>
     </header>
   );
