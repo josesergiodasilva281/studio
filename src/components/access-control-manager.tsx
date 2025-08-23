@@ -16,7 +16,7 @@ import { Html5Qrcode } from 'html5-qrcode';
 import type { Employee, Visitor, AccessLog } from '@/lib/types';
 
 
-function AccessControl({ employees, visitors, accessLogs, setAccessLogs }: { employees: Employee[], visitors: Visitor[], accessLogs: AccessLog[], setAccessLogs: (logs: AccessLog[]) => void }) {
+function AccessControl({ employees, visitors, onNewLog }: { employees: Employee[], visitors: Visitor[], onNewLog: (log: Omit<AccessLog, 'type' | 'id'>) => void }) {
     const { toast } = useToast();
     const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
     const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
@@ -65,27 +65,11 @@ function AccessControl({ employees, visitors, accessLogs, setAccessLogs }: { emp
         } else if (personType === 'employee' && (person as Employee).status === 'Inativo') {
             toast({ variant: 'destructive', title: 'Acesso Negado', description: `Funcionário ${person.name} está inativo.` });
         } else {
-            const personLogs = accessLogs
-                .filter(log => log.personId === person!.id)
-                .sort((a, b) => new Date(b.id).getTime() - new Date(a.id).getTime());
-
-            const lastLog = personLogs[0];
-            const newLogType = !lastLog || lastLog.type === 'Saída' ? 'Entrada' : 'Saída';
-            
-            const newLog: AccessLog = {
-                id: new Date().toISOString(),
+            onNewLog({
                 personId: person.id,
                 personName: person.name,
                 personType: personType,
                 timestamp: new Date().toLocaleString('pt-BR'),
-                type: newLogType,
-            };
-
-            setAccessLogs([newLog, ...accessLogs]);
-            toast({
-                title: `Acesso Registrado: ${newLogType}`,
-                description: `${person.name} - ${newLog.timestamp}`,
-                variant: newLogType === 'Entrada' ? 'default' : 'destructive'
             });
         }
         
@@ -126,7 +110,7 @@ function AccessControl({ employees, visitors, accessLogs, setAccessLogs }: { emp
              }
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedDeviceId, employees, visitors, accessLogs, isScannerPaused]);
+    }, [selectedDeviceId, employees, visitors, isScannerPaused]);
 
     return (
         <Card>
@@ -160,6 +144,7 @@ function AccessControl({ employees, visitors, accessLogs, setAccessLogs }: { emp
 
 
 export function AccessControlManager() {
+    const { toast } = useToast();
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [visitors, setVisitors] = useState<Visitor[]>([]);
     const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
@@ -211,9 +196,31 @@ export function AccessControlManager() {
         }
     }, [accessLogs]);
 
+    const handleNewLog = (logData: Omit<AccessLog, 'type' | 'id'>) => {
+         const personLogs = accessLogs
+            .filter(log => log.personId === logData.personId)
+            .sort((a, b) => new Date(b.id).getTime() - new Date(a.id).getTime());
+
+        const lastLog = personLogs[0];
+        const newLogType = !lastLog || lastLog.type === 'Saída' ? 'Entrada' : 'Saída';
+
+        const newLog: AccessLog = {
+            ...logData,
+            id: new Date().toISOString(),
+            type: newLogType,
+        };
+
+        setAccessLogs([newLog, ...accessLogs]);
+        toast({
+            title: `Acesso Registrado: ${newLog.type}`,
+            description: `${newLog.personName} - ${newLog.timestamp}`,
+            variant: newLog.type === 'Entrada' ? 'default' : 'destructive'
+        });
+    };
+
   return (
     <div className="container mx-auto max-w-xl">
-      <AccessControl employees={employees} visitors={visitors} accessLogs={accessLogs} setAccessLogs={setAccessLogs} />
+      <AccessControl employees={employees} visitors={visitors} onNewLog={handleNewLog} />
     </div>
   );
 }
