@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 
 
 interface Employee {
@@ -71,41 +71,34 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
 
 
   useEffect(() => {
-    const getDevices = async () => {
-        try {
-            const availableDevices = await Html5Qrcode.getCameras();
-            if (availableDevices && availableDevices.length > 0) {
-                setDevices(availableDevices);
-                setSelectedDeviceId(availableDevices[0].id);
-            } else {
-                 toast({ variant: "destructive", title: "Nenhuma câmera encontrada."})
-            }
-        } catch (err) {
-            console.error("Error getting cameras:", err);
-            toast({ variant: "destructive", title: "Erro ao acessar câmeras.", description: "Por favor, verifique as permissões."})
-        }
-    };
-
     if (open) {
-        getDevices();
+      Html5Qrcode.getCameras().then(availableDevices => {
+        if (availableDevices && availableDevices.length > 0) {
+          setDevices(availableDevices);
+          setSelectedDeviceId(availableDevices[0].id);
+        } else {
+            toast({ variant: "destructive", title: "Nenhuma câmera encontrada."})
+        }
+      }).catch(err => {
+        console.error("Error getting cameras:", err);
+        toast({ variant: "destructive", title: "Erro ao acessar câmeras.", description: "Por favor, verifique as permissões."})
+      });
     }
-
   }, [open, toast]);
-  
+
 
   const stopScanner = () => {
      if (scannerRef.current && scannerRef.current.isScanning) {
         scannerRef.current.stop().catch(err => {
             console.error("Failed to stop scanner:", err);
         });
+        scannerRef.current = null;
      }
   }
 
 
   useEffect(() => {
-    if (open && selectedDeviceId && readerRef.current) {
-      // Ensure previous scanner is stopped before starting a new one
-      stopScanner();
+    if (open && selectedDeviceId && readerRef.current && !scannerRef.current) {
       
       const html5Qrcode = new Html5Qrcode(readerRef.current.id);
       scannerRef.current = html5Qrcode;
@@ -128,7 +121,7 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
           selectedDeviceId, 
           {
               fps: 10,
-              qrbox: { width: 250, height: 250 }
+              qrbox: { width: 350, height: 150 }
           },
           qrCodeSuccessCallback,
           qrCodeErrorCallback
@@ -137,8 +130,7 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
           toast({ variant: "destructive", title: "Falha ao iniciar a câmera", description: "Verifique as permissões e tente novamente."})
           onOpenChange(false);
       });
-
-    } 
+    }
 
     // Cleanup function
     return () => {
@@ -146,8 +138,39 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
     };
   }, [open, selectedDeviceId, onBarcodeScan, onOpenChange, toast]);
 
+  // Handle camera change
+   useEffect(() => {
+    if (open && selectedDeviceId && scannerRef.current?.isScanning) {
+      stopScanner();
+      const html5Qrcode = new Html5Qrcode(readerRef.current!.id);
+      scannerRef.current = html5Qrcode;
+      
+       const qrCodeSuccessCallback = (decodedText: string) => {
+          onBarcodeScan(decodedText);
+          toast({
+              title: "Código de Barras Lido!",
+              description: `Valor: ${decodedText}`,
+          });
+          onOpenChange(false);
+      };
+
+      html5Qrcode.start(
+          selectedDeviceId, 
+          {
+              fps: 10,
+              qrbox: { width: 350, height: 150 }
+          },
+          qrCodeSuccessCallback,
+          (err) => {}
+      ).catch(err => {
+          onOpenChange(false);
+      });
+    }
+   }, [selectedDeviceId, open, onBarcodeScan, onOpenChange, toast]);
+
+
   return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) stopScanner(); onOpenChange(isOpen); }}>
           <DialogContent className="sm:max-w-xl">
               <DialogHeader>
                   <DialogTitle>Leitor de Código de Barras</DialogTitle>
@@ -156,21 +179,23 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
                   </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="camera-select" className="text-right">Câmera</Label>
-                  <Select value={selectedDeviceId} onValueChange={setSelectedDeviceId}>
-                      <SelectTrigger id="camera-select" className="col-span-3">
-                          <SelectValue placeholder="Selecione uma câmera" />
-                      </SelectTrigger>
-                      <SelectContent>
-                          {devices.map(device => (
-                              <SelectItem key={device.id} value={device.id}>
-                                  {device.label || `Câmera ${devices.indexOf(device) + 1}`}
-                              </SelectItem>
-                          ))}
-                      </SelectContent>
-                  </Select>
-                </div>
+                {devices.length > 1 && (
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="camera-select" className="text-right">Câmera</Label>
+                        <Select value={selectedDeviceId} onValueChange={setSelectedDeviceId}>
+                            <SelectTrigger id="camera-select" className="col-span-3">
+                                <SelectValue placeholder="Selecione uma câmera" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {devices.map(device => (
+                                    <SelectItem key={device.id} value={device.id}>
+                                        {device.label || `Câmera ${devices.indexOf(device) + 1}`}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                 )}
                 <div id="reader" ref={readerRef} className="w-full aspect-video rounded-md bg-black" />
               </div>
               <DialogFooter>
@@ -315,6 +340,7 @@ function EmployeeTable() {
     };
 
     const filteredEmployees = employees.filter(employee =>
+        employee.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
         employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         employee.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (employee.plate && employee.plate.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -343,6 +369,7 @@ function EmployeeTable() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Matrícula</TableHead>
                 <TableHead>Nome</TableHead>
                 <TableHead>Setor</TableHead>
                 <TableHead>Placa</TableHead>
@@ -353,6 +380,7 @@ function EmployeeTable() {
             <TableBody>
               {filteredEmployees.map((employee) => (
                 <TableRow key={employee.id}>
+                  <TableCell>{employee.id}</TableCell>
                   <TableCell>{employee.name}</TableCell>
                   <TableCell>{employee.department}</TableCell>
                   <TableCell>{employee.plate}</TableCell>
@@ -442,5 +470,3 @@ export function Dashboard() {
     </div>
   );
 }
-
-    
