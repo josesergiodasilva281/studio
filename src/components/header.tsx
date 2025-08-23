@@ -13,7 +13,6 @@ export function Header() {
   const pathname = usePathname();
 
   const navLinks = [
-    { href: '/', label: 'Controle de Acesso', icon: GanttChartSquare },
     { href: '/dashboard', label: 'Visitantes', icon: Users },
   ];
 
