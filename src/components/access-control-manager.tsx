@@ -117,7 +117,7 @@ function AccessControl({ employees, visitors, onNewLog, onAddEmployeeClick }: { 
     return (
         <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Controle de Acesso</CardTitle>
+                <CardTitle>VIDEIRA</CardTitle>
                 <Button onClick={onAddEmployeeClick}>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Cadastrar Funcionário
