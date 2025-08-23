@@ -36,7 +36,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Html5Qrcode, type Html5QrcodeScannerState } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 
@@ -119,7 +119,7 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
             onOpenChange(false);
         };
 
-        if (html5Qrcode && !html5Qrcode.isScanning && html5Qrcode.getState() !== Html5QrcodeScannerState.SCANNING) {
+        if (html5Qrcode && !html5Qrcode.isScanning) {
             html5Qrcode.start(
                 selectedDeviceId, 
                 {
@@ -533,7 +533,7 @@ function AccessControl({ employees, accessLogs, setAccessLogs }: { employees: Em
             }
             const html5Qrcode = scannerRef.current;
 
-            if (html5Qrcode && !html5Qrcode.isScanning && html5Qrcode.getState() !== Html5QrcodeScannerState.SCANNING) {
+            if (html5Qrcode && !html5Qrcode.isScanning) {
                 html5Qrcode.start(
                     selectedDeviceId,
                     {
