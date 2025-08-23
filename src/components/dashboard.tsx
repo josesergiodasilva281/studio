@@ -46,12 +46,13 @@ interface Employee {
   department: string;
   plate: string;
   ramal: string;
+  status: 'Ativo' | 'Inativo';
 }
 
 const initialEmployees: Employee[] = [
-  { id: '1', name: 'João da Silva', department: 'Produção', plate: 'ABC-1234', ramal: '2101' },
-  { id: '2', name: 'Maria Oliveira', department: 'Logística', plate: 'DEF-5678', ramal: '2102' },
-  { id: '3', name: 'Pedro Souza', department: 'Administrativo', plate: 'GHI-9012', ramal: '2103' },
+  { id: '1', name: 'João da Silva', department: 'Produção', plate: 'ABC-1234', ramal: '2101', status: 'Ativo' },
+  { id: '2', name: 'Maria Oliveira', department: 'Logística', plate: 'DEF-5678', ramal: '2102', status: 'Ativo' },
+  { id: '3', name: 'Pedro Souza', department: 'Administrativo', plate: 'GHI-9012', ramal: '2103', status: 'Inativo' },
 ];
 
 const emptyEmployee: Employee = {
@@ -60,6 +61,7 @@ const emptyEmployee: Employee = {
     department: '',
     plate: '',
     ramal: '',
+    status: 'Ativo',
 };
 
 function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boolean; onOpenChange: (open: boolean) => void; onBarcodeScan: (barcode: string) => void; }) {
@@ -268,6 +270,18 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
                         <Label htmlFor="ramal" className="text-right">Ramal</Label>
                         <Input id="ramal" value={newEmployee.ramal} onChange={(e) => setNewEmployee({...newEmployee, ramal: e.target.value})} className="col-span-3" />
                     </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="status" className="text-right">Status</Label>
+                        <Select value={newEmployee.status} onValueChange={(value: 'Ativo' | 'Inativo') => setNewEmployee({...newEmployee, status: value})}>
+                            <SelectTrigger id="status" className="col-span-3">
+                                <SelectValue placeholder="Selecione o status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Ativo">Ativo</SelectItem>
+                                <SelectItem value="Inativo">Inativo</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
                 <DialogFooter>
                      <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
@@ -344,7 +358,8 @@ function EmployeeTable() {
         employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         employee.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (employee.plate && employee.plate.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (employee.ramal && employee.ramal.toLowerCase().includes(searchTerm.toLowerCase()))
+        (employee.ramal && employee.ramal.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        employee.status.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
   return (
@@ -374,6 +389,7 @@ function EmployeeTable() {
                 <TableHead>Setor</TableHead>
                 <TableHead>Placa</TableHead>
                 <TableHead>Ramal</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -385,6 +401,7 @@ function EmployeeTable() {
                   <TableCell>{employee.department}</TableCell>
                   <TableCell>{employee.plate}</TableCell>
                   <TableCell>{employee.ramal}</TableCell>
+                  <TableCell>{employee.status}</TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" onClick={() => handleEditClick(employee)}>
                       <Pencil className="h-4 w-4" />
@@ -448,6 +465,18 @@ function EmployeeTable() {
                   <Label htmlFor="ramal-edit" className="text-right">Ramal</Label>
                   <Input id="ramal-edit" value={selectedEmployee.ramal} onChange={(e) => setSelectedEmployee({...selectedEmployee, ramal: e.target.value})} className="col-span-3" />
                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="status-edit" className="text-right">Status</Label>
+                    <Select value={selectedEmployee.status} onValueChange={(value: 'Ativo' | 'Inativo') => setSelectedEmployee({...selectedEmployee, status: value})}>
+                        <SelectTrigger id="status-edit" className="col-span-3">
+                            <SelectValue placeholder="Selecione o status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Ativo">Ativo</SelectItem>
+                            <SelectItem value="Inativo">Inativo</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
              </div>
           )}
           <DialogFooter>
