@@ -493,7 +493,11 @@ function AccessControl({ employees, accessLogs, setAccessLogs }: { employees: Em
         } else if (employee.status === 'Inativo') {
             toast({ variant: 'destructive', title: 'Acesso Negado', description: `Funcionário ${employee.name} está inativo.` });
         } else {
-            const lastLog = accessLogs.find(log => log.employeeId === employee.id);
+            const employeeLogs = accessLogs
+                .filter(log => log.employeeId === employee.id)
+                .sort((a, b) => new Date(b.id).getTime() - new Date(a.id).getTime());
+
+            const lastLog = employeeLogs[0];
             const newLogType = !lastLog || lastLog.type === 'Saída' ? 'Entrada' : 'Saída';
             
             const newLog: AccessLog = {
@@ -551,7 +555,7 @@ function AccessControl({ employees, accessLogs, setAccessLogs }: { employees: Em
             }
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedDeviceId, employees]);
+    }, [selectedDeviceId, employees, accessLogs]);
 
     return (
         <div className="grid gap-6 md:grid-cols-2">
