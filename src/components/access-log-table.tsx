@@ -90,9 +90,9 @@ export function AccessLogTable() {
                                             <TableCell>{log.personName}</TableCell>
                                             <TableCell>{log.timestamp}</TableCell>
                                             <TableCell>
-                                                <Badge variant={log.type === 'Entrada' ? 'default' : 'secondary'}>
+                                                <Badge variant={log.type === 'Entrada' ? 'default' : 'secondary'} className="flex items-center w-fit">
                                                      {log.type === 'Entrada' ? <LogIn className="mr-1 h-3 w-3" /> : <LogOut className="mr-1 h-3 w-3" />}
-                                                    {log.type}
+                                                    <span>{log.type}</span>
                                                 </Badge>
                                             </TableCell>
                                         </TableRow>
