@@ -110,7 +110,9 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
   useEffect(() => {
     if (open && selectedDeviceId && readerRef.current) {
         if (!scannerRef.current) {
-            scannerRef.current = new Html5Qrcode(readerRef.current.id);
+            scannerRef.current = new Html5Qrcode(readerRef.current.id, {
+                verbose: false,
+            });
         }
         const html5Qrcode = scannerRef.current;
         
@@ -140,7 +142,9 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
     return () => {
         if (!cleanupCalledRef.current) {
              cleanupCalledRef.current = true;
-             stopScanner();
+             if (scannerRef.current && scannerRef.current.isScanning) {
+                stopScanner();
+             }
         }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -148,7 +152,9 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
 
   const handleOpenChange = (isOpen: boolean) => {
       if (!isOpen) {
-          stopScanner();
+          if (scannerRef.current && scannerRef.current.isScanning) {
+            stopScanner();
+          }
       }
       onOpenChange(isOpen);
   };
@@ -556,7 +562,9 @@ function AccessControl({ employees, accessLogs, setAccessLogs }: { employees: Em
         return () => {
              if (!cleanupCalledRef.current) {
                 cleanupCalledRef.current = true;
-                stopScanner();
+                if (scannerRef.current && scannerRef.current.isScanning) {
+                    stopScanner();
+                }
             }
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
