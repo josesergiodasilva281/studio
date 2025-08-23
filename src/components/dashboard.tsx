@@ -36,7 +36,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, type Html5QrcodeScannerState } from 'html5-qrcode';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 
@@ -106,51 +106,59 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
             // Failure to stop is not critical, log it.
             console.error("Failed to stop scanner:", err);
         });
-        scannerRef.current = null;
      }
+     scannerRef.current = null;
   }
 
 
   useEffect(() => {
-    let html5Qrcode: Html5Qrcode;
     if (open && selectedDeviceId && readerRef.current) {
-      if (scannerRef.current) {
-        stopScanner();
-      }
-      
-      html5Qrcode = new Html5Qrcode(readerRef.current.id);
-      scannerRef.current = html5Qrcode;
-      
-      const qrCodeSuccessCallback = (decodedText: string) => {
-          onBarcodeScan(decodedText);
-          onOpenChange(false);
-      };
+       // Ensure we have a fresh scanner instance.
+       if (!scannerRef.current) {
+          scannerRef.current = new Html5Qrcode(readerRef.current.id);
+       }
+       const html5Qrcode = scannerRef.current;
+       
+       const qrCodeSuccessCallback = (decodedText: string) => {
+           onBarcodeScan(decodedText);
+           onOpenChange(false);
+       };
 
-      html5Qrcode.start(
-          selectedDeviceId, 
-          {
-              fps: 10,
-              qrbox: { width: 350, height: 150 }
-          },
-          qrCodeSuccessCallback,
-          (errorMessage) => {} // Ignore errors
-      ).catch(err => {
-          console.error("Unable to start scanning.", err);
-          toast({ variant: "destructive", title: "Falha ao iniciar a câmera", description: "Verifique as permissões e tente novamente."})
-          onOpenChange(false);
-      });
+       if (html5Qrcode && !html5Qrcode.isScanning && html5Qrcode.getState() !== Html5QrcodeScannerState.SCANNING) {
+            html5Qrcode.start(
+                selectedDeviceId, 
+                {
+                    fps: 10,
+                    qrbox: { width: 350, height: 150 }
+                },
+                qrCodeSuccessCallback,
+                (errorMessage) => {} // Ignore errors
+            ).catch(err => {
+                console.error("Unable to start scanning.", err);
+                toast({ variant: "destructive", title: "Falha ao iniciar a câmera", description: "Verifique as permissões e tente novamente."})
+                onOpenChange(false);
+            });
+       }
     }
 
+    // Cleanup function
     return () => {
-       if(scannerRef.current){
-         stopScanner();
+       if (scannerRef.current && scannerRef.current.isScanning) {
+          stopScanner();
        }
     };
   }, [open, selectedDeviceId, onBarcodeScan, onOpenChange, toast]);
 
+  const handleOpenChange = (isOpen: boolean) => {
+      if (!isOpen) {
+          stopScanner();
+      }
+      onOpenChange(isOpen);
+  };
+
 
   return (
-      <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) stopScanner(); onOpenChange(isOpen); }}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
           <DialogContent className="sm:max-w-xl">
               <DialogHeader>
                   <DialogTitle>Leitor de Código de Barras</DialogTitle>
@@ -179,7 +187,7 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
                 <div id="reader-dialog" ref={readerRef} className="w-full aspect-video rounded-md bg-black" />
               </div>
               <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+                  <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Cancelar</Button>
               </DialogFooter>
           </DialogContent>
       </Dialog>
@@ -225,7 +233,7 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
                      <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="id" className="text-right">Matrícula</Label>
                         <div className="col-span-3 flex items-center gap-2">
-                           <Input id="id" value={newEmployee.id} onChange={(e) => setNewEmployee({...newEmployee, id: e.target.value})} className="flex-grow" disabled />
+                           <Input id="id" value={newEmployee.id} onChange={(e) => setNewEmployee({...newEmployee, id: e.target.value})} className="flex-grow" />
                             <Button type="button" variant="outline" size="icon" onClick={() => setIsScannerOpen(true)}>
                                 <Camera className="h-4 w-4" />
                                 <span className="sr-only">Ler código de barras</span>
@@ -477,7 +485,6 @@ function AccessControl({ employees, accessLogs, setAccessLogs }: { employees: Em
             scannerRef.current.stop().catch(err => {
                 console.error("Failed to stop scanner:", err);
             });
-            scannerRef.current = null;
         }
     };
     
@@ -522,35 +529,36 @@ function AccessControl({ employees, accessLogs, setAccessLogs }: { employees: Em
 
     useEffect(() => {
         if (selectedDeviceId && readerRef.current) {
-            if (scannerRef.current) {
-                stopScanner();
+            // Ensure we have a fresh scanner instance for the main page.
+            if (!scannerRef.current) {
+                scannerRef.current = new Html5Qrcode(readerRef.current.id, {
+                    verbose: false
+                });
             }
+            const html5Qrcode = scannerRef.current;
 
-            const html5Qrcode = new Html5Qrcode(readerRef.current.id, {
-                verbose: false
-            });
-            scannerRef.current = html5Qrcode;
-
-            html5Qrcode.start(
-                selectedDeviceId,
-                {
-                    fps: 5,
-                    qrbox: (viewfinderWidth, viewfinderHeight) => {
-                        const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                        const qrboxSize = Math.floor(minEdge * 0.8);
-                        return { width: qrboxSize, height: qrboxSize };
+            if (html5Qrcode && !html5Qrcode.isScanning && html5Qrcode.getState() !== Html5QrcodeScannerState.SCANNING) {
+                html5Qrcode.start(
+                    selectedDeviceId,
+                    {
+                        fps: 5,
+                        qrbox: (viewfinderWidth, viewfinderHeight) => {
+                            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                            const qrboxSize = Math.floor(minEdge * 0.8);
+                            return { width: qrboxSize, height: qrboxSize };
+                        },
                     },
-                },
-                handleScanSuccess,
-                (errorMessage) => { /* ignore errors */ }
-            ).catch((err) => {
-                console.error("Unable to start scanning.", err);
-                toast({ variant: "destructive", title: "Falha ao iniciar a câmera", description: "Verifique as permissões e tente novamente." });
-            });
+                    handleScanSuccess,
+                    (errorMessage) => { /* ignore errors */ }
+                ).catch((err) => {
+                    console.error("Unable to start scanning.", err);
+                    toast({ variant: "destructive", title: "Falha ao iniciar a câmera", description: "Verifique as permissões e tente novamente." });
+                });
+            }
         }
 
         return () => {
-            if (scannerRef.current) {
+            if (scannerRef.current && scannerRef.current.isScanning) {
                 stopScanner();
             }
         };
@@ -690,3 +698,5 @@ export function Dashboard() {
     </div>
   );
 }
+
+    
