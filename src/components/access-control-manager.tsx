@@ -42,10 +42,10 @@ function AccessControl({ employees, visitors, accessLogs, setAccessLogs }: { emp
         });
         
          return () => {
+             cleanupCalledRef.current = true;
              if (scannerRef.current && scannerRef.current.isScanning) {
                 scannerRef.current.stop().catch(err => console.warn("Falha ao parar scanner.", err));
              }
-             cleanupCalledRef.current = true;
          }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -129,34 +129,32 @@ function AccessControl({ employees, visitors, accessLogs, setAccessLogs }: { emp
     }, [selectedDeviceId, employees, visitors, accessLogs, isScannerPaused]);
 
     return (
-        <div className="grid gap-6 md:grid-cols-1 md:max-w-xl md:mx-auto">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Controle de Acesso</CardTitle>
-                    <CardDescription>Aponte o código de barras do funcionário ou visitante para a câmera para registrar a entrada ou saída.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-4">
-                     {devices.length > 1 && (
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="camera-select-main" className="text-right">Câmera</Label>
-                            <Select value={selectedDeviceId} onValueChange={setSelectedDeviceId}>
-                                <SelectTrigger id="camera-select-main" className="col-span-3">
-                                    <SelectValue placeholder="Selecione uma câmera" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {devices.map(device => (
-                                        <SelectItem key={device.id} value={device.id}>
-                                            {device.label || `Câmera ${devices.indexOf(device) + 1}`}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    )}
-                    <div id="reader-main" ref={readerRef} className="w-full aspect-square rounded-md bg-black overflow-hidden" />
-                </CardContent>
-            </Card>
-        </div>
+        <Card>
+            <CardHeader>
+                <CardTitle>Controle de Acesso</CardTitle>
+                <CardDescription>Aponte o código de barras do funcionário ou visitante para a câmera para registrar a entrada ou saída.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+                 {devices.length > 1 && (
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="camera-select-main" className="text-right">Câmera</Label>
+                        <Select value={selectedDeviceId} onValueChange={setSelectedDeviceId}>
+                            <SelectTrigger id="camera-select-main" className="col-span-3">
+                                <SelectValue placeholder="Selecione uma câmera" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {devices.map(device => (
+                                    <SelectItem key={device.id} value={device.id}>
+                                        {device.label || `Câmera ${devices.indexOf(device) + 1}`}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
+                <div id="reader-main" ref={readerRef} className="w-full aspect-square rounded-md bg-black overflow-hidden" />
+            </CardContent>
+        </Card>
     );
 }
 
@@ -214,7 +212,7 @@ export function AccessControlManager() {
     }, [accessLogs]);
 
   return (
-    <div className="container mx-auto">
+    <div className="container mx-auto max-w-xl">
       <AccessControl employees={employees} visitors={visitors} accessLogs={accessLogs} setAccessLogs={setAccessLogs} />
     </div>
   );
