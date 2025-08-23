@@ -1,7 +1,7 @@
 
 'use client'
 
-import { KeyRound, GanttChartSquare, Users } from 'lucide-react';
+import { KeyRound, Users } from 'lucide-react';
 import { ThemeToggle } from './theme-toggle';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -14,7 +14,6 @@ export function Header() {
 
   const navLinks = [
     { href: '/dashboard', label: 'Visitantes', icon: Users },
-    { href: '/history', label: 'Histórico', icon: GanttChartSquare },
   ];
 
   return (
