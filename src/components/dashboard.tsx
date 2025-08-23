@@ -454,7 +454,7 @@ function AccessControl({ employees, accessLogs, setAccessLogs }: { employees: Em
     const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
     const scannerRef = useRef<Html5Qrcode | null>(null);
     const readerRef = useRef<HTMLDivElement>(null);
-    const [isScannerPaused, setIsScannerPaused] = useState(false);
+    const [isScannerPaused, setIsScannerPaused] = useState(isScannerPaused);
 
     useEffect(() => {
         Html5Qrcode.getCameras().then(availableDevices => {
@@ -671,20 +671,22 @@ export function Dashboard() {
 
   return (
     <div className="container mx-auto">
-      <Tabs defaultValue="access-control" className="w-full">
+      <Tabs defaultValue="employees" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="access-control">Controle de Acesso</TabsTrigger>
             <TabsTrigger value="employees">Funcionários</TabsTrigger>
+            <TabsTrigger value="access-control">Controle de Acesso</TabsTrigger>
         </TabsList>
-        <TabsContent value="access-control" className="mt-6">
-            <AccessControl employees={employees} accessLogs={accessLogs} setAccessLogs={setAccessLogs} />
-        </TabsContent>
         <TabsContent value="employees" className="mt-6">
             <EmployeeTable employees={employees} setEmployees={setEmployees} />
+        </TabsContent>
+        <TabsContent value="access-control" className="mt-6">
+            <AccessControl employees={employees} accessLogs={accessLogs} setAccessLogs={setAccessLogs} />
         </TabsContent>
     </Tabs>
     </div>
   );
 }
+
+    
 
     
