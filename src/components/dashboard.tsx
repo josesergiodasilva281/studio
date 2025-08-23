@@ -36,6 +36,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 interface Employee {
   id: string;
@@ -63,22 +64,48 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
   const videoRef = useRef<HTMLVideoElement>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const { toast } = useToast();
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
-    let stream: MediaStream | null = null;
-    let animationFrameId: number;
+    const getDevices = async () => {
+        if (!navigator.mediaDevices?.enumerateDevices) {
+            console.warn("enumerateDevices() not supported.");
+            return;
+        }
+        try {
+            await navigator.mediaDevices.getUserMedia({ video: true }); // Prompt for permission first
+            const allDevices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = allDevices.filter(device => device.kind === 'videoinput');
+            setDevices(videoDevices);
+            if (videoDevices.length > 0) {
+                setSelectedDeviceId(videoDevices[0].deviceId);
+            }
+        } catch (err) {
+            console.error("Error enumerating devices:", err);
+            setHasCameraPermission(false);
+        }
+    };
 
-    const stopCamera = () => {
-        if (animationFrameId) {
-            cancelAnimationFrame(animationFrameId);
-        }
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-        }
-        if (videoRef.current) {
-            videoRef.current.srcObject = null;
-        }
+    if (open) {
+        getDevices();
     }
+
+  }, [open]);
+  
+  const stopCamera = () => {
+      if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+          streamRef.current = null;
+      }
+      if (videoRef.current) {
+          videoRef.current.srcObject = null;
+      }
+  };
+
+  useEffect(() => {
+    let animationFrameId: number;
 
     const detectBarcode = async () => {
         if (!('BarcodeDetector' in window)) {
@@ -90,12 +117,11 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
             onOpenChange(false);
             return;
         }
-
         // @ts-ignore
         const barcodeDetector = new window.BarcodeDetector({ formats: ['ean_13', 'codabar', 'code_128', 'qr_code'] });
-
+        
         const detect = async () => {
-            if (videoRef.current && videoRef.current.readyState === 4) { // readyState 4 means HAVE_ENOUGH_DATA
+            if (videoRef.current && videoRef.current.readyState === 4) {
                 try {
                     const barcodes = await barcodeDetector.detect(videoRef.current);
                     if (barcodes.length > 0) {
@@ -104,7 +130,7 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
                             title: "Código de Barras Lido!",
                             description: `Valor: ${barcodes[0].rawValue}`,
                         });
-                        onOpenChange(false);
+                        onOpenChange(false); // Close dialog on successful scan
                     } else {
                         animationFrameId = requestAnimationFrame(detect);
                     }
@@ -113,72 +139,96 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
                     animationFrameId = requestAnimationFrame(detect);
                 }
             } else {
-                animationFrameId = requestAnimationFrame(detect);
+                 animationFrameId = requestAnimationFrame(detect);
             }
         };
-        detect();
+        
+        if(open && hasCameraPermission) {
+            detect();
+        }
     };
-
 
     const startCamera = async () => {
-      try {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            throw new Error('Camera not available');
+        stopCamera(); // Stop any existing stream
+        if (selectedDeviceId) {
+            try {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('Camera not available');
+                }
+                const constraints = {
+                    video: { deviceId: { exact: selectedDeviceId } }
+                };
+                streamRef.current = await navigator.mediaDevices.getUserMedia(constraints);
+                setHasCameraPermission(true);
+                if (videoRef.current) {
+                    videoRef.current.srcObject = streamRef.current;
+                    await videoRef.current.play().catch(err => {
+                        console.error("Video play interrupted:", err);
+                    });
+                }
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                setHasCameraPermission(false);
+                toast({
+                    variant: 'destructive',
+                    title: 'Acesso à Câmera Negado',
+                    description: 'Por favor, habilite a permissão da câmera no seu navegador.',
+                });
+                onOpenChange(false);
+            }
         }
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        setHasCameraPermission(true);
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.onloadedmetadata = () => {
-              videoRef.current?.play().catch(err => {
-                  console.error("Video play interrupted:", err);
-                  // It might be interrupted by dialog closing, which is fine.
-              });
-              detectBarcode();
-          }
-        }
-      } catch (error) {
-        console.error('Error accessing camera:', error);
-        setHasCameraPermission(false);
-        toast({
-          variant: 'destructive',
-          title: 'Acesso à Câmera Negado',
-          description: 'Por favor, habilite a permissão da câmera no seu navegador.',
-        });
-        onOpenChange(false);
-      }
     };
 
-
-    if (open) {
-      startCamera();
-    } else {
-      stopCamera();
+    if (open && selectedDeviceId) {
+        startCamera();
+        detectBarcode();
     }
-
+    
+    // Cleanup function
     return () => {
-      stopCamera();
+        stopCamera();
+        if(animationFrameId) {
+           cancelAnimationFrame(animationFrameId);
+        }
     };
-  }, [open]);
-  
+  }, [open, selectedDeviceId, hasCameraPermission]);
 
   return (
       <Dialog open={open} onOpenChange={onOpenChange}>
           <DialogContent className="sm:max-w-xl">
               <DialogHeader>
                   <DialogTitle>Leitor de Código de Barras</DialogTitle>
-                  <DialogDescription>Aponte a câmera para o código de barras.</DialogDescription>
+                  <DialogDescription>
+                      Selecione a câmera e aponte para o código de barras.
+                  </DialogDescription>
               </DialogHeader>
-              <div className="relative">
-                  <video ref={videoRef} className="w-full aspect-video rounded-md bg-black" autoPlay muted playsInline />
-                  {hasCameraPermission === false && (
-                       <Alert variant="destructive">
-                            <AlertTitle>Acesso à Câmera Necessário</AlertTitle>
-                            <AlertDescription>
-                                Por favor, permita o acesso à câmera para usar esta funcionalidade.
-                            </AlertDescription>
-                        </Alert>
-                  )}
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="camera-select" className="text-right">Câmera</Label>
+                  <Select value={selectedDeviceId} onValueChange={setSelectedDeviceId}>
+                      <SelectTrigger id="camera-select" className="col-span-3">
+                          <SelectValue placeholder="Selecione uma câmera" />
+                      </SelectTrigger>
+                      <SelectContent>
+                          {devices.map(device => (
+                              <SelectItem key={device.deviceId} value={device.deviceId}>
+                                  {device.label || `Câmera ${devices.indexOf(device) + 1}`}
+                              </SelectItem>
+                          ))}
+                      </SelectContent>
+                  </Select>
+                </div>
+                <div className="relative">
+                    <video ref={videoRef} className="w-full aspect-video rounded-md bg-black" autoPlay muted playsInline />
+                    {hasCameraPermission === false && (
+                         <Alert variant="destructive">
+                              <AlertTitle>Acesso à Câmera Necessário</AlertTitle>
+                              <AlertDescription>
+                                  Por favor, permita o acesso à câmera para usar esta funcionalidade.
+                              </AlertDescription>
+                          </Alert>
+                    )}
+                </div>
               </div>
               <DialogFooter>
                   <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
