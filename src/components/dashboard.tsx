@@ -454,7 +454,7 @@ function AccessControl({ employees, accessLogs, setAccessLogs }: { employees: Em
     const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
     const scannerRef = useRef<Html5Qrcode | null>(null);
     const readerRef = useRef<HTMLDivElement>(null);
-    const [isScannerPaused, setIsScannerPaused] = useState(isScannerPaused);
+    const [isScannerPaused, setIsScannerPaused] = useState(false);
 
     useEffect(() => {
         Html5Qrcode.getCameras().then(availableDevices => {
