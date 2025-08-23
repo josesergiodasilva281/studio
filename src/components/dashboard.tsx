@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from './ui/button';
-import { Pencil, Trash2, PlusCircle, Camera, LogIn, LogOut } from 'lucide-react';
+import { Pencil, Trash2, PlusCircle, Camera, LogIn, LogOut, Home, Building } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -83,6 +83,7 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
 
   useEffect(() => {
     if (open) {
+      cleanupCalledRef.current = false; // Reset on open
       Html5Qrcode.getCameras().then(availableDevices => {
         if (availableDevices && availableDevices.length > 0) {
           setDevices(availableDevices);
@@ -99,10 +100,12 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
     }
   }, [open, toast, selectedDeviceId]);
 
+
   const stopScanner = () => {
     if (scannerRef.current && scannerRef.current.isScanning) {
         scannerRef.current.stop().catch(err => {
-            console.error("Failed to stop scanner:", err);
+            // This can happen if the scanner is already stopped.
+            console.warn("Scanner could not be stopped, likely already stopped.", err);
         });
     }
   };
@@ -110,17 +113,15 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
   useEffect(() => {
     if (open && selectedDeviceId && readerRef.current) {
         if (!scannerRef.current) {
-            scannerRef.current = new Html5Qrcode(readerRef.current.id, {
-                verbose: false,
-            });
+            scannerRef.current = new Html5Qrcode(readerRef.current.id, { verbose: false });
         }
         const html5Qrcode = scannerRef.current;
         
         const qrCodeSuccessCallback = (decodedText: string) => {
             onBarcodeScan(decodedText);
-            onOpenChange(false);
+            onOpenChange(false); // Close dialog on successful scan
         };
-
+        
         if (html5Qrcode && !html5Qrcode.isScanning) {
             html5Qrcode.start(
                 selectedDeviceId, 
@@ -132,19 +133,17 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
                 () => {} // Ignore errors
             ).catch(err => {
                 console.error("Unable to start scanning.", err);
-                toast({ variant: "destructive", title: "Falha ao iniciar a câmera", description: "Verifique as permissões e tente novamente."})
-                onOpenChange(false);
+                // toast({ variant: "destructive", title: "Falha ao iniciar a câmera", description: "Verifique as permissões e tente novamente."})
+                // onOpenChange(false);
             });
         }
     }
 
-    // Cleanup function
     return () => {
-        if (!cleanupCalledRef.current) {
+        // Use a ref to ensure cleanup is called only once.
+        if (!cleanupCalledRef.current && scannerRef.current) {
              cleanupCalledRef.current = true;
-             if (scannerRef.current && scannerRef.current.isScanning) {
-                stopScanner();
-             }
+             stopScanner();
         }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -152,9 +151,7 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
 
   const handleOpenChange = (isOpen: boolean) => {
       if (!isOpen) {
-          if (scannerRef.current && scannerRef.current.isScanning) {
-            stopScanner();
-          }
+          stopScanner();
       }
       onOpenChange(isOpen);
   };
@@ -289,7 +286,7 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
     )
 }
 
-function EmployeeTable({ employees, setEmployees }: { employees: Employee[], setEmployees: (employees: Employee[]) => void }) {
+function EmployeeTable({ employees, setEmployees, accessLogs }: { employees: Employee[], setEmployees: (employees: Employee[]) => void, accessLogs: AccessLog[] }) {
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
@@ -316,14 +313,32 @@ function EmployeeTable({ employees, setEmployees }: { employees: Employee[], set
         setEmployees([employee, ...employees]);
     };
 
-    const filteredEmployees = employees.filter(employee =>
-        employee.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        employee.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (employee.plate && employee.plate.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (employee.ramal && employee.ramal.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        employee.status.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const getPresenceStatus = (employeeId: string) => {
+        const employeeLogs = accessLogs
+            .filter(log => log.employeeId === employeeId)
+            .sort((a, b) => new Date(b.id).getTime() - new Date(a.id).getTime());
+
+        const lastLog = employeeLogs[0];
+        if (!lastLog || lastLog.type === 'Saída') {
+            return 'Fora';
+        }
+        return 'Dentro';
+    };
+
+    const filteredEmployees = employees.filter(employee => {
+        const presenceStatus = getPresenceStatus(employee.id);
+        const searchTermLower = searchTerm.toLowerCase();
+
+        return (
+            employee.id.toLowerCase().includes(searchTermLower) ||
+            employee.name.toLowerCase().includes(searchTermLower) ||
+            employee.department.toLowerCase().includes(searchTermLower) ||
+            (employee.plate && employee.plate.toLowerCase().includes(searchTermLower)) ||
+            (employee.ramal && employee.ramal.toLowerCase().includes(searchTermLower)) ||
+            employee.status.toLowerCase().includes(searchTermLower) ||
+            presenceStatus.toLowerCase().includes(searchTermLower)
+        );
+    });
 
   return (
     <>
@@ -354,11 +369,14 @@ function EmployeeTable({ employees, setEmployees }: { employees: Employee[], set
                     <TableHead>Placa</TableHead>
                     <TableHead>Ramal</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Presença</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
                 </TableHeader>
                 <TableBody>
-                {filteredEmployees.map((employee) => (
+                {filteredEmployees.map((employee) => {
+                    const presence = getPresenceStatus(employee.id);
+                    return (
                     <TableRow key={employee.id}>
                     <TableCell>{employee.id}</TableCell>
                     <TableCell>{employee.name}</TableCell>
@@ -368,6 +386,12 @@ function EmployeeTable({ employees, setEmployees }: { employees: Employee[], set
                     <TableCell>
                         <Badge variant={employee.status === 'Ativo' ? 'default' : 'destructive'}>
                             {employee.status}
+                        </Badge>
+                    </TableCell>
+                    <TableCell>
+                         <Badge variant={presence === 'Dentro' ? 'default' : 'secondary'}>
+                            {presence === 'Dentro' ? <Building className="mr-1 h-3 w-3" /> : <Home className="mr-1 h-3 w-3" />}
+                            {presence}
                         </Badge>
                     </TableCell>
                     <TableCell className="text-right">
@@ -395,7 +419,7 @@ function EmployeeTable({ employees, setEmployees }: { employees: Employee[], set
                         </AlertDialog>
                     </TableCell>
                     </TableRow>
-                ))}
+                )})}
                 </TableBody>
             </Table>
           </div>
@@ -468,6 +492,7 @@ function AccessControl({ employees, accessLogs, setAccessLogs }: { employees: Em
     const cleanupCalledRef = useRef(false);
 
     useEffect(() => {
+        cleanupCalledRef.current = false;
         Html5Qrcode.getCameras().then(availableDevices => {
             if (availableDevices && availableDevices.length > 0) {
                 setDevices(availableDevices);
@@ -481,12 +506,17 @@ function AccessControl({ employees, accessLogs, setAccessLogs }: { employees: Em
             console.error("Error getting cameras:", err);
             toast({ variant: "destructive", title: "Erro ao acessar câmeras.", description: "Por favor, verifique as permissões." });
         });
-    }, [selectedDeviceId, toast]);
+        
+         return () => {
+            cleanupCalledRef.current = true;
+         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const stopScanner = () => {
         if (scannerRef.current && scannerRef.current.isScanning) {
             scannerRef.current.stop().catch(err => {
-                console.error("Failed to stop scanner:", err);
+                console.warn("Scanner could not be stopped.", err);
             });
         }
     };
@@ -533,9 +563,7 @@ function AccessControl({ employees, accessLogs, setAccessLogs }: { employees: Em
     useEffect(() => {
         if (selectedDeviceId && readerRef.current) {
             if (!scannerRef.current) {
-                scannerRef.current = new Html5Qrcode(readerRef.current.id, {
-                    verbose: false
-                });
+                 scannerRef.current = new Html5Qrcode(readerRef.current.id, { verbose: false });
             }
             const html5Qrcode = scannerRef.current;
 
@@ -554,21 +582,18 @@ function AccessControl({ employees, accessLogs, setAccessLogs }: { employees: Em
                     () => { /* ignore errors */ }
                 ).catch((err) => {
                     console.error("Unable to start scanning.", err);
-                    toast({ variant: "destructive", title: "Falha ao iniciar a câmera", description: "Verifique as permissões e tente novamente." });
+                    // toast({ variant: "destructive", title: "Falha ao iniciar a câmera", description: "Verifique as permissões e tente novamente." });
                 });
             }
         }
 
         return () => {
-             if (!cleanupCalledRef.current) {
-                cleanupCalledRef.current = true;
-                if (scannerRef.current && scannerRef.current.isScanning) {
-                    stopScanner();
-                }
+             if (!cleanupCalledRef.current && scannerRef.current) {
+                stopScanner();
             }
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedDeviceId, employees, accessLogs]);
+    }, [selectedDeviceId, employees, accessLogs, isScannerPaused]);
 
     return (
         <div className="grid gap-6 md:grid-cols-2">
@@ -678,6 +703,7 @@ export function Dashboard() {
     // Save access logs to localStorage whenever they change
     useEffect(() => {
         try {
+            // Do not save empty array if it was just initialized
             if (accessLogs.length > 0) {
               localStorage.setItem('accessLogs', JSON.stringify(accessLogs));
             }
@@ -694,7 +720,7 @@ export function Dashboard() {
             <TabsTrigger value="access-control">Histórico de Funcionário</TabsTrigger>
         </TabsList>
         <TabsContent value="employees" className="mt-6">
-            <EmployeeTable employees={employees} setEmployees={setEmployees} />
+            <EmployeeTable employees={employees} setEmployees={setEmployees} accessLogs={accessLogs} />
         </TabsContent>
         <TabsContent value="access-control" className="mt-6">
             <AccessControl employees={employees} accessLogs={accessLogs} setAccessLogs={setAccessLogs} />
