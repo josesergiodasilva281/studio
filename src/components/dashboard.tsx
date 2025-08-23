@@ -36,7 +36,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import type { Employee, Visitor, AccessLog } from '@/lib/types';
@@ -718,7 +718,7 @@ export function Dashboard() {
             if (storedVisitors) {
                 setVisitors(JSON.parse(storedVisitors));
             }
-        } catch (error) => {
+        } catch (error) {
             console.error("Error reading visitors from localStorage", error);
         }
     }, []);
