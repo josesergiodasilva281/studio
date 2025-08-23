@@ -1,7 +1,7 @@
 
 'use client'
 
-import { Dashboard } from '@/components/dashboard';
+import { VisitorDashboard } from '@/components/visitor-dashboard';
 import { Header } from '@/components/header';
 
 export default function DashboardPage() {
@@ -9,7 +9,7 @@ export default function DashboardPage() {
     <div className="flex flex-col min-h-screen bg-background">
       <Header />
       <main className="flex-1 p-4 sm:p-6 lg:p-8">
-        <Dashboard />
+        <VisitorDashboard />
       </main>
     </div>
   );

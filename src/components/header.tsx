@@ -14,7 +14,7 @@ export function Header() {
 
   const navLinks = [
     { href: '/', label: 'Controle de Acesso', icon: GanttChartSquare },
-    { href: '/dashboard', label: 'Dashboard', icon: Users },
+    { href: '/dashboard', label: 'Visitantes', icon: Users },
   ];
 
   return (
