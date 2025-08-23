@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from './ui/button';
-import { Pencil, Trash2, PlusCircle, Camera } from 'lucide-react';
+import { Pencil, Trash2, PlusCircle, Camera, LogIn, LogOut } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,9 +35,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Html5Qrcode } from 'html5-qrcode';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { Badge } from './ui/badge';
 
 
 interface Employee {
@@ -47,6 +48,14 @@ interface Employee {
   plate: string;
   ramal: string;
   status: 'Ativo' | 'Inativo';
+}
+
+interface AccessLog {
+  id: string;
+  employeeName: string;
+  employeeId: string;
+  timestamp: string;
+  type: 'Entrada' | 'Saída';
 }
 
 const initialEmployees: Employee[] = [
@@ -77,7 +86,9 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
       Html5Qrcode.getCameras().then(availableDevices => {
         if (availableDevices && availableDevices.length > 0) {
           setDevices(availableDevices);
-          setSelectedDeviceId(availableDevices[0].id);
+          if(!selectedDeviceId) {
+            setSelectedDeviceId(availableDevices[0].id);
+          }
         } else {
             toast({ variant: "destructive", title: "Nenhuma câmera encontrada."})
         }
@@ -86,12 +97,13 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
         toast({ variant: "destructive", title: "Erro ao acessar câmeras.", description: "Por favor, verifique as permissões."})
       });
     }
-  }, [open, toast]);
+  }, [open, toast, selectedDeviceId]);
 
 
   const stopScanner = () => {
      if (scannerRef.current && scannerRef.current.isScanning) {
         scannerRef.current.stop().catch(err => {
+            // Failure to stop is not critical, log it.
             console.error("Failed to stop scanner:", err);
         });
         scannerRef.current = null;
@@ -100,23 +112,18 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
 
 
   useEffect(() => {
-    if (open && selectedDeviceId && readerRef.current && !scannerRef.current) {
+    let html5Qrcode: Html5Qrcode;
+    if (open && selectedDeviceId && readerRef.current) {
+      if (scannerRef.current) {
+        stopScanner();
+      }
       
-      const html5Qrcode = new Html5Qrcode(readerRef.current.id);
+      html5Qrcode = new Html5Qrcode(readerRef.current.id);
       scannerRef.current = html5Qrcode;
       
       const qrCodeSuccessCallback = (decodedText: string) => {
           onBarcodeScan(decodedText);
-          toast({
-              title: "Código de Barras Lido!",
-              description: `Valor: ${decodedText}`,
-          });
           onOpenChange(false);
-      };
-
-      const qrCodeErrorCallback = (errorMessage: string) => {
-        // This is called frequently, so we usually don't want to show a toast here.
-        // console.warn(`QR code scan error: ${errorMessage}`);
       };
 
       html5Qrcode.start(
@@ -126,7 +133,7 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
               qrbox: { width: 350, height: 150 }
           },
           qrCodeSuccessCallback,
-          qrCodeErrorCallback
+          (errorMessage) => {} // Ignore errors
       ).catch(err => {
           console.error("Unable to start scanning.", err);
           toast({ variant: "destructive", title: "Falha ao iniciar a câmera", description: "Verifique as permissões e tente novamente."})
@@ -134,41 +141,12 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
       });
     }
 
-    // Cleanup function
     return () => {
-        stopScanner();
+       if(scannerRef.current){
+         stopScanner();
+       }
     };
   }, [open, selectedDeviceId, onBarcodeScan, onOpenChange, toast]);
-
-  // Handle camera change
-   useEffect(() => {
-    if (open && selectedDeviceId && scannerRef.current?.isScanning) {
-      stopScanner();
-      const html5Qrcode = new Html5Qrcode(readerRef.current!.id);
-      scannerRef.current = html5Qrcode;
-      
-       const qrCodeSuccessCallback = (decodedText: string) => {
-          onBarcodeScan(decodedText);
-          toast({
-              title: "Código de Barras Lido!",
-              description: `Valor: ${decodedText}`,
-          });
-          onOpenChange(false);
-      };
-
-      html5Qrcode.start(
-          selectedDeviceId, 
-          {
-              fps: 10,
-              qrbox: { width: 350, height: 150 }
-          },
-          qrCodeSuccessCallback,
-          (err) => {}
-      ).catch(err => {
-          onOpenChange(false);
-      });
-    }
-   }, [selectedDeviceId, open, onBarcodeScan, onOpenChange, toast]);
 
 
   return (
@@ -198,7 +176,7 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
                         </Select>
                     </div>
                  )}
-                <div id="reader" ref={readerRef} className="w-full aspect-video rounded-md bg-black" />
+                <div id="reader-dialog" ref={readerRef} className="w-full aspect-video rounded-md bg-black" />
               </div>
               <DialogFooter>
                   <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
@@ -216,16 +194,16 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
     useEffect(() => {
         if (open) {
              // Reset with a unique ID when dialog opens
-            setNewEmployee({...emptyEmployee, id: new Date().toISOString() });
+            setNewEmployee({...emptyEmployee, id: '' });
         }
     }, [open]);
 
     const handleSaveClick = () => {
-        if (!newEmployee.name || !newEmployee.department) {
+        if (!newEmployee.id || !newEmployee.name || !newEmployee.department) {
              toast({
                 variant: 'destructive',
                 title: 'Campos Obrigatórios',
-                description: 'Nome e Setor precisam ser preenchidos.',
+                description: 'Matrícula, Nome e Setor precisam ser preenchidos.',
             });
             return;
         }
@@ -294,43 +272,18 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
              onOpenChange={setIsScannerOpen}
              onBarcodeScan={(barcode) => {
                  setNewEmployee(prev => ({ ...prev, id: barcode }));
+                 toast({ title: "Matrícula preenchida!" });
              }}
          />
         </>
     )
 }
 
-function EmployeeTable() {
-    const [employees, setEmployees] = useState<Employee[]>([]);
+function EmployeeTable({ employees, setEmployees }: { employees: Employee[], setEmployees: (employees: Employee[]) => void }) {
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
-
-    useEffect(() => {
-        try {
-            const storedEmployees = localStorage.getItem('employees');
-            if (storedEmployees) {
-                setEmployees(JSON.parse(storedEmployees));
-            } else {
-                setEmployees(initialEmployees);
-            }
-        } catch (error) {
-            console.error("Error reading from localStorage", error);
-            setEmployees(initialEmployees);
-        }
-    }, []);
-
-    useEffect(() => {
-        try {
-             if (employees.length > 0) { // Only save if there are employees
-                localStorage.setItem('employees', JSON.stringify(employees));
-            }
-        } catch (error) {
-            console.error("Error writing to localStorage", error);
-        }
-    }, [employees]);
-
 
     const handleEditClick = (employee: Employee) => {
         setSelectedEmployee(JSON.parse(JSON.stringify(employee))); // Deep copy to avoid mutation
@@ -343,7 +296,7 @@ function EmployeeTable() {
 
     const handleSave = () => {
         if (selectedEmployee) {
-        setEmployees(employees.map(e => e.id === selectedEmployee.id ? selectedEmployee : e));
+          setEmployees(employees.map(e => e.id === selectedEmployee.id ? selectedEmployee : e));
         }
         setIsEditDialogOpen(false);
         setSelectedEmployee(null);
@@ -381,55 +334,61 @@ function EmployeeTable() {
                 className="max-w-sm"
             />
           </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Matrícula</TableHead>
-                <TableHead>Nome</TableHead>
-                <TableHead>Setor</TableHead>
-                <TableHead>Placa</TableHead>
-                <TableHead>Ramal</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredEmployees.map((employee) => (
-                <TableRow key={employee.id}>
-                  <TableCell>{employee.id}</TableCell>
-                  <TableCell>{employee.name}</TableCell>
-                  <TableCell>{employee.department}</TableCell>
-                  <TableCell>{employee.plate}</TableCell>
-                  <TableCell>{employee.ramal}</TableCell>
-                  <TableCell>{employee.status}</TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleEditClick(employee)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                         <Button variant="ghost" size="icon">
-                           <Trash2 className="h-4 w-4" />
-                         </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Essa ação não pode ser desfeita. Isso irá apagar permanentemente o funcionário.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDeleteClick(employee.id)}>Apagar</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </TableCell>
+          <div className="rounded-md border">
+            <Table>
+                <TableHeader>
+                <TableRow>
+                    <TableHead>Matrícula</TableHead>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Setor</TableHead>
+                    <TableHead>Placa</TableHead>
+                    <TableHead>Ramal</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                </TableHeader>
+                <TableBody>
+                {filteredEmployees.map((employee) => (
+                    <TableRow key={employee.id}>
+                    <TableCell>{employee.id}</TableCell>
+                    <TableCell>{employee.name}</TableCell>
+                    <TableCell>{employee.department}</TableCell>
+                    <TableCell>{employee.plate}</TableCell>
+                    <TableCell>{employee.ramal}</TableCell>
+                    <TableCell>
+                        <Badge variant={employee.status === 'Ativo' ? 'default' : 'destructive'}>
+                            {employee.status}
+                        </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(employee)}>
+                        <Pencil className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                            <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Essa ação não pode ser desfeita. Isso irá apagar permanentemente o funcionário.
+                            </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteClick(employee.id)}>Apagar</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                        </AlertDialog>
+                    </TableCell>
+                    </TableRow>
+                ))}
+                </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
@@ -489,13 +448,239 @@ function EmployeeTable() {
   );
 }
 
+function AccessControl({ employees, accessLogs, setAccessLogs }: { employees: Employee[], accessLogs: AccessLog[], setAccessLogs: (logs: AccessLog[]) => void }) {
+    const { toast } = useToast();
+    const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+    const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+    const scannerRef = useRef<Html5Qrcode | null>(null);
+    const readerRef = useRef<HTMLDivElement>(null);
+    const [isScannerPaused, setIsScannerPaused] = useState(false);
+
+    useEffect(() => {
+        Html5Qrcode.getCameras().then(availableDevices => {
+            if (availableDevices && availableDevices.length > 0) {
+                setDevices(availableDevices);
+                if (!selectedDeviceId) {
+                    setSelectedDeviceId(availableDevices[0].id);
+                }
+            } else {
+                 toast({ variant: "destructive", title: "Nenhuma câmera encontrada." });
+            }
+        }).catch(err => {
+            console.error("Error getting cameras:", err);
+            toast({ variant: "destructive", title: "Erro ao acessar câmeras.", description: "Por favor, verifique as permissões." });
+        });
+    }, [selectedDeviceId, toast]);
+
+    const stopScanner = () => {
+        if (scannerRef.current && scannerRef.current.isScanning) {
+            scannerRef.current.stop().catch(err => {
+                console.error("Failed to stop scanner:", err);
+            });
+            scannerRef.current = null;
+        }
+    };
+    
+    const handleScanSuccess = (decodedText: string) => {
+        if (isScannerPaused) return;
+
+        setIsScannerPaused(true);
+
+        const employee = employees.find(e => e.id === decodedText);
+
+        if (!employee) {
+            toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Funcionário não encontrado.' });
+        } else if (employee.status === 'Inativo') {
+            toast({ variant: 'destructive', title: 'Acesso Negado', description: `Funcionário ${employee.name} está inativo.` });
+        } else {
+            const lastLog = accessLogs.find(log => log.employeeId === employee.id);
+            const newLogType = !lastLog || lastLog.type === 'Saída' ? 'Entrada' : 'Saída';
+            
+            const newLog: AccessLog = {
+                id: new Date().toISOString(),
+                employeeId: employee.id,
+                employeeName: employee.name,
+                timestamp: new Date().toLocaleString('pt-BR'),
+                type: newLogType,
+            };
+
+            setAccessLogs([newLog, ...accessLogs]);
+            toast({
+                title: `Acesso Registrado: ${newLogType}`,
+                description: `${employee.name} - ${newLog.timestamp}`,
+                variant: newLogType === 'Entrada' ? 'default' : 'destructive'
+            });
+        }
+        
+        // Pause for 2 seconds to avoid multiple scans
+        setTimeout(() => setIsScannerPaused(false), 2000);
+    };
+
+    useEffect(() => {
+        if (selectedDeviceId && readerRef.current) {
+            if (scannerRef.current) {
+                stopScanner();
+            }
+
+            const html5Qrcode = new Html5Qrcode(readerRef.current.id, {
+                verbose: false
+            });
+            scannerRef.current = html5Qrcode;
+
+            html5Qrcode.start(
+                selectedDeviceId,
+                {
+                    fps: 5,
+                    qrbox: (viewfinderWidth, viewfinderHeight) => {
+                        const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                        const qrboxSize = Math.floor(minEdge * 0.8);
+                        return { width: qrboxSize, height: qrboxSize };
+                    },
+                },
+                handleScanSuccess,
+                (errorMessage) => { /* ignore errors */ }
+            ).catch((err) => {
+                console.error("Unable to start scanning.", err);
+                toast({ variant: "destructive", title: "Falha ao iniciar a câmera", description: "Verifique as permissões e tente novamente." });
+            });
+        }
+
+        return () => {
+            if (scannerRef.current) {
+                stopScanner();
+            }
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedDeviceId, employees]);
+
+    return (
+        <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Controle de Acesso</CardTitle>
+                    <CardDescription>Aponte o código de barras do funcionário para a câmera para registrar a entrada ou saída.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4">
+                     {devices.length > 1 && (
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="camera-select-main" className="text-right">Câmera</Label>
+                            <Select value={selectedDeviceId} onValueChange={setSelectedDeviceId}>
+                                <SelectTrigger id="camera-select-main" className="col-span-3">
+                                    <SelectValue placeholder="Selecione uma câmera" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {devices.map(device => (
+                                        <SelectItem key={device.id} value={device.id}>
+                                            {device.label || `Câmera ${devices.indexOf(device) + 1}`}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+                    <div id="reader-main" ref={readerRef} className="w-full aspect-square rounded-md bg-black overflow-hidden" />
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Últimos Acessos</CardTitle>
+                    <CardDescription>Histórico de entradas e saídas recentes.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                     <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Funcionário</TableHead>
+                                <TableHead>Data/Hora</TableHead>
+                                <TableHead className="text-right">Tipo</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {accessLogs.slice(0, 10).map((log) => (
+                                <TableRow key={log.id}>
+                                    <TableCell>{log.employeeName}</TableCell>
+                                    <TableCell>{log.timestamp}</TableCell>
+                                    <TableCell className="text-right">
+                                        <Badge variant={log.type === 'Entrada' ? 'default' : 'secondary'}>
+                                            {log.type === 'Entrada' ? <LogIn className="mr-1 h-3 w-3" /> : <LogOut className="mr-1 h-3 w-3" />}
+                                            {log.type}
+                                        </Badge>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
 
 export function Dashboard() {
+    const [employees, setEmployees] = useState<Employee[]>([]);
+    const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
+
+    // Load employees from localStorage on initial render
+    useEffect(() => {
+        try {
+            const storedEmployees = localStorage.getItem('employees');
+            if (storedEmployees) {
+                setEmployees(JSON.parse(storedEmployees));
+            } else {
+                setEmployees(initialEmployees);
+            }
+        } catch (error) {
+            console.error("Error reading employees from localStorage", error);
+            setEmployees(initialEmployees);
+        }
+    }, []);
+
+    // Save employees to localStorage whenever they change
+    useEffect(() => {
+        try {
+             if (employees.length > 0) { 
+                localStorage.setItem('employees', JSON.stringify(employees));
+            }
+        } catch (error) {
+            console.error("Error writing employees to localStorage", error);
+        }
+    }, [employees]);
+
+    // Load access logs from localStorage on initial render
+     useEffect(() => {
+        try {
+            const storedLogs = localStorage.getItem('accessLogs');
+            if (storedLogs) {
+                setAccessLogs(JSON.parse(storedLogs));
+            }
+        } catch (error) {
+            console.error("Error reading access logs from localStorage", error);
+        }
+    }, []);
+
+    // Save access logs to localStorage whenever they change
+    useEffect(() => {
+        try {
+            localStorage.setItem('accessLogs', JSON.stringify(accessLogs));
+        } catch (error) {
+            console.error("Error writing access logs to localStorage", error);
+        }
+    }, [accessLogs]);
+
   return (
     <div className="container mx-auto">
-      <div className="grid gap-6">
-        <EmployeeTable />
-      </div>
+      <Tabs defaultValue="access-control" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="access-control">Controle de Acesso</TabsTrigger>
+            <TabsTrigger value="employees">Funcionários</TabsTrigger>
+        </TabsList>
+        <TabsContent value="access-control" className="mt-6">
+            <AccessControl employees={employees} accessLogs={accessLogs} setAccessLogs={setAccessLogs} />
+        </TabsContent>
+        <TabsContent value="employees" className="mt-6">
+            <EmployeeTable employees={employees} setEmployees={setEmployees} />
+        </TabsContent>
+    </Tabs>
     </div>
   );
 }
