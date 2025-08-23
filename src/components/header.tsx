@@ -13,7 +13,9 @@ export function Header() {
   const pathname = usePathname();
 
   const navLinks = [
+    { href: '/', label: 'Controle de Acesso', icon: KeyRound },
     { href: '/dashboard', label: 'Visitantes', icon: Users },
+    { href: '/history', label: 'Histórico', icon: GanttChartSquare },
   ];
 
   return (

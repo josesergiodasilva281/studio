@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from './ui/button';
-import { Pencil, Trash2, PlusCircle, Camera, Home, Building } from 'lucide-react';
+import { Pencil, Trash2, GanttChartSquare, Camera, Home, Building } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,6 +39,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from './ui/badge';
 import type { Employee, AccessLog } from '@/lib/types';
 import { Html5Qrcode } from 'html5-qrcode';
+import Link from 'next/link';
 
 
 const initialEmployees: Employee[] = [
@@ -322,8 +323,14 @@ function EmployeeTable({ employees, setEmployees, accessLogs, isAddEmployeeDialo
   return (
     <>
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Funcionários</CardTitle>
+          <Link href="/history">
+            <Button variant="outline">
+              <GanttChartSquare className="mr-2 h-4 w-4" />
+              Ver Histórico
+            </Button>
+          </Link>
         </CardHeader>
         <CardContent>
            <div className="flex items-center py-4">
@@ -407,9 +414,6 @@ function EmployeeTable({ employees, setEmployees, accessLogs, isAddEmployeeDialo
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Editar Funcionário</DialogTitle>
-            <DialogDescription>
-              Altere os dados do funcionário. Clique em salvar para aplicar as mudanças.
-            </DialogDescription>
           </DialogHeader>
           {selectedEmployee && (
              <div className="grid gap-4 py-4">
