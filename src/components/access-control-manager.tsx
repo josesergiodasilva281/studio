@@ -14,9 +14,11 @@ import {
 } from './ui/select';
 import { Html5Qrcode } from 'html5-qrcode';
 import type { Employee, Visitor, AccessLog } from '@/lib/types';
+import { Button } from './ui/button';
+import { PlusCircle } from 'lucide-react';
 
 
-function AccessControl({ employees, visitors, onNewLog }: { employees: Employee[], visitors: Visitor[], onNewLog: (log: Omit<AccessLog, 'type' | 'id'>) => void }) {
+function AccessControl({ employees, visitors, onNewLog, onAddEmployeeClick }: { employees: Employee[], visitors: Visitor[], onNewLog: (log: Omit<AccessLog, 'type' | 'id'>) => void, onAddEmployeeClick: () => void }) {
     const { toast } = useToast();
     const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
     const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
@@ -114,8 +116,12 @@ function AccessControl({ employees, visitors, onNewLog }: { employees: Employee[
 
     return (
         <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Controle de Acesso</CardTitle>
+                <Button onClick={onAddEmployeeClick}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Cadastrar Funcionário
+                </Button>
             </CardHeader>
             <CardContent className="grid gap-4">
                  {devices.length > 1 && (
@@ -142,7 +148,7 @@ function AccessControl({ employees, visitors, onNewLog }: { employees: Employee[
 }
 
 
-export function AccessControlManager() {
+export function AccessControlManager({ onAddEmployeeClick }: { onAddEmployeeClick: () => void }) {
     const { toast } = useToast();
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [visitors, setVisitors] = useState<Visitor[]>([]);
@@ -221,7 +227,7 @@ export function AccessControlManager() {
 
   return (
     <div className="container mx-auto max-w-xl">
-      <AccessControl employees={employees} visitors={visitors} onNewLog={handleNewLog} />
+      <AccessControl employees={employees} visitors={visitors} onNewLog={handleNewLog} onAddEmployeeClick={onAddEmployeeClick} />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Dispatch, SetStateAction } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -207,9 +207,6 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
             <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>Cadastrar Novo Funcionário</DialogTitle>
-                    <DialogDescription>
-                       Preencha os dados abaixo para cadastrar um novo funcionário.
-                    </DialogDescription>
                 </DialogHeader>
                  <div className="grid gap-4 py-4">
                      <div className="grid grid-cols-4 items-center gap-4">
@@ -269,9 +266,8 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
     )
 }
 
-function EmployeeTable({ employees, setEmployees, accessLogs }: { employees: Employee[], setEmployees: (employees: Employee[]) => void, accessLogs: AccessLog[] }) {
+function EmployeeTable({ employees, setEmployees, accessLogs, isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen }: { employees: Employee[], setEmployees: (employees: Employee[]) => void, accessLogs: AccessLog[], isAddEmployeeDialogOpen: boolean, setIsAddEmployeeDialogOpen: Dispatch<SetStateAction<boolean>> }) {
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-    const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -326,14 +322,8 @@ function EmployeeTable({ employees, setEmployees, accessLogs }: { employees: Emp
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Funcionários</CardTitle>
-          </div>
-           <Button onClick={() => setIsAddDialogOpen(true)}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Cadastrar Funcionário
-            </Button>
+        <CardHeader>
+          <CardTitle>Funcionários</CardTitle>
         </CardHeader>
         <CardContent>
            <div className="flex items-center py-4">
@@ -411,7 +401,7 @@ function EmployeeTable({ employees, setEmployees, accessLogs }: { employees: Emp
         </CardContent>
       </Card>
 
-      <AddEmployeeDialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} onSave={handleAddNewEmployee} />
+      <AddEmployeeDialog open={isAddEmployeeDialogOpen} onOpenChange={setIsAddEmployeeDialogOpen} onSave={handleAddNewEmployee} />
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-lg">
@@ -467,7 +457,7 @@ function EmployeeTable({ employees, setEmployees, accessLogs }: { employees: Emp
   );
 }
 
-export function EmployeeDashboard() {
+export function EmployeeDashboard({ isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen }: { isAddEmployeeDialogOpen: boolean, setIsAddEmployeeDialogOpen: Dispatch<SetStateAction<boolean>> }) {
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
 
@@ -533,7 +523,13 @@ export function EmployeeDashboard() {
 
   return (
     <div className="container mx-auto">
-        <EmployeeTable employees={employees} setEmployees={setEmployees} accessLogs={accessLogs} />
+        <EmployeeTable 
+            employees={employees} 
+            setEmployees={setEmployees} 
+            accessLogs={accessLogs} 
+            isAddEmployeeDialogOpen={isAddEmployeeDialogOpen}
+            setIsAddEmployeeDialogOpen={setIsAddEmployeeDialogOpen}
+        />
     </div>
   );
 }
