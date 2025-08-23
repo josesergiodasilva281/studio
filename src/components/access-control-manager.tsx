@@ -6,15 +6,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { LogIn, LogOut, User, Users } from 'lucide-react';
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -22,7 +13,6 @@ import {
   SelectValue
 } from './ui/select';
 import { Html5Qrcode } from 'html5-qrcode';
-import { Badge } from './ui/badge';
 import type { Employee, Visitor, AccessLog } from '@/lib/types';
 
 
@@ -52,21 +42,13 @@ function AccessControl({ employees, visitors, accessLogs, setAccessLogs }: { emp
         });
         
          return () => {
-            cleanupCalledRef.current = true;
              if (scannerRef.current && scannerRef.current.isScanning) {
                 scannerRef.current.stop().catch(err => console.warn("Falha ao parar scanner.", err));
              }
+             cleanupCalledRef.current = true;
          }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    const stopScanner = () => {
-        if (scannerRef.current && scannerRef.current.isScanning) {
-            scannerRef.current.stop().catch(err => {
-                console.warn("Scanner could not be stopped.", err);
-            });
-        }
-    };
     
     const handleScanSuccess = (decodedText: string) => {
         if (isScannerPaused) return;
@@ -111,17 +93,12 @@ function AccessControl({ employees, visitors, accessLogs, setAccessLogs }: { emp
     };
 
     useEffect(() => {
-        if (selectedDeviceId && readerRef.current) {
+        if (selectedDeviceId && readerRef.current && !cleanupCalledRef.current) {
             if (!scannerRef.current) {
                  scannerRef.current = new Html5Qrcode(readerRef.current.id, { verbose: false });
             }
             const html5Qrcode = scannerRef.current;
             
-            // Cleanup previous scanner before starting a new one
-            if (html5Qrcode.isScanning) {
-                html5Qrcode.stop();
-            }
-
             if (html5Qrcode && !html5Qrcode.isScanning) {
                 html5Qrcode.start(
                     selectedDeviceId,
@@ -136,15 +113,23 @@ function AccessControl({ employees, visitors, accessLogs, setAccessLogs }: { emp
                     handleScanSuccess,
                     () => { /* ignore errors */ }
                 ).catch((err) => {
-                    console.error("Unable to start scanning.", err);
+                    if (!cleanupCalledRef.current) {
+                        console.error("Unable to start scanning.", err);
+                    }
                 });
             }
+        }
+
+        return () => {
+             if (scannerRef.current && scannerRef.current.isScanning) {
+                scannerRef.current.stop().catch(err => console.warn("Falha ao parar scanner na limpeza.", err));
+             }
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedDeviceId, employees, visitors, accessLogs, isScannerPaused]);
 
     return (
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-1 md:max-w-xl md:mx-auto">
             <Card>
                 <CardHeader>
                     <CardTitle>Controle de Acesso</CardTitle>
@@ -169,44 +154,6 @@ function AccessControl({ employees, visitors, accessLogs, setAccessLogs }: { emp
                         </div>
                     )}
                     <div id="reader-main" ref={readerRef} className="w-full aspect-square rounded-md bg-black overflow-hidden" />
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Últimos Acessos</CardTitle>
-                    <CardDescription>Histórico de entradas e saídas recentes.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                     <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Nome</TableHead>
-                                <TableHead>Tipo</TableHead>
-                                <TableHead>Data/Hora</TableHead>
-                                <TableHead className="text-right">Acesso</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {accessLogs.slice(0, 10).map((log) => (
-                                <TableRow key={log.id}>
-                                    <TableCell>{log.personName}</TableCell>
-                                     <TableCell>
-                                        <Badge variant={log.personType === 'employee' ? 'default' : 'outline'}>
-                                          {log.personType === 'employee' ? <User className="mr-1 h-3 w-3" /> : <Users className="mr-1 h-3 w-3" />}
-                                          {log.personType === 'employee' ? 'Funcionário' : 'Visitante'}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>{log.timestamp}</TableCell>
-                                    <TableCell className="text-right">
-                                        <Badge variant={log.type === 'Entrada' ? 'default' : 'secondary'}>
-                                            {log.type === 'Entrada' ? <LogIn className="mr-1 h-3 w-3" /> : <LogOut className="mr-1 h-3 w-3" />}
-                                            {log.type}
-                                        </Badge>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
                 </CardContent>
             </Card>
         </div>
