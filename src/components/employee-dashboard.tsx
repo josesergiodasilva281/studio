@@ -267,10 +267,34 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
     )
 }
 
-function EmployeeTable({ employees, setEmployees, accessLogs, isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen }: { employees: Employee[], setEmployees: (employees: Employee[]) => void, accessLogs: AccessLog[], isAddEmployeeDialogOpen: boolean, setIsAddEmployeeDialogOpen: Dispatch<SetStateAction<boolean>> }) {
+function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen }: { employees: Employee[], setEmployees: (employees: Employee[]) => void, isAddEmployeeDialogOpen: boolean, setIsAddEmployeeDialogOpen: Dispatch<SetStateAction<boolean>> }) {
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
+
+    // Load access logs from localStorage on initial render
+    useEffect(() => {
+        const loadLogs = () => {
+             try {
+                const storedLogs = localStorage.getItem('accessLogs');
+                if (storedLogs) {
+                    setAccessLogs(JSON.parse(storedLogs));
+                }
+            } catch (error) {
+                console.error("Error reading access logs from localStorage", error);
+            }
+        };
+
+        loadLogs();
+
+        // Listen for custom event to reload logs when a new access is registered
+        window.addEventListener('storage', loadLogs);
+        
+        return () => {
+            window.removeEventListener('storage', loadLogs);
+        };
+    }, []);
 
     const handleEditClick = (employee: Employee) => {
         setSelectedEmployee(JSON.parse(JSON.stringify(employee))); // Deep copy to avoid mutation
@@ -463,7 +487,6 @@ function EmployeeTable({ employees, setEmployees, accessLogs, isAddEmployeeDialo
 
 export function EmployeeDashboard({ isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen }: { isAddEmployeeDialogOpen: boolean, setIsAddEmployeeDialogOpen: Dispatch<SetStateAction<boolean>> }) {
     const [employees, setEmployees] = useState<Employee[]>([]);
-    const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
 
     // Load employees from localStorage on initial render
     useEffect(() => {
@@ -491,49 +514,17 @@ export function EmployeeDashboard({ isAddEmployeeDialogOpen, setIsAddEmployeeDia
         }
     }, [employees]);
 
-    // Load access logs from localStorage on initial render
-     useEffect(() => {
-        try {
-            const storedLogs = localStorage.getItem('accessLogs');
-            if (storedLogs) {
-                setAccessLogs(JSON.parse(storedLogs));
-            }
-        } catch (error) {
-            console.error("Error reading access logs from localStorage", error);
-        }
-    }, []);
-
-    // This is a bit of a hack to listen for changes in localStorage
-    // from other components (like AccessControlManager)
-    useEffect(() => {
-        const handleStorageChange = () => {
-             try {
-                const storedLogs = localStorage.getItem('accessLogs');
-                if (storedLogs) {
-                    setAccessLogs(JSON.parse(storedLogs));
-                }
-            } catch (error) {
-                console.error("Error reading access logs from localStorage", error);
-            }
-        };
-
-        window.addEventListener('storage', handleStorageChange);
-
-        return () => {
-            window.removeEventListener('storage', handleStorageChange);
-        };
-    }, []);
-
 
   return (
     <div className="container mx-auto">
         <EmployeeTable 
             employees={employees} 
             setEmployees={setEmployees} 
-            accessLogs={accessLogs} 
             isAddEmployeeDialogOpen={isAddEmployeeDialogOpen}
             setIsAddEmployeeDialogOpen={setIsAddEmployeeDialogOpen}
         />
     </div>
   );
 }
+
+    
