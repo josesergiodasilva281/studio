@@ -58,9 +58,6 @@ export function AccessLogTable() {
             <Card>
                 <CardHeader>
                     <CardTitle>Histórico de Acessos</CardTitle>
-                    <CardDescription>
-                        Veja as últimas entradas e saídas dos funcionários.
-                    </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="flex items-center py-4">

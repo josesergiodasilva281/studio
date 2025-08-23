@@ -116,7 +116,6 @@ function AccessControl({ employees, visitors, onNewLog }: { employees: Employee[
         <Card>
             <CardHeader>
                 <CardTitle>Controle de Acesso</CardTitle>
-                <CardDescription>Aponte o código de barras do funcionário ou visitante para a câmera para registrar a entrada ou saída.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
                  {devices.length > 1 && (

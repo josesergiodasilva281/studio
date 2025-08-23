@@ -329,7 +329,6 @@ function EmployeeTable({ employees, setEmployees, accessLogs }: { employees: Emp
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle>Funcionários</CardTitle>
-            <CardDescription>Gerencie os funcionários cadastrados.</CardDescription>
           </div>
            <Button onClick={() => setIsAddDialogOpen(true)}>
                 <PlusCircle className="mr-2 h-4 w-4" />
