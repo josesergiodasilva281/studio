@@ -674,7 +674,7 @@ export function Dashboard() {
       <Tabs defaultValue="employees" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="employees">Funcionários</TabsTrigger>
-            <TabsTrigger value="access-control">Controle de Acesso</TabsTrigger>
+            <TabsTrigger value="access-control">Histórico de Funcionário</TabsTrigger>
         </TabsList>
         <TabsContent value="employees" className="mt-6">
             <EmployeeTable employees={employees} setEmployees={setEmployees} />
@@ -686,7 +686,3 @@ export function Dashboard() {
     </div>
   );
 }
-
-    
-
-    
