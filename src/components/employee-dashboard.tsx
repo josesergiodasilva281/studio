@@ -526,5 +526,3 @@ export function EmployeeDashboard({ isAddEmployeeDialogOpen, setIsAddEmployeeDia
     </div>
   );
 }
-
-    
