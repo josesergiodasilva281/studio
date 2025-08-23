@@ -17,9 +17,7 @@ import { Input } from './ui/input';
 import { LogIn, LogOut, Building, Home } from 'lucide-react';
 
 // Combine Log with Employee details
-type EnrichedAccessLog = AccessLog & Partial<Omit<Employee, 'id' | 'name'>> & {
-    presence: 'Dentro' | 'Fora';
-};
+type EnrichedAccessLog = AccessLog & Partial<Omit<Employee, 'id' | 'name'>>;
 
 export function AccessLogTable() {
     const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
@@ -55,37 +53,16 @@ export function AccessLogTable() {
         };
     }, []);
     
-    const getPresenceStatusForLog = (personId: string, logTimestamp: string): 'Dentro' | 'Fora' => {
-        const allPersonLogs = accessLogs
-            .filter(log => log.personId === personId)
-            // Ensure logs are sorted chronologically
-            .sort((a, b) => new Date(a.id).getTime() - new Date(b.id).getTime());
-
-        let status: 'Fora' | 'Entrada' | 'Saída' = 'Fora';
-        for (const log of allPersonLogs) {
-            status = log.type;
-            if (new Date(log.id) >= new Date(logTimestamp)) {
-                break;
-            }
-        }
-        
-        // The presence is determined by the type of the specific log event itself.
-        return accessLogs.find(l => l.id === logTimestamp)?.type === 'Entrada' ? 'Dentro' : 'Fora';
-    };
-
-
     const enrichedLogs: EnrichedAccessLog[] = accessLogs
         .filter(log => log.personType === 'employee')
         .map(log => {
             const employee = employees.find(e => e.id === log.personId);
-            const presence = getPresenceStatusForLog(log.personId, log.id);
             return {
                 ...log,
                 department: employee?.department,
                 plate: employee?.plate,
                 ramal: employee?.ramal,
                 status: employee?.status,
-                presence: presence,
             };
         })
         .filter(log => 
@@ -95,7 +72,6 @@ export function AccessLogTable() {
             (log.plate && log.plate.toLowerCase().includes(searchTerm.toLowerCase())) ||
             (log.ramal && log.ramal.toLowerCase().includes(searchTerm.toLowerCase())) ||
             (log.status && log.status.toLowerCase().includes(searchTerm.toLowerCase())) ||
-            log.presence.toLowerCase().includes(searchTerm.toLowerCase()) ||
             log.timestamp.toLowerCase().includes(searchTerm.toLowerCase()) ||
             log.type.toLowerCase().includes(searchTerm.toLowerCase())
         );
@@ -176,4 +152,3 @@ export function AccessLogTable() {
         </div>
     );
 }
-
