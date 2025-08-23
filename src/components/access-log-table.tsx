@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -12,31 +12,41 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from './ui/badge';
-import type { AccessLog } from '@/lib/types';
+import type { AccessLog, Employee } from '@/lib/types';
 import { Input } from './ui/input';
-import { LogIn, LogOut } from 'lucide-react';
+import { LogIn, LogOut, Building, Home } from 'lucide-react';
+
+// Combine Log with Employee details
+type EnrichedAccessLog = AccessLog & Partial<Omit<Employee, 'id' | 'name'>> & {
+    presence: 'Dentro' | 'Fora';
+};
 
 export function AccessLogTable() {
     const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
+    const [employees, setEmployees] = useState<Employee[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Load access logs from localStorage on initial render
+    // Load data from localStorage on initial render
     useEffect(() => {
-        const loadLogs = () => {
+        const loadData = () => {
             try {
                 const storedLogs = localStorage.getItem('accessLogs');
                 if (storedLogs) {
                     setAccessLogs(JSON.parse(storedLogs));
                 }
+                const storedEmployees = localStorage.getItem('employees');
+                 if (storedEmployees) {
+                    setEmployees(JSON.parse(storedEmployees));
+                }
             } catch (error) {
-                console.error("Error reading access logs from localStorage", error);
+                console.error("Error reading from localStorage", error);
             }
         };
         
-        loadLogs();
+        loadData();
 
         // Listen for custom event to reload logs
-        const handleStorageChange = () => loadLogs();
+        const handleStorageChange = () => loadData();
         window.addEventListener('storage', handleStorageChange);
         
         // Cleanup listener
@@ -45,10 +55,47 @@ export function AccessLogTable() {
         };
     }, []);
     
-    const employeeLogs = accessLogs
+    const getPresenceStatusForLog = (personId: string, logTimestamp: string): 'Dentro' | 'Fora' => {
+        const allPersonLogs = accessLogs
+            .filter(log => log.personId === personId)
+            // Ensure logs are sorted chronologically
+            .sort((a, b) => new Date(a.id).getTime() - new Date(b.id).getTime());
+
+        let status: 'Fora' | 'Entrada' | 'Saída' = 'Fora';
+        for (const log of allPersonLogs) {
+            status = log.type;
+            if (new Date(log.id) >= new Date(logTimestamp)) {
+                break;
+            }
+        }
+        
+        // The presence is determined by the type of the specific log event itself.
+        return accessLogs.find(l => l.id === logTimestamp)?.type === 'Entrada' ? 'Dentro' : 'Fora';
+    };
+
+
+    const enrichedLogs: EnrichedAccessLog[] = accessLogs
         .filter(log => log.personType === 'employee')
+        .map(log => {
+            const employee = employees.find(e => e.id === log.personId);
+            const presence = getPresenceStatusForLog(log.personId, log.id);
+            return {
+                ...log,
+                department: employee?.department,
+                plate: employee?.plate,
+                ramal: employee?.ramal,
+                status: employee?.status,
+                presence: presence,
+            };
+        })
         .filter(log => 
             log.personName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            log.personId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (log.department && log.department.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (log.plate && log.plate.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (log.ramal && log.ramal.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (log.status && log.status.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            log.presence.toLowerCase().includes(searchTerm.toLowerCase()) ||
             log.timestamp.toLowerCase().includes(searchTerm.toLowerCase()) ||
             log.type.toLowerCase().includes(searchTerm.toLowerCase())
         );
@@ -57,7 +104,7 @@ export function AccessLogTable() {
         <div className="container mx-auto">
             <Card>
                 <CardHeader>
-                    <CardTitle>Histórico de Acessos</CardTitle>
+                    <CardTitle>Histórico de Acessos de Funcionários</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="flex items-center py-4">
@@ -72,27 +119,50 @@ export function AccessLogTable() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Nome do Funcionário</TableHead>
-                                    <TableHead>Data e Hora</TableHead>
+                                    <TableHead>Matrícula</TableHead>
+                                    <TableHead>Nome</TableHead>
+                                    <TableHead>Setor</TableHead>
+                                    <TableHead>Placa</TableHead>
+                                    <TableHead>Ramal</TableHead>
+                                    <TableHead>Status</TableHead>
                                     <TableHead>Tipo</TableHead>
+                                    <TableHead>Data e Hora</TableHead>
+                                    <TableHead>Presença no Momento</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {employeeLogs.length === 0 ? (
+                                {enrichedLogs.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={3} className="text-center">
+                                        <TableCell colSpan={9} className="text-center">
                                             Nenhum registro de acesso encontrado.
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    employeeLogs.map((log) => (
+                                    enrichedLogs.map((log) => (
                                         <TableRow key={log.id}>
+                                            <TableCell>{log.personId}</TableCell>
                                             <TableCell>{log.personName}</TableCell>
-                                            <TableCell>{log.timestamp}</TableCell>
+                                            <TableCell>{log.department || '-'}</TableCell>
+                                            <TableCell>{log.plate || '-'}</TableCell>
+                                            <TableCell>{log.ramal || '-'}</TableCell>
+                                            <TableCell>
+                                                {log.status ? (
+                                                    <Badge variant={log.status === 'Ativo' ? 'default' : 'destructive'}>
+                                                        {log.status}
+                                                    </Badge>
+                                                ) : '-'}
+                                            </TableCell>
                                             <TableCell>
                                                 <Badge variant={log.type === 'Entrada' ? 'default' : 'secondary'} className="flex items-center w-fit">
                                                      {log.type === 'Entrada' ? <LogIn className="mr-1 h-3 w-3" /> : <LogOut className="mr-1 h-3 w-3" />}
                                                     <span>{log.type}</span>
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>{log.timestamp}</TableCell>
+                                            <TableCell>
+                                                 <Badge variant={log.type === 'Entrada' ? 'default' : 'secondary'}>
+                                                    {log.type === 'Entrada' ? <Building className="mr-1 h-3 w-3" /> : <Home className="mr-1 h-3 w-3" />}
+                                                    {log.type === 'Entrada' ? 'Dentro' : 'Fora'}
                                                 </Badge>
                                             </TableCell>
                                         </TableRow>
@@ -106,3 +176,4 @@ export function AccessLogTable() {
         </div>
     );
 }
+
