@@ -327,7 +327,10 @@ function EmployeeTable({ employees, setEmployees, accessLogs }: { employees: Emp
     <>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Funcionários</CardTitle>
+          <div>
+            <CardTitle>Funcionários</CardTitle>
+            <CardDescription>Gerencie os funcionários cadastrados.</CardDescription>
+          </div>
            <Button onClick={() => setIsAddDialogOpen(true)}>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Cadastrar Funcionário
@@ -507,17 +510,27 @@ export function EmployeeDashboard() {
         }
     }, []);
 
-    // Save access logs to localStorage whenever they change
+    // This is a bit of a hack to listen for changes in localStorage
+    // from other components (like AccessControlManager)
     useEffect(() => {
-        try {
-            // Do not save empty array if it was just initialized
-            if (accessLogs.length > 0) {
-              localStorage.setItem('accessLogs', JSON.stringify(accessLogs));
+        const handleStorageChange = () => {
+             try {
+                const storedLogs = localStorage.getItem('accessLogs');
+                if (storedLogs) {
+                    setAccessLogs(JSON.parse(storedLogs));
+                }
+            } catch (error) {
+                console.error("Error reading access logs from localStorage", error);
             }
-        } catch (error) {
-            console.error("Error writing access logs to localStorage", error);
-        }
-    }, [accessLogs]);
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+        };
+    }, []);
+
 
   return (
     <div className="container mx-auto">

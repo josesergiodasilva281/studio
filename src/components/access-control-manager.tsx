@@ -190,6 +190,8 @@ export function AccessControlManager() {
         try {
             if (accessLogs.length > 0) {
               localStorage.setItem('accessLogs', JSON.stringify(accessLogs));
+              // Dispatch a custom event to notify other components
+              window.dispatchEvent(new Event('storage'));
             }
         } catch (error) {
             console.error("Error writing access logs to localStorage", error);

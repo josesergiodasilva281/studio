@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -273,8 +273,12 @@ export function VisitorDashboard() {
     // Save visitors to localStorage whenever they change
     useEffect(() => {
         try {
+            // Do not save empty array if it was just initialized
             if (visitors.length > 0) {
                 localStorage.setItem('visitors', JSON.stringify(visitors));
+            } else {
+                // If the user deletes all visitors, remove the item from localStorage
+                localStorage.removeItem('visitors');
             }
         } catch (error) {
             console.error("Error writing visitors to localStorage", error);
@@ -283,27 +287,29 @@ export function VisitorDashboard() {
 
     // Load access logs from localStorage on initial render
      useEffect(() => {
-        try {
-            const storedLogs = localStorage.getItem('accessLogs');
-            if (storedLogs) {
-                setAccessLogs(JSON.parse(storedLogs));
+        const loadLogs = () => {
+            try {
+                const storedLogs = localStorage.getItem('accessLogs');
+                if (storedLogs) {
+                    setAccessLogs(JSON.parse(storedLogs));
+                }
+            } catch (error) {
+                console.error("Error reading access logs from localStorage", error);
             }
-        } catch (error) {
-            console.error("Error reading access logs from localStorage", error);
-        }
+        };
+
+        loadLogs();
+        
+        // Listen for custom event to reload logs
+        const handleStorageChange = () => loadLogs();
+        window.addEventListener('storage', handleStorageChange);
+        
+        // Cleanup listener
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+        };
     }, []);
 
-    // Save access logs to localStorage whenever they change
-    useEffect(() => {
-        try {
-            // Do not save empty array if it was just initialized
-            if (accessLogs.length > 0) {
-              localStorage.setItem('accessLogs', JSON.stringify(accessLogs));
-            }
-        } catch (error) {
-            console.error("Error writing access logs to localStorage", error);
-        }
-    }, [accessLogs]);
 
   return (
     <div className="container mx-auto">
