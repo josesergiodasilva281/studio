@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from './ui/button';
-import { Pencil, Trash2, PlusCircle, Camera, X } from 'lucide-react';
+import { Pencil, Trash2, PlusCircle, Camera } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,9 +46,9 @@ interface Employee {
 }
 
 const initialEmployees: Employee[] = [
-  { id: '12345', name: 'João da Silva', department: 'Produção', plate: 'ABC-1234', ramal: '2101' },
-  { id: '67890', name: 'Maria Oliveira', department: 'Logística', plate: 'DEF-5678', ramal: '2102' },
-  { id: '11223', name: 'Pedro Souza', department: 'Administrativo', plate: 'GHI-9012', ramal: '2103' },
+  { id: '1', name: 'João da Silva', department: 'Produção', plate: 'ABC-1234', ramal: '2101' },
+  { id: '2', name: 'Maria Oliveira', department: 'Logística', plate: 'DEF-5678', ramal: '2102' },
+  { id: '3', name: 'Pedro Souza', department: 'Administrativo', plate: 'GHI-9012', ramal: '2103' },
 ];
 
 const emptyEmployee: Employee = {
@@ -68,36 +68,12 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
     let stream: MediaStream | null = null;
     let animationFrameId: number;
 
-    const getCameraPermission = async () => {
-      try {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            throw new Error('Camera not available');
-        }
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        setHasCameraPermission(true);
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play();
-          detectBarcode();
-        }
-      } catch (error) {
-        console.error('Error accessing camera:', error);
-        setHasCameraPermission(false);
-        toast({
-          variant: 'destructive',
-          title: 'Acesso à Câmera Negado',
-          description: 'Por favor, habilite a permissão da câmera no seu navegador.',
-        });
-        onOpenChange(false);
-      }
-    };
-
     const stopCamera = () => {
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-        }
         if (animationFrameId) {
             cancelAnimationFrame(animationFrameId);
+        }
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
         }
         if (videoRef.current) {
             videoRef.current.srcObject = null;
@@ -119,7 +95,7 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
         const barcodeDetector = new window.BarcodeDetector({ formats: ['ean_13', 'codabar', 'code_128', 'qr_code'] });
 
         const detect = async () => {
-            if (videoRef.current && videoRef.current.readyState === 4) {
+            if (videoRef.current && videoRef.current.readyState === 4) { // readyState 4 means HAVE_ENOUGH_DATA
                 try {
                     const barcodes = await barcodeDetector.detect(videoRef.current);
                     if (barcodes.length > 0) {
@@ -128,7 +104,7 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
                             title: "Código de Barras Lido!",
                             description: `Valor: ${barcodes[0].rawValue}`,
                         });
-                        onOpenChange(false); // Fecha o modal
+                        onOpenChange(false);
                     } else {
                         animationFrameId = requestAnimationFrame(detect);
                     }
@@ -143,8 +119,39 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
         detect();
     };
 
+
+    const startCamera = async () => {
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            throw new Error('Camera not available');
+        }
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        setHasCameraPermission(true);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.onloadedmetadata = () => {
+              videoRef.current?.play().catch(err => {
+                  console.error("Video play interrupted:", err);
+                  // It might be interrupted by dialog closing, which is fine.
+              });
+              detectBarcode();
+          }
+        }
+      } catch (error) {
+        console.error('Error accessing camera:', error);
+        setHasCameraPermission(false);
+        toast({
+          variant: 'destructive',
+          title: 'Acesso à Câmera Negado',
+          description: 'Por favor, habilite a permissão da câmera no seu navegador.',
+        });
+        onOpenChange(false);
+      }
+    };
+
+
     if (open) {
-      getCameraPermission();
+      startCamera();
     } else {
       stopCamera();
     }
@@ -152,7 +159,7 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
     return () => {
       stopCamera();
     };
-  }, [open, onBarcodeScan, onOpenChange, toast]);
+  }, [open]);
   
 
   return (
@@ -188,16 +195,17 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
 
     useEffect(() => {
         if (open) {
-            setNewEmployee(emptyEmployee);
+             // Reset with a unique ID when dialog opens
+            setNewEmployee({...emptyEmployee, id: new Date().toISOString() });
         }
     }, [open]);
 
     const handleSaveClick = () => {
-        if (!newEmployee.name || !newEmployee.department || !newEmployee.id) {
+        if (!newEmployee.name || !newEmployee.department) {
              toast({
                 variant: 'destructive',
                 title: 'Campos Obrigatórios',
-                description: 'Matrícula, Nome e Setor precisam ser preenchidos.',
+                description: 'Nome e Setor precisam ser preenchidos.',
             });
             return;
         }
@@ -283,7 +291,9 @@ function EmployeeTable() {
 
     useEffect(() => {
         try {
-            localStorage.setItem('employees', JSON.stringify(employees));
+             if (employees.length > 0) { // Only save if there are employees
+                localStorage.setItem('employees', JSON.stringify(employees));
+            }
         } catch (error) {
             console.error("Error writing to localStorage", error);
         }
@@ -314,8 +324,8 @@ function EmployeeTable() {
     const filteredEmployees = employees.filter(employee =>
         employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         employee.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        employee.plate.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        employee.ramal.toLowerCase().includes(searchTerm.toLowerCase())
+        (employee.plate && employee.plate.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (employee.ramal && employee.ramal.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
   return (
@@ -329,7 +339,7 @@ function EmployeeTable() {
             </Button>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center py-4">
+           <div className="flex items-center py-4">
             <Input
                 placeholder="Filtrar funcionários..."
                 value={searchTerm}
@@ -397,25 +407,25 @@ function EmployeeTable() {
           </DialogHeader>
           {selectedEmployee && (
              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="id" className="text-right">Matrícula</Label>
-                  <Input id="id" value={selectedEmployee.id} onChange={(e) => setSelectedEmployee({...selectedEmployee, id: e.target.value})} className="col-span-3" disabled />
+               <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="id-edit" className="text-right">Matrícula</Label>
+                  <Input id="id-edit" value={selectedEmployee.id} className="col-span-3" disabled />
                </div>
                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="name" className="text-right">Nome</Label>
-                  <Input id="name" value={selectedEmployee.name} onChange={(e) => setSelectedEmployee({...selectedEmployee, name: e.target.value})} className="col-span-3" />
+                  <Label htmlFor="name-edit" className="text-right">Nome</Label>
+                  <Input id="name-edit" value={selectedEmployee.name} onChange={(e) => setSelectedEmployee({...selectedEmployee, name: e.target.value})} className="col-span-3" />
                </div>
                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="department" className="text-right">Setor</Label>
-                  <Input id="department" value={selectedEmployee.department} onChange={(e) => setSelectedEmployee({...selectedEmployee, department: e.target.value})} className="col-span-3" />
+                  <Label htmlFor="department-edit" className="text-right">Setor</Label>
+                  <Input id="department-edit" value={selectedEmployee.department} onChange={(e) => setSelectedEmployee({...selectedEmployee, department: e.target.value})} className="col-span-3" />
                </div>
                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="plate" className="text-right">Placa</Label>
-                  <Input id="plate" value={selectedEmployee.plate} onChange={(e) => setSelectedEmployee({...selectedEmployee, plate: e.target.value})} className="col-span-3" />
+                  <Label htmlFor="plate-edit" className="text-right">Placa</Label>
+                  <Input id="plate-edit" value={selectedEmployee.plate} onChange={(e) => setSelectedEmployee({...selectedEmployee, plate: e.target.value})} className="col-span-3" />
                </div>
                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="ramal" className="text-right">Ramal</Label>
-                  <Input id="ramal" value={selectedEmployee.ramal} onChange={(e) => setSelectedEmployee({...selectedEmployee, ramal: e.target.value})} className="col-span-3" />
+                  <Label htmlFor="ramal-edit" className="text-right">Ramal</Label>
+                  <Input id="ramal-edit" value={selectedEmployee.ramal} onChange={(e) => setSelectedEmployee({...selectedEmployee, ramal: e.target.value})} className="col-span-3" />
                </div>
              </div>
           )}
@@ -434,17 +444,10 @@ export function Dashboard() {
   return (
     <div className="container mx-auto">
       <div className="grid gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Painel de Controle - Recursos Humanos</CardTitle>
-          </CardHeader>
-          <CardContent>
-             {/* Futuramente, aqui podemos adicionar componentes específicos para cada perfil */}
-          </CardContent>
-        </Card>
-
         <EmployeeTable />
       </div>
     </div>
   );
 }
+
+    
