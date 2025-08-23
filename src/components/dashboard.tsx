@@ -37,6 +37,8 @@ import {
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
+
 
 interface Employee {
   id: string;
@@ -61,30 +63,26 @@ const emptyEmployee: Employee = {
 };
 
 function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boolean; onOpenChange: (open: boolean) => void; onBarcodeScan: (barcode: string) => void; }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const { toast } = useToast();
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
-  const streamRef = useRef<MediaStream | null>(null);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const readerRef = useRef<HTMLDivElement>(null);
+
 
   useEffect(() => {
     const getDevices = async () => {
-        if (!navigator.mediaDevices?.enumerateDevices) {
-            console.warn("enumerateDevices() not supported.");
-            return;
-        }
         try {
-            await navigator.mediaDevices.getUserMedia({ video: true }); // Prompt for permission first
-            const allDevices = await navigator.mediaDevices.enumerateDevices();
-            const videoDevices = allDevices.filter(device => device.kind === 'videoinput');
-            setDevices(videoDevices);
-            if (videoDevices.length > 0) {
-                setSelectedDeviceId(videoDevices[0].deviceId);
+            const availableDevices = await Html5Qrcode.getCameras();
+            if (availableDevices && availableDevices.length > 0) {
+                setDevices(availableDevices);
+                setSelectedDeviceId(availableDevices[0].id);
+            } else {
+                 toast({ variant: "destructive", title: "Nenhuma câmera encontrada."})
             }
         } catch (err) {
-            console.error("Error enumerating devices:", err);
-            setHasCameraPermission(false);
+            console.error("Error getting cameras:", err);
+            toast({ variant: "destructive", title: "Erro ao acessar câmeras.", description: "Por favor, verifique as permissões."})
         }
     };
 
@@ -92,106 +90,61 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
         getDevices();
     }
 
-  }, [open]);
+  }, [open, toast]);
   
-  const stopCamera = () => {
-      if (streamRef.current) {
-          streamRef.current.getTracks().forEach(track => track.stop());
-          streamRef.current = null;
-      }
-      if (videoRef.current) {
-          videoRef.current.srcObject = null;
-      }
-  };
+
+  const stopScanner = () => {
+     if (scannerRef.current && scannerRef.current.isScanning) {
+        scannerRef.current.stop().catch(err => {
+            console.error("Failed to stop scanner:", err);
+        });
+     }
+  }
+
 
   useEffect(() => {
-    let animationFrameId: number;
+    if (open && selectedDeviceId && readerRef.current) {
+      // Ensure previous scanner is stopped before starting a new one
+      stopScanner();
+      
+      const html5Qrcode = new Html5Qrcode(readerRef.current.id);
+      scannerRef.current = html5Qrcode;
+      
+      const qrCodeSuccessCallback = (decodedText: string) => {
+          onBarcodeScan(decodedText);
+          toast({
+              title: "Código de Barras Lido!",
+              description: `Valor: ${decodedText}`,
+          });
+          onOpenChange(false);
+      };
 
-    const detectBarcode = async () => {
-        if (!('BarcodeDetector' in window)) {
-            toast({
-                variant: 'destructive',
-                title: 'Navegador não suportado',
-                description: 'A leitura de código de barras não é suportada neste navegador.',
-            });
-            onOpenChange(false);
-            return;
-        }
-        // @ts-ignore
-        const barcodeDetector = new window.BarcodeDetector({ formats: ['ean_13', 'codabar', 'code_128', 'qr_code'] });
-        
-        const detect = async () => {
-            if (videoRef.current && videoRef.current.readyState === 4) {
-                try {
-                    const barcodes = await barcodeDetector.detect(videoRef.current);
-                    if (barcodes.length > 0) {
-                        onBarcodeScan(barcodes[0].rawValue);
-                        toast({
-                            title: "Código de Barras Lido!",
-                            description: `Valor: ${barcodes[0].rawValue}`,
-                        });
-                        onOpenChange(false); // Close dialog on successful scan
-                    } else {
-                        animationFrameId = requestAnimationFrame(detect);
-                    }
-                } catch (error) {
-                    console.error('Barcode detection failed:', error);
-                    animationFrameId = requestAnimationFrame(detect);
-                }
-            } else {
-                 animationFrameId = requestAnimationFrame(detect);
-            }
-        };
-        
-        if(open && hasCameraPermission) {
-            detect();
-        }
-    };
+      const qrCodeErrorCallback = (errorMessage: string) => {
+        // This is called frequently, so we usually don't want to show a toast here.
+        // console.warn(`QR code scan error: ${errorMessage}`);
+      };
 
-    const startCamera = async () => {
-        stopCamera(); // Stop any existing stream
-        if (selectedDeviceId) {
-            try {
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    throw new Error('Camera not available');
-                }
-                const constraints = {
-                    video: { deviceId: { exact: selectedDeviceId } }
-                };
-                streamRef.current = await navigator.mediaDevices.getUserMedia(constraints);
-                setHasCameraPermission(true);
-                if (videoRef.current) {
-                    videoRef.current.srcObject = streamRef.current;
-                    await videoRef.current.play().catch(err => {
-                        console.error("Video play interrupted:", err);
-                    });
-                }
-            } catch (error) {
-                console.error('Error accessing camera:', error);
-                setHasCameraPermission(false);
-                toast({
-                    variant: 'destructive',
-                    title: 'Acesso à Câmera Negado',
-                    description: 'Por favor, habilite a permissão da câmera no seu navegador.',
-                });
-                onOpenChange(false);
-            }
-        }
-    };
+      html5Qrcode.start(
+          selectedDeviceId, 
+          {
+              fps: 10,
+              qrbox: { width: 250, height: 250 }
+          },
+          qrCodeSuccessCallback,
+          qrCodeErrorCallback
+      ).catch(err => {
+          console.error("Unable to start scanning.", err);
+          toast({ variant: "destructive", title: "Falha ao iniciar a câmera", description: "Verifique as permissões e tente novamente."})
+          onOpenChange(false);
+      });
 
-    if (open && selectedDeviceId) {
-        startCamera();
-        detectBarcode();
-    }
-    
+    } 
+
     // Cleanup function
     return () => {
-        stopCamera();
-        if(animationFrameId) {
-           cancelAnimationFrame(animationFrameId);
-        }
+        stopScanner();
     };
-  }, [open, selectedDeviceId, hasCameraPermission]);
+  }, [open, selectedDeviceId, onBarcodeScan, onOpenChange, toast]);
 
   return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -211,24 +164,14 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
                       </SelectTrigger>
                       <SelectContent>
                           {devices.map(device => (
-                              <SelectItem key={device.deviceId} value={device.deviceId}>
+                              <SelectItem key={device.id} value={device.id}>
                                   {device.label || `Câmera ${devices.indexOf(device) + 1}`}
                               </SelectItem>
                           ))}
                       </SelectContent>
                   </Select>
                 </div>
-                <div className="relative">
-                    <video ref={videoRef} className="w-full aspect-video rounded-md bg-black" autoPlay muted playsInline />
-                    {hasCameraPermission === false && (
-                         <Alert variant="destructive">
-                              <AlertTitle>Acesso à Câmera Necessário</AlertTitle>
-                              <AlertDescription>
-                                  Por favor, permita o acesso à câmera para usar esta funcionalidade.
-                              </AlertDescription>
-                          </Alert>
-                    )}
-                </div>
+                <div id="reader" ref={readerRef} className="w-full aspect-video rounded-md bg-black" />
               </div>
               <DialogFooter>
                   <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
