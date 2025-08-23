@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from './ui/button';
-import { Pencil, Trash2, PlusCircle, Camera, LogIn, LogOut, Home, Building } from 'lucide-react';
+import { Pencil, Trash2, PlusCircle, Camera, LogIn, LogOut, Home, Building, User, Users } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,7 +36,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 
@@ -50,10 +50,18 @@ interface Employee {
   status: 'Ativo' | 'Inativo';
 }
 
+interface Visitor {
+    id: string;
+    name: string;
+    document: string;
+    company: string;
+}
+
 interface AccessLog {
   id: string;
-  employeeName: string;
-  employeeId: string;
+  personName: string;
+  personId: string;
+  personType: 'employee' | 'visitor';
   timestamp: string;
   type: 'Entrada' | 'Saída';
 }
@@ -71,6 +79,13 @@ const emptyEmployee: Employee = {
     plate: '',
     ramal: '',
     status: 'Ativo',
+};
+
+const emptyVisitor: Visitor = {
+    id: '',
+    name: '',
+    document: '',
+    company: '',
 };
 
 function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boolean; onOpenChange: (open: boolean) => void; onBarcodeScan: (barcode: string) => void; }) {
@@ -104,7 +119,6 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
   const stopScanner = () => {
     if (scannerRef.current && scannerRef.current.isScanning) {
         scannerRef.current.stop().catch(err => {
-            // This can happen if the scanner is already stopped.
             console.warn("Scanner could not be stopped, likely already stopped.", err);
         });
     }
@@ -133,15 +147,12 @@ function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boo
                 () => {} // Ignore errors
             ).catch(err => {
                 console.error("Unable to start scanning.", err);
-                // toast({ variant: "destructive", title: "Falha ao iniciar a câmera", description: "Verifique as permissões e tente novamente."})
-                // onOpenChange(false);
             });
         }
     }
 
     return () => {
-        // Use a ref to ensure cleanup is called only once.
-        if (!cleanupCalledRef.current && scannerRef.current) {
+        if (!cleanupCalledRef.current) {
              cleanupCalledRef.current = true;
              stopScanner();
         }
@@ -315,7 +326,7 @@ function EmployeeTable({ employees, setEmployees, accessLogs }: { employees: Emp
 
     const getPresenceStatus = (employeeId: string) => {
         const employeeLogs = accessLogs
-            .filter(log => log.employeeId === employeeId)
+            .filter(log => log.personId === employeeId && log.personType === 'employee')
             .sort((a, b) => new Date(b.id).getTime() - new Date(a.id).getTime());
 
         const lastLog = employeeLogs[0];
@@ -482,7 +493,213 @@ function EmployeeTable({ employees, setEmployees, accessLogs }: { employees: Emp
   );
 }
 
-function AccessControl({ employees, accessLogs, setAccessLogs }: { employees: Employee[], accessLogs: AccessLog[], setAccessLogs: (logs: AccessLog[]) => void }) {
+function VisitorTable({ visitors, setVisitors, accessLogs }: { visitors: Visitor[], setVisitors: (visitors: Visitor[]) => void, accessLogs: AccessLog[] }) {
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+    const [selectedVisitor, setSelectedVisitor] = useState<Visitor | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const { toast } = useToast();
+
+    const handleEditClick = (visitor: Visitor) => {
+        setSelectedVisitor(JSON.parse(JSON.stringify(visitor))); // Deep copy
+        setIsEditDialogOpen(true);
+    };
+
+    const handleDeleteClick = (visitorId: string) => {
+        setVisitors(visitors.filter(v => v.id !== visitorId));
+    };
+
+    const handleSave = () => {
+        if (selectedVisitor) {
+            setVisitors(visitors.map(v => v.id === selectedVisitor.id ? selectedVisitor : v));
+        }
+        setIsEditDialogOpen(false);
+        setSelectedVisitor(null);
+    };
+
+    const handleAddNewVisitor = (visitor: Visitor) => {
+        if (!visitor.name || !visitor.document) {
+            toast({ variant: 'destructive', title: 'Campos Obrigatórios', description: 'Nome e Documento são obrigatórios.' });
+            return;
+        }
+        setVisitors([visitor, ...visitors]);
+    };
+    
+    const getPresenceStatus = (visitorId: string) => {
+        const visitorLogs = accessLogs
+            .filter(log => log.personId === visitorId && log.personType === 'visitor')
+            .sort((a, b) => new Date(b.id).getTime() - new Date(a.id).getTime());
+
+        const lastLog = visitorLogs[0];
+        if (!lastLog || lastLog.type === 'Saída') {
+            return 'Fora';
+        }
+        return 'Dentro';
+    };
+
+    const filteredVisitors = visitors.filter(visitor => {
+        const presenceStatus = getPresenceStatus(visitor.id);
+        const searchTermLower = searchTerm.toLowerCase();
+
+        return (
+            visitor.id.toLowerCase().includes(searchTermLower) ||
+            visitor.name.toLowerCase().includes(searchTermLower) ||
+            visitor.document.toLowerCase().includes(searchTermLower) ||
+            visitor.company.toLowerCase().includes(searchTermLower) ||
+            presenceStatus.toLowerCase().includes(searchTermLower)
+        );
+    });
+
+  return (
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Visitantes</CardTitle>
+           <Button onClick={() => setIsAddDialogOpen(true)}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Cadastrar Visitante
+            </Button>
+        </CardHeader>
+        <CardContent>
+           <div className="flex items-center py-4">
+            <Input
+                placeholder="Filtrar visitantes..."
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                className="max-w-sm"
+            />
+          </div>
+          <div className="rounded-md border">
+            <Table>
+                <TableHeader>
+                <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Documento</TableHead>
+                    <TableHead>Empresa</TableHead>
+                    <TableHead>Presença</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+                </TableHeader>
+                <TableBody>
+                {filteredVisitors.map((visitor) => {
+                    const presence = getPresenceStatus(visitor.id);
+                    return (
+                    <TableRow key={visitor.id}>
+                    <TableCell>{visitor.id}</TableCell>
+                    <TableCell>{visitor.name}</TableCell>
+                    <TableCell>{visitor.document}</TableCell>
+                    <TableCell>{visitor.company}</TableCell>
+                     <TableCell>
+                         <Badge variant={presence === 'Dentro' ? 'default' : 'secondary'}>
+                            {presence === 'Dentro' ? <Building className="mr-1 h-3 w-3" /> : <Home className="mr-1 h-3 w-3" />}
+                            {presence}
+                        </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(visitor)}>
+                        <Pencil className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                            <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Essa ação não pode ser desfeita. Isso irá apagar permanentemente o visitante.
+                            </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteClick(visitor.id)}>Apagar</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                        </AlertDialog>
+                    </TableCell>
+                    </TableRow>
+                )})}
+                </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Add/Edit Dialogs */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogContent>
+              <DialogHeader>
+                  <DialogTitle>Cadastrar Novo Visitante</DialogTitle>
+              </DialogHeader>
+              <AddVisitorForm onSave={handleAddNewVisitor} onCancel={() => setIsAddDialogOpen(false)} />
+          </DialogContent>
+      </Dialog>
+      
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent>
+              <DialogHeader>
+                  <DialogTitle>Editar Visitante</DialogTitle>
+              </DialogHeader>
+              {selectedVisitor && <AddVisitorForm
+                initialData={selectedVisitor}
+                onSave={(visitor) => {
+                  handleSave();
+                  // A bit of a hack to update the selected visitor state
+                  // since the form is now self-contained
+                  setVisitors(visitors.map(v => v.id === visitor.id ? visitor : v));
+                  setIsEditDialogOpen(false);
+                }}
+                onCancel={() => setIsEditDialogOpen(false)}
+              />}
+          </DialogContent>
+      </Dialog>
+
+    </>
+  );
+}
+
+function AddVisitorForm({ onSave, onCancel, initialData }: { onSave: (visitor: Visitor) => void, onCancel: () => void, initialData?: Visitor }) {
+    const [visitor, setVisitor] = useState(initialData || { ...emptyVisitor, id: `visit-${Date.now()}` });
+    const { toast } = useToast();
+
+    const handleSave = () => {
+         if (!visitor.name || !visitor.document) {
+            toast({ variant: 'destructive', title: 'Campos Obrigatórios', description: 'Nome e Documento são obrigatórios.' });
+            return;
+        }
+        onSave(visitor);
+    };
+
+    return (
+        <div className="grid gap-4 py-4">
+             <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="id-visitor" className="text-right">ID</Label>
+                <Input id="id-visitor" value={visitor.id} className="col-span-3" disabled />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="name-visitor" className="text-right">Nome</Label>
+                <Input id="name-visitor" value={visitor.name} onChange={(e) => setVisitor({ ...visitor, name: e.target.value })} className="col-span-3" />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="document-visitor" className="text-right">Documento</Label>
+                <Input id="document-visitor" value={visitor.document} onChange={(e) => setVisitor({ ...visitor, document: e.target.value })} className="col-span-3" />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="company-visitor" className="text-right">Empresa</Label>
+                <Input id="company-visitor" value={visitor.company} onChange={(e) => setVisitor({ ...visitor, company: e.target.value })} className="col-span-3" />
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={onCancel}>Cancelar</Button>
+                <Button onClick={handleSave}>Salvar</Button>
+            </DialogFooter>
+        </div>
+    );
+}
+
+function AccessControl({ employees, visitors, accessLogs, setAccessLogs }: { employees: Employee[], visitors: Visitor[], accessLogs: AccessLog[], setAccessLogs: (logs: AccessLog[]) => void }) {
     const { toast } = useToast();
     const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
     const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
@@ -509,6 +726,9 @@ function AccessControl({ employees, accessLogs, setAccessLogs }: { employees: Em
         
          return () => {
             cleanupCalledRef.current = true;
+             if (scannerRef.current && scannerRef.current.isScanning) {
+                scannerRef.current.stop().catch(err => console.warn("Falha ao parar scanner.", err));
+             }
          }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -527,23 +747,27 @@ function AccessControl({ employees, accessLogs, setAccessLogs }: { employees: Em
         setIsScannerPaused(true);
 
         const employee = employees.find(e => e.id === decodedText);
+        const visitor = visitors.find(v => v.id === decodedText);
+        let person: Employee | Visitor | undefined = employee || visitor;
+        let personType: 'employee' | 'visitor' | undefined = employee ? 'employee' : (visitor ? 'visitor' : undefined);
 
-        if (!employee) {
-            toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Funcionário não encontrado.' });
-        } else if (employee.status === 'Inativo') {
-            toast({ variant: 'destructive', title: 'Acesso Negado', description: `Funcionário ${employee.name} está inativo.` });
+        if (!person || !personType) {
+            toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Pessoa não encontrada.' });
+        } else if (personType === 'employee' && (person as Employee).status === 'Inativo') {
+            toast({ variant: 'destructive', title: 'Acesso Negado', description: `Funcionário ${person.name} está inativo.` });
         } else {
-            const employeeLogs = accessLogs
-                .filter(log => log.employeeId === employee.id)
+            const personLogs = accessLogs
+                .filter(log => log.personId === person!.id)
                 .sort((a, b) => new Date(b.id).getTime() - new Date(a.id).getTime());
 
-            const lastLog = employeeLogs[0];
+            const lastLog = personLogs[0];
             const newLogType = !lastLog || lastLog.type === 'Saída' ? 'Entrada' : 'Saída';
             
             const newLog: AccessLog = {
                 id: new Date().toISOString(),
-                employeeId: employee.id,
-                employeeName: employee.name,
+                personId: person.id,
+                personName: person.name,
+                personType: personType,
                 timestamp: new Date().toLocaleString('pt-BR'),
                 type: newLogType,
             };
@@ -551,12 +775,11 @@ function AccessControl({ employees, accessLogs, setAccessLogs }: { employees: Em
             setAccessLogs([newLog, ...accessLogs]);
             toast({
                 title: `Acesso Registrado: ${newLogType}`,
-                description: `${employee.name} - ${newLog.timestamp}`,
+                description: `${person.name} - ${newLog.timestamp}`,
                 variant: newLogType === 'Entrada' ? 'default' : 'destructive'
             });
         }
         
-        // Pause for 2 seconds to avoid multiple scans
         setTimeout(() => setIsScannerPaused(false), 2000);
     };
 
@@ -566,6 +789,11 @@ function AccessControl({ employees, accessLogs, setAccessLogs }: { employees: Em
                  scannerRef.current = new Html5Qrcode(readerRef.current.id, { verbose: false });
             }
             const html5Qrcode = scannerRef.current;
+            
+            // Cleanup previous scanner before starting a new one
+            if (html5Qrcode.isScanning) {
+                html5Qrcode.stop();
+            }
 
             if (html5Qrcode && !html5Qrcode.isScanning) {
                 html5Qrcode.start(
@@ -582,25 +810,18 @@ function AccessControl({ employees, accessLogs, setAccessLogs }: { employees: Em
                     () => { /* ignore errors */ }
                 ).catch((err) => {
                     console.error("Unable to start scanning.", err);
-                    // toast({ variant: "destructive", title: "Falha ao iniciar a câmera", description: "Verifique as permissões e tente novamente." });
                 });
             }
         }
-
-        return () => {
-             if (!cleanupCalledRef.current && scannerRef.current) {
-                stopScanner();
-            }
-        };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedDeviceId, employees, accessLogs, isScannerPaused]);
+    }, [selectedDeviceId, employees, visitors, accessLogs, isScannerPaused]);
 
     return (
         <div className="grid gap-6 md:grid-cols-2">
             <Card>
                 <CardHeader>
                     <CardTitle>Controle de Acesso</CardTitle>
-                    <CardDescription>Aponte o código de barras do funcionário para a câmera para registrar a entrada ou saída.</CardDescription>
+                    <CardDescription>Aponte o código de barras do funcionário ou visitante para a câmera para registrar a entrada ou saída.</CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-4">
                      {devices.length > 1 && (
@@ -632,15 +853,22 @@ function AccessControl({ employees, accessLogs, setAccessLogs }: { employees: Em
                      <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Funcionário</TableHead>
+                                <TableHead>Nome</TableHead>
+                                <TableHead>Tipo</TableHead>
                                 <TableHead>Data/Hora</TableHead>
-                                <TableHead className="text-right">Tipo</TableHead>
+                                <TableHead className="text-right">Acesso</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {accessLogs.slice(0, 10).map((log) => (
                                 <TableRow key={log.id}>
-                                    <TableCell>{log.employeeName}</TableCell>
+                                    <TableCell>{log.personName}</TableCell>
+                                     <TableCell>
+                                        <Badge variant={log.personType === 'employee' ? 'default' : 'outline'}>
+                                          {log.personType === 'employee' ? <User className="mr-1 h-3 w-3" /> : <Users className="mr-1 h-3 w-3" />}
+                                          {log.personType === 'employee' ? 'Funcionário' : 'Visitante'}
+                                        </Badge>
+                                    </TableCell>
                                     <TableCell>{log.timestamp}</TableCell>
                                     <TableCell className="text-right">
                                         <Badge variant={log.type === 'Entrada' ? 'default' : 'secondary'}>
@@ -660,6 +888,7 @@ function AccessControl({ employees, accessLogs, setAccessLogs }: { employees: Em
 
 export function Dashboard() {
     const [employees, setEmployees] = useState<Employee[]>([]);
+    const [visitors, setVisitors] = useState<Visitor[]>([]);
     const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
 
     // Load employees from localStorage on initial render
@@ -688,6 +917,29 @@ export function Dashboard() {
         }
     }, [employees]);
 
+     // Load visitors from localStorage on initial render
+    useEffect(() => {
+        try {
+            const storedVisitors = localStorage.getItem('visitors');
+            if (storedVisitors) {
+                setVisitors(JSON.parse(storedVisitors));
+            }
+        } catch (error) {
+            console.error("Error reading visitors from localStorage", error);
+        }
+    }, []);
+
+    // Save visitors to localStorage whenever they change
+    useEffect(() => {
+        try {
+            if (visitors.length > 0) {
+                localStorage.setItem('visitors', JSON.stringify(visitors));
+            }
+        } catch (error) {
+            console.error("Error writing visitors to localStorage", error);
+        }
+    }, [visitors]);
+
     // Load access logs from localStorage on initial render
      useEffect(() => {
         try {
@@ -715,17 +967,23 @@ export function Dashboard() {
   return (
     <div className="container mx-auto">
       <Tabs defaultValue="employees" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="employees">Funcionários</TabsTrigger>
-            <TabsTrigger value="access-control">Histórico de Funcionário</TabsTrigger>
+            <TabsTrigger value="visitors">Visitantes</TabsTrigger>
+            <TabsTrigger value="access-control">Histórico de Acesso</TabsTrigger>
         </TabsList>
         <TabsContent value="employees" className="mt-6">
             <EmployeeTable employees={employees} setEmployees={setEmployees} accessLogs={accessLogs} />
         </TabsContent>
+        <TabsContent value="visitors" className="mt-6">
+            <VisitorTable visitors={visitors} setVisitors={setVisitors} accessLogs={accessLogs} />
+        </TabsContent>
         <TabsContent value="access-control" className="mt-6">
-            <AccessControl employees={employees} accessLogs={accessLogs} setAccessLogs={setAccessLogs} />
+            <AccessControl employees={employees} visitors={visitors} accessLogs={accessLogs} setAccessLogs={setAccessLogs} />
         </TabsContent>
     </Tabs>
     </div>
   );
 }
+
+    
