@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from './ui/button';
-import { Pencil, Trash2, PlusCircle } from 'lucide-react';
+import { Pencil, Trash2, PlusCircle, Camera, X } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +35,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 interface Employee {
   id: string;
@@ -50,16 +51,140 @@ const initialEmployees: Employee[] = [
   { id: '11223', name: 'Pedro Souza', department: 'Administrativo', plate: 'GHI-9012', ramal: '2103' },
 ];
 
-const emptyEmployee: Omit<Employee, 'id'> = {
+const emptyEmployee: Employee = {
+    id: '',
     name: '',
     department: '',
     plate: '',
     ramal: '',
 };
 
+function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boolean; onOpenChange: (open: boolean) => void; onBarcodeScan: (barcode: string) => void; }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    let stream: MediaStream | null = null;
+    let animationFrameId: number;
+
+    const getCameraPermission = async () => {
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            throw new Error('Camera not available');
+        }
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        setHasCameraPermission(true);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play();
+          detectBarcode();
+        }
+      } catch (error) {
+        console.error('Error accessing camera:', error);
+        setHasCameraPermission(false);
+        toast({
+          variant: 'destructive',
+          title: 'Acesso à Câmera Negado',
+          description: 'Por favor, habilite a permissão da câmera no seu navegador.',
+        });
+        onOpenChange(false);
+      }
+    };
+
+    const stopCamera = () => {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+        }
+        if (videoRef.current) {
+            videoRef.current.srcObject = null;
+        }
+    }
+
+    const detectBarcode = async () => {
+        if (!('BarcodeDetector' in window)) {
+            toast({
+                variant: 'destructive',
+                title: 'Navegador não suportado',
+                description: 'A leitura de código de barras não é suportada neste navegador.',
+            });
+            onOpenChange(false);
+            return;
+        }
+
+        // @ts-ignore
+        const barcodeDetector = new window.BarcodeDetector({ formats: ['ean_13', 'codabar', 'code_128', 'qr_code'] });
+
+        const detect = async () => {
+            if (videoRef.current && videoRef.current.readyState === 4) {
+                try {
+                    const barcodes = await barcodeDetector.detect(videoRef.current);
+                    if (barcodes.length > 0) {
+                        onBarcodeScan(barcodes[0].rawValue);
+                        toast({
+                            title: "Código de Barras Lido!",
+                            description: `Valor: ${barcodes[0].rawValue}`,
+                        });
+                        onOpenChange(false); // Fecha o modal
+                    } else {
+                        animationFrameId = requestAnimationFrame(detect);
+                    }
+                } catch (error) {
+                    console.error('Barcode detection failed:', error);
+                    animationFrameId = requestAnimationFrame(detect);
+                }
+            } else {
+                animationFrameId = requestAnimationFrame(detect);
+            }
+        };
+        detect();
+    };
+
+    if (open) {
+      getCameraPermission();
+    } else {
+      stopCamera();
+    }
+
+    return () => {
+      stopCamera();
+    };
+  }, [open, onBarcodeScan, onOpenChange, toast]);
+  
+
+  return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+          <DialogContent className="sm:max-w-xl">
+              <DialogHeader>
+                  <DialogTitle>Leitor de Código de Barras</DialogTitle>
+                  <DialogDescription>Aponte a câmera para o código de barras.</DialogDescription>
+              </DialogHeader>
+              <div className="relative">
+                  <video ref={videoRef} className="w-full aspect-video rounded-md bg-black" autoPlay muted playsInline />
+                  {hasCameraPermission === false && (
+                       <Alert variant="destructive">
+                            <AlertTitle>Acesso à Câmera Necessário</AlertTitle>
+                            <AlertDescription>
+                                Por favor, permita o acesso à câmera para usar esta funcionalidade.
+                            </AlertDescription>
+                        </Alert>
+                  )}
+              </div>
+              <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+              </DialogFooter>
+          </DialogContent>
+      </Dialog>
+  )
+}
+
 function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, onSave: (employee: Employee) => void }) {
     const { toast } = useToast();
     const [newEmployee, setNewEmployee] = useState(emptyEmployee);
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
 
     useEffect(() => {
         if (open) {
@@ -68,19 +193,20 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
     }, [open]);
 
     const handleSaveClick = () => {
-        if (!newEmployee.name || !newEmployee.department) {
+        if (!newEmployee.name || !newEmployee.department || !newEmployee.id) {
              toast({
                 variant: 'destructive',
                 title: 'Campos Obrigatórios',
-                description: 'Nome e Setor precisam ser preenchidos.',
+                description: 'Matrícula, Nome e Setor precisam ser preenchidos.',
             });
             return;
         }
-        onSave({ ...newEmployee, id: new Date().getTime().toString() });
+        onSave(newEmployee);
         onOpenChange(false);
     }
     
     return (
+        <>
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
@@ -90,6 +216,16 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
                     </DialogDescription>
                 </DialogHeader>
                  <div className="grid gap-4 py-4">
+                     <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="id" className="text-right">Matrícula</Label>
+                        <div className="col-span-3 flex items-center gap-2">
+                           <Input id="id" value={newEmployee.id} onChange={(e) => setNewEmployee({...newEmployee, id: e.target.value})} className="flex-grow" />
+                            <Button type="button" variant="outline" size="icon" onClick={() => setIsScannerOpen(true)}>
+                                <Camera className="h-4 w-4" />
+                                <span className="sr-only">Ler código de barras</span>
+                            </Button>
+                        </div>
+                    </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="name" className="text-right">Nome</Label>
                         <Input id="name" value={newEmployee.name} onChange={(e) => setNewEmployee({...newEmployee, name: e.target.value})} className="col-span-3" />
@@ -113,6 +249,14 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+        <BarcodeScannerDialog
+             open={isScannerOpen}
+             onOpenChange={setIsScannerOpen}
+             onBarcodeScan={(barcode) => {
+                 setNewEmployee(prev => ({ ...prev, id: barcode }));
+             }}
+         />
+        </>
     )
 }
 
@@ -253,6 +397,10 @@ function EmployeeTable() {
           </DialogHeader>
           {selectedEmployee && (
              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="id" className="text-right">Matrícula</Label>
+                  <Input id="id" value={selectedEmployee.id} onChange={(e) => setSelectedEmployee({...selectedEmployee, id: e.target.value})} className="col-span-3" disabled />
+               </div>
                <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="name" className="text-right">Nome</Label>
                   <Input id="name" value={selectedEmployee.name} onChange={(e) => setSelectedEmployee({...selectedEmployee, name: e.target.value})} className="col-span-3" />
