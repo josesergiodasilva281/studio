@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
-  title: 'Videira',
+  title: 'AccessKey',
   description: 'Controle de acesso por QR Code e código de barras',
 };
 
