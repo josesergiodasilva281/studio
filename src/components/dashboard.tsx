@@ -194,16 +194,16 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
     useEffect(() => {
         if (open) {
              // Reset with a unique ID when dialog opens
-            setNewEmployee({...emptyEmployee, id: '' });
+            setNewEmployee({...emptyEmployee, id: `func-${Date.now()}` });
         }
     }, [open]);
 
     const handleSaveClick = () => {
-        if (!newEmployee.id || !newEmployee.name || !newEmployee.department) {
+        if (!newEmployee.name || !newEmployee.department) {
              toast({
                 variant: 'destructive',
                 title: 'Campos Obrigatórios',
-                description: 'Matrícula, Nome e Setor precisam ser preenchidos.',
+                description: 'Nome e Setor precisam ser preenchidos.',
             });
             return;
         }
@@ -225,7 +225,7 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
                      <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="id" className="text-right">Matrícula</Label>
                         <div className="col-span-3 flex items-center gap-2">
-                           <Input id="id" value={newEmployee.id} onChange={(e) => setNewEmployee({...newEmployee, id: e.target.value})} className="flex-grow" />
+                           <Input id="id" value={newEmployee.id} onChange={(e) => setNewEmployee({...newEmployee, id: e.target.value})} className="flex-grow" disabled />
                             <Button type="button" variant="outline" size="icon" onClick={() => setIsScannerOpen(true)}>
                                 <Camera className="h-4 w-4" />
                                 <span className="sr-only">Ler código de barras</span>
@@ -661,7 +661,9 @@ export function Dashboard() {
     // Save access logs to localStorage whenever they change
     useEffect(() => {
         try {
-            localStorage.setItem('accessLogs', JSON.stringify(accessLogs));
+            if (accessLogs.length > 0) {
+              localStorage.setItem('accessLogs', JSON.stringify(accessLogs));
+            }
         } catch (error) {
             console.error("Error writing access logs to localStorage", error);
         }
@@ -684,3 +686,5 @@ export function Dashboard() {
     </div>
   );
 }
+
+    
