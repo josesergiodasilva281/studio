@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from './ui/button';
-import { Pencil, Trash2, PlusCircle, Home, Building, GanttChartSquare, Camera, User } from 'lucide-react';
+import { Pencil, Trash2, PlusCircle, Home, Building, GanttChartSquare, Camera, User, LogIn } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,10 +54,13 @@ const emptyVisitor: Visitor = {
     reason: '',
 };
 
+type ReturningVisitorInfo = Pick<Visitor, 'company' | 'plate' | 'responsible' | 'reason'>;
 
-function VisitorTable({ visitors, setVisitors, accessLogs }: { visitors: Visitor[], setVisitors: (visitors: Visitor[]) => void, accessLogs: AccessLog[] }) {
+
+function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { visitors: Visitor[], setVisitors: (visitors: Visitor[]) => void, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>> }) {
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+    const [isReturningVisitorDialogOpen, setIsReturningVisitorDialogOpen] = useState(false);
     const [selectedVisitor, setSelectedVisitor] = useState<Visitor | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [inputValue, setInputValue] = useState('');
@@ -66,6 +69,11 @@ function VisitorTable({ visitors, setVisitors, accessLogs }: { visitors: Visitor
     const handleEditClick = (visitor: Visitor) => {
         setSelectedVisitor(JSON.parse(JSON.stringify(visitor))); // Deep copy
         setIsEditDialogOpen(true);
+    };
+    
+    const handleReturningVisitorClick = (visitor: Visitor) => {
+        setSelectedVisitor(JSON.parse(JSON.stringify(visitor))); // Deep copy
+        setIsReturningVisitorDialogOpen(true);
     };
 
     const handleDeleteClick = (visitorId: string) => {
@@ -83,6 +91,43 @@ function VisitorTable({ visitors, setVisitors, accessLogs }: { visitors: Visitor
         setIsAddDialogOpen(false);
     };
     
+    const handleNewLog = (visitor: Visitor, newInfo?: ReturningVisitorInfo) => {
+        const visitorLogs = accessLogs
+            .filter(log => log.personId === visitor.id)
+            .sort((a, b) => new Date(b.id).getTime() - new Date(a.id).getTime());
+
+        const lastLog = visitorLogs[0];
+        const newLogType = !lastLog || lastLog.type === 'Saída' ? 'Entrada' : 'Saída';
+
+        const updatedVisitor = newInfo ? { ...visitor, ...newInfo } : visitor;
+
+        const newLog: AccessLog = {
+            id: new Date().toISOString(),
+            personId: updatedVisitor.id,
+            personName: updatedVisitor.name,
+            personType: 'visitor',
+            timestamp: new Date().toLocaleString('pt-BR'),
+            type: newLogType,
+        };
+        
+        setAccessLogs([newLog, ...accessLogs]);
+        
+        // If it's a returning visitor, update their info in the main visitors list
+        if (newInfo) {
+            setVisitors(visitors.map(v => v.id === updatedVisitor.id ? updatedVisitor : v));
+        }
+
+        toast({
+            title: `Acesso Registrado: ${newLog.type}`,
+            description: `${newLog.personName} - ${newLog.timestamp}`,
+            variant: newLog.type === 'Entrada' ? 'default' : 'destructive'
+        });
+        
+        setIsReturningVisitorDialogOpen(false);
+        setSelectedVisitor(null);
+    };
+
+
     const getPresenceStatus = (visitorId: string) => {
         const visitorLogs = accessLogs
             .filter(log => log.personId === visitorId && log.personType === 'visitor')
@@ -185,6 +230,9 @@ function VisitorTable({ visitors, setVisitors, accessLogs }: { visitors: Visitor
                         </Badge>
                     </TableCell>
                     <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" onClick={() => handleReturningVisitorClick(visitor)} title="Registrar Entrada/Saída">
+                            <LogIn className="h-4 w-4" />
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => handleEditClick(visitor)}>
                         <Pencil className="h-4 w-4" />
                         </Button>
@@ -237,9 +285,96 @@ function VisitorTable({ visitors, setVisitors, accessLogs }: { visitors: Visitor
               />}
           </DialogContent>
       </Dialog>
-
+      
+      <Dialog open={isReturningVisitorDialogOpen} onOpenChange={setIsReturningVisitorDialogOpen}>
+          <DialogContent className="sm:max-w-2xl">
+              <DialogHeader>
+                  <DialogTitle>Registrar Visita Recorrente</DialogTitle>
+                   <DialogDescription>
+                    Confirme os dados para a nova visita de {selectedVisitor?.name}.
+                  </DialogDescription>
+              </DialogHeader>
+              {selectedVisitor && (
+                <ReturningVisitorForm 
+                    visitor={selectedVisitor}
+                    onSave={(info) => handleNewLog(selectedVisitor, info)}
+                    onCancel={() => setIsReturningVisitorDialogOpen(false)}
+                />
+              )}
+          </DialogContent>
+      </Dialog>
     </>
   );
+}
+
+function ReturningVisitorForm({ visitor, onSave, onCancel }: { visitor: Visitor, onSave: (info: ReturningVisitorInfo) => void, onCancel: () => void }) {
+    const [info, setInfo] = useState<ReturningVisitorInfo>({
+        company: visitor.company || '',
+        plate: visitor.plate || '',
+        responsible: '',
+        reason: ''
+    });
+    const { toast } = useToast();
+
+    const companyInputRef = useRef<HTMLInputElement>(null);
+    const plateInputRef = useRef<HTMLInputElement>(null);
+    const responsibleInputRef = useRef<HTMLInputElement>(null);
+    const reasonInputRef = useRef<HTMLInputElement>(null);
+    const saveButtonRef = useRef<HTMLButtonElement>(null);
+
+    useEffect(() => {
+        companyInputRef.current?.focus();
+    }, []);
+
+    const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, nextFieldRef: React.RefObject<HTMLElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            nextFieldRef.current?.focus();
+        }
+    };
+
+    const handleSave = () => {
+        if (!info.responsible || !info.reason) {
+            toast({ variant: 'destructive', title: 'Campos Obrigatórios', description: 'Responsável e Motivo são obrigatórios.' });
+            return;
+        }
+        onSave(info);
+    };
+
+    return (
+        <div className="grid gap-4 py-4">
+            <div className="flex items-center gap-4 p-4 rounded-md border bg-muted">
+                <Avatar className="h-16 w-16">
+                    <AvatarImage src={visitor.photoDataUrl} alt={visitor.name} />
+                    <AvatarFallback><User /></AvatarFallback>
+                </Avatar>
+                <div>
+                    <p className="font-bold text-lg">{visitor.name}</p>
+                    <p className="text-sm text-muted-foreground">RG: {visitor.rg} | CPF: {visitor.cpf}</p>
+                </div>
+            </div>
+             <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="company-returning" className="text-right">Empresa</Label>
+                <Input ref={companyInputRef} onKeyDown={(e) => handleKeyDown(e, plateInputRef)} id="company-returning" value={info.company} onChange={(e) => setInfo({ ...info, company: e.target.value })} className="col-span-3" placeholder="Opcional"/>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="plate-returning" className="text-right">Placa</Label>
+                <Input ref={plateInputRef} onKeyDown={(e) => handleKeyDown(e, responsibleInputRef)} id="plate-returning" value={info.plate} onChange={(e) => setInfo({ ...info, plate: e.target.value })} className="col-span-3" placeholder="Opcional"/>
+            </div>
+             <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="responsible-returning" className="text-right">Responsável</Label>
+                <Input ref={responsibleInputRef} onKeyDown={(e) => handleKeyDown(e, reasonInputRef)} id="responsible-returning" value={info.responsible} onChange={(e) => setInfo({ ...info, responsible: e.target.value })} className="col-span-3" />
+            </div>
+             <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="reason-returning" className="text-right">Motivo</Label>
+                <Input ref={reasonInputRef} onKeyDown={(e) => handleKeyDown(e, saveButtonRef)} id="reason-returning" value={info.reason} onChange={(e) => setInfo({ ...info, reason: e.target.value })} className="col-span-3" />
+            </div>
+             <DialogFooter className="pt-4">
+                <Button variant="outline" onClick={onCancel}>Cancelar</Button>
+                <Button ref={saveButtonRef} onClick={handleSave}>Salvar</Button>
+            </DialogFooter>
+        </div>
+    )
 }
 
 function AddVisitorForm({ onSave, onCancel, initialData }: { onSave: (visitor: Visitor) => void, onCancel: () => void, initialData?: Visitor }) {
@@ -421,14 +556,14 @@ export function VisitorDashboard() {
     // Save visitors to localStorage whenever they change
     useEffect(() => {
         try {
-            if (visitors.length > 0) {
-                localStorage.setItem('visitors', JSON.stringify(visitors));
-            } else {
-                // If the user deletes all visitors, remove the item from localStorage
-                const storedVisitors = localStorage.getItem('visitors');
-                if (storedVisitors) {
-                    localStorage.removeItem('visitors');
-                }
+            // Only write to localStorage if visitors array has been initialized.
+            // This prevents overwriting existing data with an empty array on first load.
+            if (visitors && visitors.length > 0) {
+                 localStorage.setItem('visitors', JSON.stringify(visitors));
+            } else if (visitors?.length === 0) {
+                 // If user deletes all visitors, clear from storage as well
+                 const stored = localStorage.getItem('visitors');
+                 if(stored) localStorage.removeItem('visitors');
             }
         } catch (error) {
             console.error("Error writing visitors to localStorage", error);
@@ -450,7 +585,7 @@ export function VisitorDashboard() {
 
         loadLogs();
         
-        // Listen for custom event to reload logs
+        // Use a custom event listener that triggers when localStorage is updated from anywhere
         const handleStorageChange = () => loadLogs();
         window.addEventListener('storage', handleStorageChange);
         
@@ -460,10 +595,28 @@ export function VisitorDashboard() {
         };
     }, []);
 
+    // Save access logs to localStorage whenever they change
+    useEffect(() => {
+        try {
+            if (accessLogs.length > 0) {
+                 localStorage.setItem('accessLogs', JSON.stringify(accessLogs));
+                 // Dispatch a custom event to notify other components like the history page
+                 window.dispatchEvent(new Event('storage'));
+            }
+        } catch (error) {
+            console.error("Error writing access logs to localStorage", error);
+        }
+  }, [accessLogs]);
+
 
   return (
     <div className="container mx-auto">
-        <VisitorTable visitors={visitors} setVisitors={setVisitors} accessLogs={accessLogs} />
+        <VisitorTable 
+            visitors={visitors} 
+            setVisitors={setVisitors} 
+            accessLogs={accessLogs}
+            setAccessLogs={setAccessLogs}
+        />
     </div>
   );
 }
