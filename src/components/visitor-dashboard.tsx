@@ -64,7 +64,7 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isReturningVisitorDialogOpen, setIsReturningVisitorDialogOpen] = useState(false);
     const [selectedVisitor, setSelectedVisitor] = useState<Visitor | null>(null);
-    const [searchTerm, setInputValue] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
     const { toast } = useToast();
 
     const handleEditClick = (visitor: Visitor) => {
@@ -208,8 +208,8 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
         return (
             visitor.id.toLowerCase().includes(searchTermLower) ||
             visitor.name.toLowerCase().includes(searchTermLower) ||
-            visitor.rg.toLowerCase().includes(searchTermLower) ||
-            visitor.cpf.toLowerCase().includes(searchTermLower) ||
+            (visitor.rg && visitor.rg.toLowerCase().includes(searchTermLower)) ||
+            (visitor.cpf && visitor.cpf.toLowerCase().includes(searchTermLower)) ||
             (visitor.company && visitor.company.toLowerCase().includes(searchTermLower)) ||
             (visitor.plate && visitor.plate.toLowerCase().includes(searchTermLower)) ||
             (visitor.responsible && visitor.responsible.toLowerCase().includes(searchTermLower)) ||
@@ -242,7 +242,7 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
             <Input
                 placeholder="Buscar visitante por nome, RG, CPF..."
                 value={searchTerm}
-                onChange={(event) => setInputValue(event.target.value)}
+                onChange={(event) => setSearchTerm(event.target.value)}
                 className="max-w-sm"
             />
           </div>
@@ -278,6 +278,9 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
                                     </Avatar>
                                 </DialogTrigger>
                                 <DialogContent className="p-0 max-w-lg">
+                                    <DialogHeader>
+                                       <DialogTitle className="sr-only">{`Foto de ${visitor.name}`}</DialogTitle>
+                                    </DialogHeader>
                                     <img src={visitor.photoDataUrl} alt={`Foto de ${visitor.name}`} className="w-full h-auto rounded-md" />
                                 </DialogContent>
                             </Dialog>

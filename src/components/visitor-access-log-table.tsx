@@ -19,7 +19,7 @@ import { Building, Home, User } from 'lucide-react';
 import { Button } from './ui/button';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { Dialog, DialogContent, DialogTrigger } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 
 
 export function VisitorAccessLogTable() {
@@ -133,6 +133,9 @@ export function VisitorAccessLogTable() {
                                                         </Avatar>
                                                     </DialogTrigger>
                                                     <DialogContent className="p-0 max-w-lg">
+                                                        <DialogHeader>
+                                                            <DialogTitle className="sr-only">{`Foto de ${log.personName}`}</DialogTitle>
+                                                        </DialogHeader>
                                                         <img src={log.photoDataUrl} alt={`Foto de ${log.personName}`} className="w-full h-auto rounded-md" />
                                                     </DialogContent>
                                                 </Dialog>
