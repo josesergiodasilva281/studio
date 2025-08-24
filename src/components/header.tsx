@@ -18,12 +18,12 @@ export function Header() {
 
   return (
     <header className="px-4 lg:px-6 h-16 flex items-center border-b bg-card text-card-foreground shadow-sm">
-      <div className="flex items-center">
+      <Link href="/" className="flex items-center">
         <KeyRound className="h-7 w-7 text-primary" />
         <h1 className="ml-3 text-2xl font-bold tracking-tight text-foreground">
           VIDEIRA
         </h1>
-      </div>
+      </Link>
       <nav className="ml-10 flex items-center gap-4 sm:gap-6">
         {navLinks.map((link) => (
           <Link key={link.href} href={link.href}>
