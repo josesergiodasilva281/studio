@@ -6,10 +6,21 @@ import { AccessControlManager } from '@/components/access-control-manager';
 import { Header } from '@/components/header';
 import { EmployeeDashboard } from '@/components/employee-dashboard';
 import type { AccessLog } from '@/lib/types';
+import { useAuth } from '@/context/auth-context';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
+  const { user } = useAuth();
+  const router = useRouter();
   const [isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen] = useState(false);
   const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
+
+  useEffect(() => {
+    if (user && user.role !== 'rh') {
+      router.push('/portaria');
+    }
+  }, [user, router]);
+
 
   // Load access logs from localStorage on initial render
   useEffect(() => {
@@ -38,6 +49,9 @@ export default function Home() {
     }
   }, [accessLogs]);
 
+  if (!user || user.role !== 'rh') {
+    return <div className="flex h-screen items-center justify-center">Carregando...</div>;
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-background">

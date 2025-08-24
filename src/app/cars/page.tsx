@@ -5,10 +5,20 @@ import { useState, useEffect } from 'react';
 import { CarDashboard } from '@/components/car-dashboard';
 import { Header } from '@/components/header';
 import type { Car, CarLog } from '@/lib/types';
+import { useAuth } from '@/context/auth-context';
+import { useRouter } from 'next/navigation';
 
 export default function CarsPage() {
+  const { user } = useAuth();
+  const router = useRouter();
   const [cars, setCars] = useState<Car[]>([]);
   const [carLogs, setCarLogs] = useState<CarLog[]>([]);
+
+  useEffect(() => {
+    if (user && user.role !== 'rh') {
+      router.push('/portaria');
+    }
+  }, [user, router]);
   
   // Load cars from localStorage
   useEffect(() => {
@@ -62,6 +72,10 @@ export default function CarsPage() {
       console.error("Error writing car logs to localStorage", error);
     }
   }, [carLogs]);
+
+  if (!user || user.role !== 'rh') {
+    return <div className="flex h-screen items-center justify-center">Carregando...</div>;
+  }
 
 
   return (

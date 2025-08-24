@@ -5,10 +5,21 @@ import { useState, useEffect } from 'react';
 import { VisitorDashboard } from '@/components/visitor-dashboard';
 import { Header } from '@/components/header';
 import type { AccessLog, Visitor } from '@/lib/types';
+import { useAuth } from '@/context/auth-context';
+import { useRouter } from 'next/navigation';
 
 export default function DashboardPage() {
+  const { user } = useAuth();
+  const router = useRouter();
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
+
+  useEffect(() => {
+    if (user && user.role !== 'rh') {
+      router.push('/portaria');
+    }
+  }, [user, router]);
+
 
   // Load visitors from localStorage on initial render
   useEffect(() => {
@@ -61,6 +72,9 @@ export default function DashboardPage() {
     }
   }, [accessLogs]);
 
+  if (!user || user.role !== 'rh') {
+    return <div className="flex h-screen items-center justify-center">Carregando...</div>;
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-background">

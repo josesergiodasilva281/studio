@@ -59,4 +59,8 @@ export interface CarLog {
   endKm?: string;
 }
 
-
+export interface User {
+    id: string;
+    username: string;
+    role: 'rh' | 'portaria';
+}

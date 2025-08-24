@@ -8,13 +8,24 @@ import { EmployeeDashboard } from '@/components/employee-dashboard';
 import type { AccessLog, Car, CarLog, Visitor } from '@/lib/types';
 import { VisitorDashboard } from '@/components/visitor-dashboard';
 import { CarDashboard } from '@/components/car-dashboard';
+import { useAuth } from '@/context/auth-context';
+import { useRouter } from 'next/navigation';
 
 export default function PortariaPage() {
+  const { user } = useAuth();
+  const router = useRouter();
   const [isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen] = useState(false);
   const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
   const [carLogs, setCarLogs] = useState<CarLog[]>([]);
+
+  useEffect(() => {
+    if (user && user.role !== 'portaria') {
+        router.push('/');
+    }
+  }, [user, router]);
+
 
   // Load all data from localStorage on initial render
   useEffect(() => {
@@ -91,6 +102,9 @@ export default function PortariaPage() {
     }
   }, [carLogs]);
 
+  if (!user || user.role !== 'portaria') {
+    return <div className="flex h-screen items-center justify-center">Carregando...</div>;
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
