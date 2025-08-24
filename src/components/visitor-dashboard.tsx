@@ -70,10 +70,60 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
         setSelectedVisitor(JSON.parse(JSON.stringify(visitor))); // Deep copy
         setIsEditDialogOpen(true);
     };
-    
+
+    const handleNewLog = (visitor: Visitor, newInfo?: ReturningVisitorInfo) => {
+        const visitorLogs = accessLogs
+            .filter(log => log.personId === visitor.id)
+            .sort((a, b) => new Date(b.id).getTime() - new Date(a.id).getTime());
+
+        const lastLog = visitorLogs[0];
+        const newLogType = !lastLog || lastLog.type === 'Saída' ? 'Entrada' : 'Saída';
+
+        // When registering an exit, we don't need newInfo. 
+        // The existing visitor data is enough.
+        // For a new entry, we might have new info.
+        const updatedVisitor = newInfo ? { ...visitor, ...newInfo } : visitor;
+
+        const newLog: AccessLog = {
+            id: new Date().toISOString(),
+            personId: updatedVisitor.id,
+            personName: updatedVisitor.name,
+            personType: 'visitor',
+            timestamp: new Date().toLocaleString('pt-BR'),
+            type: newLogType,
+        };
+        
+        setAccessLogs([newLog, ...accessLogs]);
+        
+        // If it's a returning visitor with new info, update their details in the main visitors list
+        if (newInfo) {
+            setVisitors(visitors.map(v => v.id === updatedVisitor.id ? updatedVisitor : v));
+        }
+
+        toast({
+            title: `Acesso Registrado: ${newLog.type}`,
+            description: `${newLog.personName} - ${newLog.timestamp}`,
+            variant: newLog.type === 'Entrada' ? 'default' : 'destructive'
+        });
+        
+        // Close the dialog if it was open
+        if (isReturningVisitorDialogOpen) {
+            setIsReturningVisitorDialogOpen(false);
+            setSelectedVisitor(null);
+        }
+    };
+
     const handleReturningVisitorClick = (visitor: Visitor) => {
-        setSelectedVisitor(JSON.parse(JSON.stringify(visitor))); // Deep copy
-        setIsReturningVisitorDialogOpen(true);
+        const presence = getPresenceStatus(visitor.id);
+
+        if (presence === 'Dentro') {
+            // If visitor is inside, register their exit directly.
+            handleNewLog(visitor);
+        } else {
+            // If visitor is outside, they are entering, so open the dialog to confirm details.
+            setSelectedVisitor(JSON.parse(JSON.stringify(visitor))); // Deep copy
+            setIsReturningVisitorDialogOpen(true);
+        }
     };
 
     const handleDeleteClick = (visitorId: string) => {
@@ -90,43 +140,6 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
         setVisitors([visitor, ...visitors]);
         setIsAddDialogOpen(false);
     };
-    
-    const handleNewLog = (visitor: Visitor, newInfo?: ReturningVisitorInfo) => {
-        const visitorLogs = accessLogs
-            .filter(log => log.personId === visitor.id)
-            .sort((a, b) => new Date(b.id).getTime() - new Date(a.id).getTime());
-
-        const lastLog = visitorLogs[0];
-        const newLogType = !lastLog || lastLog.type === 'Saída' ? 'Entrada' : 'Saída';
-
-        const updatedVisitor = newInfo ? { ...visitor, ...newInfo } : visitor;
-
-        const newLog: AccessLog = {
-            id: new Date().toISOString(),
-            personId: updatedVisitor.id,
-            personName: updatedVisitor.name,
-            personType: 'visitor',
-            timestamp: new Date().toLocaleString('pt-BR'),
-            type: newLogType,
-        };
-        
-        setAccessLogs([newLog, ...accessLogs]);
-        
-        // If it's a returning visitor, update their info in the main visitors list
-        if (newInfo) {
-            setVisitors(visitors.map(v => v.id === updatedVisitor.id ? updatedVisitor : v));
-        }
-
-        toast({
-            title: `Acesso Registrado: ${newLog.type}`,
-            description: `${newLog.personName} - ${newLog.timestamp}`,
-            variant: newLog.type === 'Entrada' ? 'default' : 'destructive'
-        });
-        
-        setIsReturningVisitorDialogOpen(false);
-        setSelectedVisitor(null);
-    };
-
 
     const getPresenceStatus = (visitorId: string) => {
         const visitorLogs = accessLogs
@@ -560,3 +573,4 @@ export function VisitorDashboard({
   );
 }
  
+
