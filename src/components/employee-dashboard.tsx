@@ -267,35 +267,11 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
     )
 }
 
-function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen }: { employees: Employee[], setEmployees: (employees: Employee[]) => void, isAddEmployeeDialogOpen: boolean, setIsAddEmployeeDialogOpen: Dispatch<SetStateAction<boolean>> }) {
+function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen, accessLogs, setAccessLogs }: { employees: Employee[], setEmployees: (employees: Employee[]) => void, isAddEmployeeDialogOpen: boolean, setIsAddEmployeeDialogOpen: Dispatch<SetStateAction<boolean>>, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>> }) {
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
     const { toast } = useToast();
-
-    const loadLogs = () => {
-         try {
-            const storedLogs = localStorage.getItem('accessLogs');
-            if (storedLogs) {
-                setAccessLogs(JSON.parse(storedLogs));
-            }
-        } catch (error) {
-            console.error("Error reading access logs from localStorage", error);
-        }
-    };
-
-    // Load access logs from localStorage on initial render
-    useEffect(() => {
-        loadLogs();
-
-        // Listen for custom event to reload logs when a new access is registered
-        window.addEventListener('storage', loadLogs);
-        
-        return () => {
-            window.removeEventListener('storage', loadLogs);
-        };
-    }, []);
 
     const handleManualEntry = (employee: Employee) => {
         if (employee.status === 'Inativo') {
@@ -319,15 +295,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             type: newLogType,
         };
         
-        const updatedLogs = [newLog, ...accessLogs];
-        setAccessLogs(updatedLogs);
-
-        try {
-            localStorage.setItem('accessLogs', JSON.stringify(updatedLogs));
-            window.dispatchEvent(new Event('storage'));
-        } catch (error) {
-            console.error("Error writing access logs to localStorage", error);
-        }
+        setAccessLogs([newLog, ...accessLogs]);
 
         toast({
             title: `Acesso Registrado: ${newLog.type}`,
@@ -528,7 +496,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
   );
 }
 
-export function EmployeeDashboard({ isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen }: { isAddEmployeeDialogOpen: boolean, setIsAddEmployeeDialogOpen: Dispatch<SetStateAction<boolean>> }) {
+export function EmployeeDashboard({ isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen, accessLogs, setAccessLogs }: { isAddEmployeeDialogOpen: boolean, setIsAddEmployeeDialogOpen: Dispatch<SetStateAction<boolean>>, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>> }) {
     const [employees, setEmployees] = useState<Employee[]>([]);
 
     // Load employees from localStorage on initial render
@@ -565,6 +533,8 @@ export function EmployeeDashboard({ isAddEmployeeDialogOpen, setIsAddEmployeeDia
             setEmployees={setEmployees} 
             isAddEmployeeDialogOpen={isAddEmployeeDialogOpen}
             setIsAddEmployeeDialogOpen={setIsAddEmployeeDialogOpen}
+            accessLogs={accessLogs}
+            setAccessLogs={setAccessLogs}
         />
     </div>
   );

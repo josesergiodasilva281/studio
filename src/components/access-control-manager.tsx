@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Dispatch, SetStateAction } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -117,7 +117,10 @@ function AccessControl({ employees, visitors, onNewLog, onAddEmployeeClick }: { 
     return (
         <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>VIDEIRA</CardTitle>
+                <div>
+                    <CardTitle>Controle de Acesso</CardTitle>
+                    <CardDescription>Use a câmera para ler QR codes ou códigos de barra.</CardDescription>
+                </div>
                 <Button onClick={onAddEmployeeClick}>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Cadastrar Funcionário
@@ -148,12 +151,11 @@ function AccessControl({ employees, visitors, onNewLog, onAddEmployeeClick }: { 
 }
 
 
-export function AccessControlManager({ onAddEmployeeClick }: { onAddEmployeeClick: () => void }) {
+export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccessLogs }: { onAddEmployeeClick: () => void, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>> }) {
     const { toast } = useToast();
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [visitors, setVisitors] = useState<Visitor[]>([]);
-    const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
-
+    
     // Load employees from localStorage on initial render
     useEffect(() => {
         try {
@@ -177,31 +179,6 @@ export function AccessControlManager({ onAddEmployeeClick }: { onAddEmployeeClic
             console.error("Error reading visitors from localStorage", error);
         }
     }, []);
-
-    // Load access logs from localStorage on initial render
-     useEffect(() => {
-        try {
-            const storedLogs = localStorage.getItem('accessLogs');
-            if (storedLogs) {
-                setAccessLogs(JSON.parse(storedLogs));
-            }
-        } catch (error) {
-            console.error("Error reading access logs from localStorage", error);
-        }
-    }, []);
-
-    // Save access logs to localStorage whenever they change
-    useEffect(() => {
-        try {
-            if (accessLogs.length > 0) {
-              localStorage.setItem('accessLogs', JSON.stringify(accessLogs));
-              // Dispatch a custom event to notify other components
-              window.dispatchEvent(new Event('storage'));
-            }
-        } catch (error) {
-            console.error("Error writing access logs to localStorage", error);
-        }
-    }, [accessLogs]);
 
     const handleNewLog = (logData: Omit<AccessLog, 'type' | 'id'>) => {
          const personLogs = accessLogs
