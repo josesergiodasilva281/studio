@@ -93,7 +93,7 @@ export function EmployeeAccessLogTable() {
         <div className="container mx-auto">
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>Histórico de Acessos de Funcionários</CardTitle>
+                    <CardTitle>HISTÓRICO</CardTitle>
                      <Link href="/">
                         <Button variant="outline">Voltar</Button>
                     </Link>

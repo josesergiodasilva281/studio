@@ -93,7 +93,7 @@ export function VisitorAccessLogTable() {
         <div className="container mx-auto">
             <Card>
                  <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>Histórico de Acessos de Visitantes</CardTitle>
+                    <CardTitle>HISTÓRICO</CardTitle>
                     <Link href="/dashboard">
                         <Button variant="outline">Voltar</Button>
                     </Link>
