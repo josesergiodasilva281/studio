@@ -196,7 +196,12 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
         const presenceStatus = getPresenceStatus(visitor.id);
         const searchTermLower = searchTerm.toLowerCase();
 
-        if (!searchTermLower) return true; // Show all visitors if no search term
+        // Always filter by presence 'Dentro', and then by search term if it exists
+        if (presenceStatus !== 'Dentro') {
+            return false;
+        }
+
+        if (!searchTermLower) return true; // Show all 'Dentro' if no search term
 
         return (
             visitor.id.toLowerCase().includes(searchTermLower) ||
@@ -206,8 +211,7 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
             (visitor.company && visitor.company.toLowerCase().includes(searchTermLower)) ||
             (visitor.plate && visitor.plate.toLowerCase().includes(searchTermLower)) ||
             visitor.responsible.toLowerCase().includes(searchTermLower) ||
-            visitor.reason.toLowerCase().includes(searchTermLower) ||
-            presenceStatus.toLowerCase().includes(searchTermLower)
+            visitor.reason.toLowerCase().includes(searchTermLower)
         );
     });
 
@@ -234,7 +238,7 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
         <CardContent>
            <div className="flex items-center py-4">
             <Input
-                placeholder="Filtrar visitantes..."
+                placeholder="Filtrar visitantes presentes..."
                 value={inputValue}
                 onChange={(event) => setInputValue(event.target.value)}
                 onKeyDown={handleSearchKeyDown}
@@ -273,7 +277,7 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
                          <Badge
                             variant={presence === 'Dentro' ? 'default' : 'destructive'}
                          >
-                            {presence === 'Dentro' ? <Building className="mr-1 h-3 w-3" /> : <Home className="mr-1 h-3 w-3" />}
+                            {presence === 'Dentro' ? <Building className="mr-2 h-3 w-3" /> : <Home className="mr-2 h-3 w-3" />}
                             {presence}
                         </Badge>
                     </TableCell>
@@ -607,3 +611,5 @@ export function VisitorDashboard({
     </div>
   );
 }
+
+    
