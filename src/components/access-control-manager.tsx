@@ -228,13 +228,21 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
     const stopScanner = () => {
         if (scannerRef.current) {
             const scanner = scannerRef.current;
-            scannerRef.current = null; // Clear ref immediately
-            if (scanner.isScanning) {
-                scanner.stop().catch(err => {
-                    console.warn("Scanner could not be stopped, likely already stopped.", err);
-                });
+            if (scanner && scanner.isScanning) {
+                scanner.stop()
+                    .then(() => {
+                        scanner.clear();
+                    })
+                    .catch((err) => {
+                        console.warn("Scanner could not be stopped or cleared.", err);
+                    })
+                    .finally(() => {
+                       scannerRef.current = null;
+                    });
+            } else if(scanner) {
+                scanner.clear().catch(err => console.warn("Scanner could not be cleared.", err));
+                scannerRef.current = null;
             }
-             scanner.clear();
         }
     };
 
