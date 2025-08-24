@@ -163,8 +163,16 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
                 personType: personType,
                 entryTimestamp: new Date().toLocaleString('pt-BR'),
                 exitTimestamp: null,
-                reason: personType === 'visitor' ? (person as Visitor).reason : undefined,
-                responsible: personType === 'visitor' ? (person as Visitor).responsible : undefined,
+                // Snapshot visitor details if it's a visitor
+                ...(personType === 'visitor' && {
+                    reason: (person as Visitor).reason,
+                    responsible: (person as Visitor).responsible,
+                    photoDataUrl: (person as Visitor).photoDataUrl,
+                    rg: (person as Visitor).rg,
+                    cpf: (person as Visitor).cpf,
+                    company: (person as Visitor).company,
+                    plate: (person as Visitor).plate,
+                }),
             };
             setAccessLogs(prevLogs => [newLog, ...prevLogs]);
             toast({

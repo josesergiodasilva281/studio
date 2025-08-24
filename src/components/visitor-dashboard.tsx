@@ -85,6 +85,11 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
             exitTimestamp: null,
             reason: newInfo.reason,
             responsible: newInfo.responsible,
+            photoDataUrl: updatedVisitor.photoDataUrl,
+            rg: updatedVisitor.rg,
+            cpf: updatedVisitor.cpf,
+            company: newInfo.company,
+            plate: newInfo.plate,
         };
         
         setAccessLogs([newLog, ...accessLogs]);
@@ -141,6 +146,11 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
 
     const handleDeleteClick = (visitorId: string) => {
         setVisitors(visitors.filter(v => v.id !== visitorId));
+         toast({
+            title: "Visitante Excluído",
+            description: "O cadastro do visitante foi removido, mas o histórico de acessos foi mantido.",
+            variant: "default",
+        });
     };
 
     const handleSave = (visitor: Visitor) => {
@@ -164,6 +174,11 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
             exitTimestamp: null,
             reason: visitor.reason,
             responsible: visitor.responsible,
+            photoDataUrl: visitor.photoDataUrl,
+            rg: visitor.rg,
+            cpf: visitor.cpf,
+            company: visitor.company,
+            plate: visitor.plate,
         };
 
         setAccessLogs(prevLogs => [newLog, ...prevLogs]);
@@ -294,7 +309,7 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
                                 <AlertDialogHeader>
                                 <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                    Essa ação não pode ser desfeita. Isso irá apagar permanentemente o visitante.
+                                    Essa ação não pode ser desfeita. Isso irá apagar permanentemente o visitante, mas seu histórico de acesso será mantido.
                                 </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
@@ -608,7 +623,3 @@ export function VisitorDashboard({
     </div>
   );
 }
-
-    
-
-    

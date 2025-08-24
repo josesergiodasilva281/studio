@@ -13,7 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from './ui/badge';
-import type { AccessLog, Visitor } from '@/lib/types';
+import type { AccessLog } from '@/lib/types';
 import { Input } from './ui/input';
 import { Building, Home, User } from 'lucide-react';
 import { Button } from './ui/button';
@@ -21,12 +21,8 @@ import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 
 
-// Combine Log with Visitor details
-type EnrichedAccessLog = AccessLog & Partial<Omit<Visitor, 'id' | 'name'>>;
-
 export function VisitorAccessLogTable() {
     const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
-    const [visitors, setVisitors] = useState<Visitor[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [inputValue, setInputValue] = useState('');
 
@@ -36,11 +32,7 @@ export function VisitorAccessLogTable() {
             try {
                 const storedLogs = localStorage.getItem('accessLogs');
                 if (storedLogs) {
-                    setAccessLogs(JSON.parse(storedLogs));
-                }
-                const storedVisitors = localStorage.getItem('visitors');
-                 if (storedVisitors) {
-                    setVisitors(JSON.parse(storedVisitors));
+                    setAccessLogs(JSON.parse(storedLogs).filter((log: AccessLog) => log.personType === 'visitor'));
                 }
             } catch (error) {
                 console.error("Error reading from localStorage", error);
@@ -59,20 +51,7 @@ export function VisitorAccessLogTable() {
         };
     }, []);
     
-    const enrichedLogs: EnrichedAccessLog[] = accessLogs
-        .filter(log => log.personType === 'visitor')
-        .map(log => {
-            const visitor = visitors.find(v => v.id === log.personId);
-            return {
-                ...log,
-                // Make sure to get photo and other details from the visitor record
-                photoDataUrl: visitor?.photoDataUrl,
-                rg: visitor?.rg,
-                cpf: visitor?.cpf,
-                company: visitor?.company,
-                plate: visitor?.plate,
-            };
-        })
+    const filteredLogs: AccessLog[] = accessLogs
         .filter(log => {
             const searchTermLower = searchTerm.toLowerCase();
 
@@ -132,14 +111,14 @@ export function VisitorAccessLogTable() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {enrichedLogs.length === 0 ? (
+                                {filteredLogs.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={11} className="text-center">
                                             Nenhum registro de acesso encontrado.
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    enrichedLogs.map((log) => {
+                                    filteredLogs.map((log) => {
                                         const presence = log.exitTimestamp === null ? 'Dentro' : 'Fora';
                                         return (
                                         <TableRow key={log.id}>

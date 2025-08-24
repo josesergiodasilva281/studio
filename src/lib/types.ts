@@ -30,4 +30,10 @@ export interface AccessLog {
   // For visitors, capture the reason for this specific visit
   reason?: string; 
   responsible?: string;
+  // Snapshot of visitor details at the time of entry
+  photoDataUrl?: string;
+  rg?: string;
+  cpf?: string;
+  company?: string;
+  plate?: string;
 }
