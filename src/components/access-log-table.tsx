@@ -65,16 +65,22 @@ export function AccessLogTable() {
                 status: employee?.status,
             };
         })
-        .filter(log => 
-            log.personName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            log.personId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (log.department && log.department.toLowerCase().includes(searchTerm.toLowerCase())) ||
-            (log.plate && log.plate.toLowerCase().includes(searchTerm.toLowerCase())) ||
-            (log.ramal && log.ramal.toLowerCase().includes(searchTerm.toLowerCase())) ||
-            (log.status && log.status.toLowerCase().includes(searchTerm.toLowerCase())) ||
-            log.timestamp.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            log.type.toLowerCase().includes(searchTerm.toLowerCase())
-        );
+        .filter(log => {
+            const presenceStatus = log.type === 'Entrada' ? 'Dentro' : 'Fora';
+            const searchTermLower = searchTerm.toLowerCase();
+
+            return (
+                log.personName.toLowerCase().includes(searchTermLower) ||
+                log.personId.toLowerCase().includes(searchTermLower) ||
+                (log.department && log.department.toLowerCase().includes(searchTermLower)) ||
+                (log.plate && log.plate.toLowerCase().includes(searchTermLower)) ||
+                (log.ramal && log.ramal.toLowerCase().includes(searchTermLower)) ||
+                (log.status && log.status.toLowerCase().includes(searchTermLower)) ||
+                log.timestamp.toLowerCase().includes(searchTermLower) ||
+                log.type.toLowerCase().includes(searchTermLower) ||
+                presenceStatus.toLowerCase().includes(searchTermLower)
+            );
+        });
 
     return (
         <div className="container mx-auto">
@@ -114,7 +120,9 @@ export function AccessLogTable() {
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    enrichedLogs.map((log) => (
+                                    enrichedLogs.map((log) => {
+                                        const presence = log.type === 'Entrada' ? 'Dentro' : 'Fora';
+                                        return (
                                         <TableRow key={log.id}>
                                             <TableCell>{log.personId}</TableCell>
                                             <TableCell>{log.personName}</TableCell>
@@ -137,14 +145,14 @@ export function AccessLogTable() {
                                             <TableCell>{log.timestamp}</TableCell>
                                             <TableCell>
                                                  <Badge 
-                                                    variant={log.type === 'Entrada' ? 'default' : 'destructive'}
+                                                    variant={presence === 'Dentro' ? 'default' : 'destructive'}
                                                  >
-                                                    {log.type === 'Entrada' ? <Building className="mr-1 h-3 w-3" /> : <Home className="mr-1 h-3 w-3" />}
-                                                    {log.type === 'Entrada' ? 'Dentro' : 'Fora'}
+                                                    {presence === 'Dentro' ? <Building className="mr-1 h-3 w-3" /> : <Home className="mr-1 h-3 w-3" />}
+                                                    {presence}
                                                 </Badge>
                                             </TableCell>
                                         </TableRow>
-                                    ))
+                                    )})
                                 )}
                             </TableBody>
                         </Table>
