@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useRef, Dispatch, SetStateAction } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -27,11 +27,11 @@ function AccessControl({ employees, visitors, onNewLog, onAddEmployeeClick }: { 
     const readerRef = useRef<HTMLDivElement>(null);
     const [isScannerPaused, setIsScannerPaused] = useState(false);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
-    const cleanupCalledRef = useRef(false);
 
     useEffect(() => {
-      if (isScannerOpen) {
-        cleanupCalledRef.current = false;
+        if (!isScannerOpen) {
+            return;
+        }
         Html5Qrcode.getCameras().then(availableDevices => {
             if (availableDevices && availableDevices.length > 0) {
                 setDevices(availableDevices);
@@ -45,16 +45,18 @@ function AccessControl({ employees, visitors, onNewLog, onAddEmployeeClick }: { 
             console.error("Error getting cameras:", err);
             toast({ variant: "destructive", title: "Erro ao acessar câmeras.", description: "Por favor, verifique as permissões." });
         });
-      }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isScannerOpen]);
 
     const stopScanner = () => {
-        if (scannerRef.current && scannerRef.current.isScanning) {
-            scannerRef.current.stop().catch(err => {
-                console.warn("Scanner could not be stopped, likely already stopped.", err);
-            });
+      if (scannerRef.current) {
+        if (scannerRef.current.isScanning) {
+          scannerRef.current.stop().catch(err => {
+            console.warn("Scanner could not be stopped, likely already stopped.", err);
+          });
         }
+        scannerRef.current = null;
+      }
     };
     
     const handleScanSuccess = (decodedText: string) => {
@@ -85,14 +87,16 @@ function AccessControl({ employees, visitors, onNewLog, onAddEmployeeClick }: { 
     };
 
     useEffect(() => {
-        if (isScannerOpen && selectedDeviceId && readerRef.current && !cleanupCalledRef.current) {
-            if (!scannerRef.current) {
-                 scannerRef.current = new Html5Qrcode(readerRef.current.id, { verbose: false });
+        if (isScannerOpen && selectedDeviceId && readerRef.current) {
+            if (scannerRef.current) {
+               stopScanner();
             }
-            const html5Qrcode = scannerRef.current;
-            
-            if (html5Qrcode && !html5Qrcode.isScanning) {
-                html5Qrcode.start(
+
+            const newScanner = new Html5Qrcode(readerRef.current.id, { verbose: false });
+            scannerRef.current = newScanner;
+
+            if (!newScanner.isScanning) {
+                newScanner.start(
                     selectedDeviceId,
                     {
                         fps: 5,
@@ -105,34 +109,32 @@ function AccessControl({ employees, visitors, onNewLog, onAddEmployeeClick }: { 
                     handleScanSuccess,
                     () => { /* ignore errors */ }
                 ).catch((err) => {
-                    if (!cleanupCalledRef.current) {
-                        console.error("Unable to start scanning.", err);
-                    }
+                    console.error("Unable to start scanning.", err);
+                    toast({ variant: "destructive", title: "Erro ao iniciar a câmera." });
                 });
             }
         }
 
         return () => {
-             if (!cleanupCalledRef.current) {
-                 cleanupCalledRef.current = true;
-                 stopScanner();
-            }
+             if (isScannerOpen) {
+                stopScanner();
+             }
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isScannerOpen, selectedDeviceId, employees, visitors, isScannerPaused]);
 
     const handleDialogOpenChange = (open: boolean) => {
-        if (!open) {
-            stopScanner();
-        }
         setIsScannerOpen(open);
+        if (!open) {
+          stopScanner();
+        }
     }
 
     return (
       <>
         <Card>
             <CardHeader className="flex flex-row items-center justify-end">
-                 <div className="flex items-center gap-2">
+                 <div className="flex items-center gap-2 p-4">
                     <Button onClick={() => setIsScannerOpen(true)}>
                         <Camera className="mr-2 h-4 w-4" />
                         Abrir Leitor
