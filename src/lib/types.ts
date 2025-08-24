@@ -24,7 +24,7 @@ export interface Car {
   id: string; // Plate number
   fleet: string;
   status: 'Disponível' | 'Em uso' | 'Manutenção';
-  lastDriverId?: string;
+  lastDriverName?: string;
   lastKm?: string;
 }
 
@@ -51,10 +51,10 @@ export interface CarLog {
   id: string;
   carId: string; // Plate number
   carFleet: string;
-  driverId: string;
   driverName: string;
   startTime: string;
   endTime: string | null;
   startKm?: string;
   endKm?: string;
 }
+

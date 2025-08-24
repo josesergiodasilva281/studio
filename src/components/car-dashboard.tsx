@@ -40,7 +40,7 @@ import { Badge } from './ui/badge';
 import type { Car, CarLog, Employee } from '@/lib/types';
 import Link from 'next/link';
 
-const emptyCar: Omit<Car, 'id' | 'status' | 'lastDriverId' | 'lastKm'> = {
+const emptyCar: Omit<Car, 'id' | 'status' | 'lastDriverName' | 'lastKm'> = {
     fleet: '',
 };
 
@@ -101,7 +101,7 @@ function AddCarDialog({ open, onOpenChange, onSave, cars }: { open: boolean, onO
 }
 
 type CarCheckoutData = {
-    driverId: string;
+    driverName: string;
     startKm?: string;
 }
 
@@ -109,9 +109,9 @@ type CarReturnData = {
     endKm?: string;
 }
 
-function CarLogDialog({ open, onOpenChange, car, employees, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, car: Car, employees: Employee[], onSave: (logData: CarCheckoutData) => void }) {
+function CarLogDialog({ open, onOpenChange, car, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, car: Car, onSave: (logData: CarCheckoutData) => void }) {
     const [checkoutData, setCheckoutData] = useState<CarCheckoutData>({
-      driverId: car.lastDriverId || '',
+      driverName: car.lastDriverName || '',
       startKm: car.lastKm || '',
     });
     const { toast } = useToast();
@@ -119,7 +119,7 @@ function CarLogDialog({ open, onOpenChange, car, employees, onSave }: { open: bo
     useEffect(() => {
         if(open){
             setCheckoutData({
-                driverId: car.lastDriverId || '',
+                driverName: car.lastDriverName || '',
                 startKm: car.lastKm || '',
             })
         }
@@ -127,15 +127,13 @@ function CarLogDialog({ open, onOpenChange, car, employees, onSave }: { open: bo
 
 
     const handleSave = () => {
-        if (!checkoutData.driverId) {
+        if (!checkoutData.driverName) {
             toast({ variant: 'destructive', title: 'Campo Obrigatório', description: 'Motorista é obrigatório.' });
             return;
         }
         onSave(checkoutData);
         onOpenChange(false);
     };
-    
-    const activeEmployees = employees.filter(e => e.status === 'Ativo');
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -148,17 +146,14 @@ function CarLogDialog({ open, onOpenChange, car, employees, onSave }: { open: bo
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="driverId" className="text-right">Motorista</Label>
-                        <Select value={checkoutData.driverId} onValueChange={(value) => setCheckoutData({...checkoutData, driverId: value})}>
-                             <SelectTrigger id="driverId" className="col-span-3">
-                                <SelectValue placeholder="Selecione o motorista" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {activeEmployees.map(emp => (
-                                    <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Label htmlFor="driverName" className="text-right">Motorista</Label>
+                         <Input 
+                            id="driverName" 
+                            value={checkoutData.driverName} 
+                            onChange={(e) => setCheckoutData({...checkoutData, driverName: e.target.value})} 
+                            className="col-span-3" 
+                            placeholder="Digite o nome do motorista"
+                        />
                     </div>
                      <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="startKm" className="text-right">KM Saída</Label>
@@ -213,7 +208,7 @@ function CarReturnDialog({ open, onOpenChange, car, onSave }: { open: boolean, o
 }
 
 
-function CarTable({ cars, setCars, carLogs, setCarLogs, employees }: { cars: Car[], setCars: Dispatch<SetStateAction<Car[]>>, carLogs: CarLog[], setCarLogs: Dispatch<SetStateAction<CarLog[]>>, employees: Employee[] }) {
+function CarTable({ cars, setCars, carLogs, setCarLogs }: { cars: Car[], setCars: Dispatch<SetStateAction<Car[]>>, carLogs: CarLog[], setCarLogs: Dispatch<SetStateAction<CarLog[]>> }) {
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isLogDialogOpen, setIsLogDialogOpen] = useState(false);
@@ -258,18 +253,11 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, employees }: { cars: Car
     const handleCheckout = (logData: CarCheckoutData) => {
         if (!selectedCar) return;
 
-        const driver = employees.find(e => e.id === logData.driverId);
-        if (!driver) {
-             toast({ variant: 'destructive', title: 'Erro', description: 'Motorista não encontrado.' });
-            return;
-        }
-
         const newLog: CarLog = {
             id: `carlog-${Date.now()}`,
             carId: selectedCar.id,
             carFleet: selectedCar.fleet,
-            driverId: driver.id,
-            driverName: driver.name,
+            driverName: logData.driverName,
             startTime: new Date().toLocaleString('pt-BR'),
             endTime: null,
             startKm: logData.startKm,
@@ -277,10 +265,10 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, employees }: { cars: Car
 
         setCarLogs([newLog, ...carLogs]);
         
-        const updatedCars = cars.map(c => c.id === selectedCar.id ? { ...c, status: 'Em uso' as const, lastDriverId: driver.id, lastKm: logData.startKm } : c);
+        const updatedCars = cars.map(c => c.id === selectedCar.id ? { ...c, status: 'Em uso' as const, lastDriverName: logData.driverName, lastKm: logData.startKm } : c);
         setCars(updatedCars);
 
-        toast({ title: 'Saída Registrada', description: `O carro ${selectedCar.id} está em uso por ${driver.name}.` });
+        toast({ title: 'Saída Registrada', description: `O carro ${selectedCar.id} está em uso por ${logData.driverName}.` });
         setSelectedCar(null);
     };
 
@@ -314,7 +302,8 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, employees }: { cars: Car
             car.id.toLowerCase().includes(searchTermLower) ||
             driverName.toLowerCase().includes(searchTermLower) ||
             car.fleet.toLowerCase().includes(searchTermLower) ||
-            car.status.toLowerCase().includes(searchTermLower)
+            car.status.toLowerCase().includes(searchTermLower) ||
+            (car.lastDriverName && car.lastDriverName.toLowerCase().includes(searchTermLower))
         );
     });
 
@@ -323,10 +312,7 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, employees }: { cars: Car
             const openLog = carLogs.find(log => log.carId === car.id && log.endTime === null);
             return openLog?.driverName || 'N/A';
         }
-        if (car.lastDriverId) {
-            return employees.find(e => e.id === car.lastDriverId)?.name || 'N/A';
-        }
-        return '-';
+        return car.lastDriverName || '-';
     }
 
 
@@ -363,7 +349,7 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, employees }: { cars: Car
                                 <TableRow>
                                     <TableHead>Frota</TableHead>
                                     <TableHead>Placa</TableHead>
-                                    <TableHead>Último Motorista</TableHead>
+                                    <TableHead>Motorista</TableHead>
                                     <TableHead>Último KM</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead className="text-right">Ações</TableHead>
@@ -458,7 +444,7 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, employees }: { cars: Car
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-            {selectedCar && <CarLogDialog open={isLogDialogOpen} onOpenChange={setIsLogDialogOpen} car={selectedCar} employees={employees} onSave={handleCheckout} />}
+            {selectedCar && <CarLogDialog open={isLogDialogOpen} onOpenChange={setIsLogDialogOpen} car={selectedCar} onSave={handleCheckout} />}
             {selectedCar && <CarReturnDialog open={isReturnDialogOpen} onOpenChange={setIsReturnDialogOpen} car={selectedCar} onSave={(data) => handleReturn(selectedCar.id, data)} />}
         </>
     );
@@ -466,61 +452,8 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, employees }: { cars: Car
 
 export function CarDashboard({ cars, setCars, carLogs, setCarLogs, employees: initialEmployees }: { cars: Car[], setCars: Dispatch<SetStateAction<Car[]>>, carLogs: CarLog[], setCarLogs: Dispatch<SetStateAction<CarLog[]>>, employees: Employee[] }) {
 
-    const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
-    // Load initial data from localStorage if not provided
-    useEffect(() => {
-        if (cars.length === 0) {
-            try {
-                const storedCars = localStorage.getItem('cars');
-                if (storedCars) {
-                    setCars(JSON.parse(storedCars));
-                }
-            } catch (error) {
-                console.error("Error reading cars from localStorage", error);
-            }
-        }
-         if (carLogs.length === 0) {
-            try {
-                const storedLogs = localStorage.getItem('carLogs');
-                if (storedLogs) {
-                    setCarLogs(JSON.parse(storedLogs));
-                }
-            } catch (error) {
-                console.error("Error reading car logs from localStorage", error);
-            }
-        }
-        if (employees.length === 0) {
-             try {
-                const storedEmployees = localStorage.getItem('employees');
-                if (storedEmployees) {
-                    setEmployees(JSON.parse(storedEmployees));
-                }
-            } catch (error) {
-                console.error("Error reading employees from localStorage", error);
-            }
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    // Save data to localStorage when it changes
-    useEffect(() => {
-        if(cars.length > 0) {
-            localStorage.setItem('cars', JSON.stringify(cars));
-        } else {
-             const stored = localStorage.getItem('cars');
-             if (stored) localStorage.removeItem('cars');
-        }
-    }, [cars]);
+    // This component no longer needs employees, but we keep the prop for now to avoid breaking changes in parent components.
     
-    useEffect(() => {
-        if(carLogs.length > 0) {
-            localStorage.setItem('carLogs', JSON.stringify(carLogs));
-        } else {
-             const stored = localStorage.getItem('carLogs');
-             if (stored) localStorage.removeItem('carLogs');
-        }
-    }, [carLogs]);
-
     return (
         <div className="container mx-auto">
             <CarTable
@@ -528,7 +461,6 @@ export function CarDashboard({ cars, setCars, carLogs, setCarLogs, employees: in
                 setCars={setCars}
                 carLogs={carLogs}
                 setCarLogs={setCarLogs}
-                employees={employees}
             />
         </div>
     );

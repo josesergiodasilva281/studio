@@ -50,8 +50,8 @@ export function CarAccessLogTable() {
             (log.carId && log.carId.toLowerCase().includes(searchTermLower)) ||
             (log.carFleet && log.carFleet.toLowerCase().includes(searchTermLower)) ||
             (log.driverName && log.driverName.toLowerCase().includes(searchTermLower)) ||
-            (log.startKm && log.startKm.toLowerCase().includes(searchTermLower)) ||
-            (log.endKm && log.endKm.toLowerCase().includes(searchTermLower))
+            (log.startKm && log.startKm.toString().toLowerCase().includes(searchTermLower)) ||
+            (log.endKm && log.endKm.toString().toLowerCase().includes(searchTermLower))
         );
     });
 
