@@ -340,16 +340,22 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     const filteredEmployees = employees.filter(employee => {
         const presenceStatus = getPresenceStatus(employee.id);
         const searchTermLower = searchTerm.toLowerCase();
-
-        return (
-            employee.id.toLowerCase().includes(searchTermLower) ||
-            employee.name.toLowerCase().includes(searchTermLower) ||
-            employee.department.toLowerCase().includes(searchTermLower) ||
-            (employee.plate && employee.plate.toLowerCase().includes(searchTermLower)) ||
-            (employee.ramal && employee.ramal.toLowerCase().includes(searchTermLower)) ||
-            employee.status.toLowerCase().includes(searchTermLower) ||
-            presenceStatus.toLowerCase().includes(searchTermLower)
-        );
+        
+        // If there's a search term, filter by it
+        if (searchTermLower) {
+            return (
+                employee.id.toLowerCase().includes(searchTermLower) ||
+                employee.name.toLowerCase().includes(searchTermLower) ||
+                employee.department.toLowerCase().includes(searchTermLower) ||
+                (employee.plate && employee.plate.toLowerCase().includes(searchTermLower)) ||
+                (employee.ramal && employee.ramal.toLowerCase().includes(searchTermLower)) ||
+                employee.status.toLowerCase().includes(searchTermLower) ||
+                presenceStatus.toLowerCase().includes(searchTermLower)
+            );
+        }
+        
+        // Otherwise, only show employees who are "Dentro"
+        return presenceStatus === 'Dentro';
     });
 
   return (
