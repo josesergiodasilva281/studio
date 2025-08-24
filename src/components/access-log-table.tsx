@@ -136,7 +136,9 @@ export function AccessLogTable() {
                                             </TableCell>
                                             <TableCell>{log.timestamp}</TableCell>
                                             <TableCell>
-                                                 <Badge variant={log.type === 'Entrada' ? 'default' : 'secondary'}>
+                                                 <Badge 
+                                                    className={log.type === 'Entrada' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}
+                                                 >
                                                     {log.type === 'Entrada' ? <Building className="mr-1 h-3 w-3" /> : <Home className="mr-1 h-3 w-3" />}
                                                     {log.type === 'Entrada' ? 'Dentro' : 'Fora'}
                                                 </Badge>
