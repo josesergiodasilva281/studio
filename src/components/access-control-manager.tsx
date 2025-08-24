@@ -19,121 +19,29 @@ import { PlusCircle, Camera } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from './ui/dialog';
 
 
-function AccessControl({ employees, visitors, onNewLog, onAddEmployeeClick }: { employees: Employee[], visitors: Visitor[], onNewLog: (log: Omit<AccessLog, 'type' | 'id'>) => void, onAddEmployeeClick: () => void }) {
-    const { toast } = useToast();
-    const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
-    const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
-    const scannerRef = useRef<Html5Qrcode | null>(null);
-    const readerRef = useRef<HTMLDivElement>(null);
-    const [isScannerPaused, setIsScannerPaused] = useState(false);
-    const [isScannerOpen, setIsScannerOpen] = useState(false);
-
-    useEffect(() => {
-        if (!isScannerOpen) {
-            return;
-        }
-        Html5Qrcode.getCameras().then(availableDevices => {
-            if (availableDevices && availableDevices.length > 0) {
-                setDevices(availableDevices);
-                if (!selectedDeviceId) {
-                    setSelectedDeviceId(availableDevices[0].id);
-                }
-            } else {
-                 toast({ variant: "destructive", title: "Nenhuma câmera encontrada." });
-            }
-        }).catch(err => {
-            console.error("Error getting cameras:", err);
-            toast({ variant: "destructive", title: "Erro ao acessar câmeras.", description: "Por favor, verifique as permissões." });
-        });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isScannerOpen]);
-
-    const stopScanner = () => {
-        if (scannerRef.current) {
-            if (scannerRef.current.isScanning) {
-                scannerRef.current.stop().catch(err => {
-                    console.warn("Scanner could not be stopped, likely already stopped.", err);
-                });
-            }
-            scannerRef.current.clear();
-        }
-        scannerRef.current = null;
-    };
-
-    
-    const handleScanSuccess = (decodedText: string) => {
-        if (isScannerPaused) return;
-
-        setIsScannerPaused(true);
-
-        const employee = employees.find(e => e.id === decodedText);
-        const visitor = visitors.find(v => v.id === decodedText);
-        let person: Employee | Visitor | undefined = employee || visitor;
-        let personType: 'employee' | 'visitor' | undefined = employee ? 'employee' : (visitor ? 'visitor' : undefined);
-
-        if (!person || !personType) {
-            toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Pessoa não encontrada.' });
-        } else if (personType === 'employee' && (person as Employee).status === 'Inativo') {
-            toast({ variant: 'destructive', title: 'Acesso Negado', description: `Funcionário ${person.name} está inativo.` });
-        } else {
-            onNewLog({
-                personId: person.id,
-                personName: person.name,
-                personType: personType,
-                timestamp: new Date().toLocaleString('pt-BR'),
-            });
-        }
-        
-        // Don't close scanner, just pause it to allow for multiple scans
-        setTimeout(() => setIsScannerPaused(false), 2000);
-    };
-
-    useEffect(() => {
-        if (isScannerOpen && selectedDeviceId && readerRef.current && !scannerRef.current?.isScanning) {
-            
-            const newScanner = new Html5Qrcode(readerRef.current.id, { verbose: false });
-            scannerRef.current = newScanner;
-
-            newScanner.start(
-                selectedDeviceId,
-                {
-                    fps: 5,
-                    qrbox: (viewfinderWidth, viewfinderHeight) => {
-                        const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                        const qrboxSize = Math.floor(minEdge * 0.8);
-                        return { width: qrboxSize, height: qrboxSize };
-                    },
-                },
-                handleScanSuccess,
-                () => { /* ignore errors */ }
-            ).catch((err) => {
-                console.error("Unable to start scanning.", err);
-                toast({ variant: "destructive", title: "Erro ao iniciar a câmera." });
-            });
-            
-        }
-
-        return () => {
-             if (scannerRef.current && scannerRef.current.isScanning) {
-                stopScanner();
-             }
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isScannerOpen, selectedDeviceId, employees, visitors, isScannerPaused]);
-
-    const handleDialogOpenChange = (open: boolean) => {
-        setIsScannerOpen(open);
-        if (!open) {
-          stopScanner();
-        }
-    }
-
+function AccessControlUI({ 
+    onAddEmployeeClick, 
+    isScannerOpen, 
+    handleDialogOpenChange, 
+    devices, 
+    selectedDeviceId, 
+    setSelectedDeviceId, 
+    readerRef 
+}: { 
+    onAddEmployeeClick: () => void,
+    isScannerOpen: boolean,
+    handleDialogOpenChange: (open: boolean) => void,
+    devices: MediaDeviceInfo[],
+    selectedDeviceId: string,
+    setSelectedDeviceId: Dispatch<SetStateAction<string>>,
+    readerRef: React.RefObject<HTMLDivElement>
+}) {
     return (
       <>
         <Card>
             <CardHeader className="flex flex-row items-center justify-end p-4">
                  <div className="flex items-center gap-2">
-                    <Button onClick={() => setIsScannerOpen(true)}>
+                    <Button onClick={() => handleDialogOpenChange(true)}>
                         <Camera className="mr-2 h-4 w-4" />
                         Abrir Leitor
                     </Button>
@@ -190,6 +98,13 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [visitors, setVisitors] = useState<Visitor[]>([]);
     
+    const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+    const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+    const scannerRef = useRef<Html5Qrcode | null>(null);
+    const readerRef = useRef<HTMLDivElement>(null);
+    const [isScannerPaused, setIsScannerPaused] = useState(false);
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
+
     // Load employees from localStorage on initial render
     useEffect(() => {
         try {
@@ -235,10 +150,118 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
             variant: newLog.type === 'Entrada' ? 'default' : 'destructive'
         });
     };
+    
+    // Scanner Logic
+    useEffect(() => {
+        if (!isScannerOpen) {
+            return;
+        }
+        Html5Qrcode.getCameras().then(availableDevices => {
+            if (availableDevices && availableDevices.length > 0) {
+                setDevices(availableDevices);
+                if (!selectedDeviceId) {
+                    setSelectedDeviceId(availableDevices[0].id);
+                }
+            } else {
+                 toast({ variant: "destructive", title: "Nenhuma câmera encontrada." });
+            }
+        }).catch(err => {
+            console.error("Error getting cameras:", err);
+            toast({ variant: "destructive", title: "Erro ao acessar câmeras.", description: "Por favor, verifique as permissões." });
+        });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isScannerOpen]);
+    
+    const stopScanner = () => {
+        if (scannerRef.current) {
+            if (scannerRef.current.isScanning) {
+                scannerRef.current.stop().catch(err => {
+                    console.warn("Scanner could not be stopped, likely already stopped.", err);
+                });
+            }
+            scannerRef.current.clear();
+        }
+        scannerRef.current = null;
+    };
+
+    const handleScanSuccess = (decodedText: string) => {
+        if (isScannerPaused) return;
+
+        setIsScannerPaused(true);
+
+        const employee = employees.find(e => e.id === decodedText);
+        const visitor = visitors.find(v => v.id === decodedText);
+        let person: Employee | Visitor | undefined = employee || visitor;
+        let personType: 'employee' | 'visitor' | undefined = employee ? 'employee' : (visitor ? 'visitor' : undefined);
+
+        if (!person || !personType) {
+            toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Pessoa não encontrada.' });
+        } else if (personType === 'employee' && (person as Employee).status === 'Inativo') {
+            toast({ variant: 'destructive', title: 'Acesso Negado', description: `Funcionário ${person.name} está inativo.` });
+        } else {
+            handleNewLog({
+                personId: person.id,
+                personName: person.name,
+                personType: personType,
+                timestamp: new Date().toLocaleString('pt-BR'),
+            });
+        }
+        
+        setTimeout(() => setIsScannerPaused(false), 2000);
+    };
+
+     useEffect(() => {
+        if (isScannerOpen && selectedDeviceId && readerRef.current && !scannerRef.current?.isScanning) {
+            
+            const newScanner = new Html5Qrcode(readerRef.current.id, { verbose: false });
+            scannerRef.current = newScanner;
+
+            newScanner.start(
+                selectedDeviceId,
+                {
+                    fps: 5,
+                    qrbox: (viewfinderWidth, viewfinderHeight) => {
+                        const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                        const qrboxSize = Math.floor(minEdge * 0.8);
+                        return { width: qrboxSize, height: qrboxSize };
+                    },
+                },
+                handleScanSuccess,
+                () => { /* ignore errors */ }
+            ).catch((err) => {
+                console.error("Unable to start scanning.", err);
+                toast({ variant: "destructive", title: "Erro ao iniciar a câmera." });
+            });
+            
+        }
+
+        return () => {
+             if (scannerRef.current && scannerRef.current.isScanning) {
+                stopScanner();
+             }
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isScannerOpen, selectedDeviceId, employees, visitors, isScannerPaused]); // Dependencies are important here
+
+     const handleDialogOpenChange = (open: boolean) => {
+        setIsScannerOpen(open);
+        if (!open) {
+          stopScanner();
+        }
+    }
+
 
   return (
     <div className="container mx-auto max-w-xl">
-      <AccessControl employees={employees} visitors={visitors} onNewLog={handleNewLog} onAddEmployeeClick={onAddEmployeeClick} />
+      <AccessControlUI 
+        onAddEmployeeClick={onAddEmployeeClick}
+        isScannerOpen={isScannerOpen}
+        handleDialogOpenChange={handleDialogOpenChange}
+        devices={devices}
+        selectedDeviceId={selectedDeviceId}
+        setSelectedDeviceId={setSelectedDeviceId}
+        readerRef={readerRef}
+      />
     </div>
   );
 }
