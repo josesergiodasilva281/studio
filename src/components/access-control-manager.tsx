@@ -131,11 +131,7 @@ function AccessControl({ employees, visitors, onNewLog, onAddEmployeeClick }: { 
     return (
       <>
         <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                    <CardTitle>Controle de Acesso</CardTitle>
-                    <CardDescription>Use a câmera para ler QR codes ou códigos de barra.</CardDescription>
-                </div>
+            <CardHeader className="flex flex-row items-center justify-end">
                  <div className="flex items-center gap-2">
                     <Button onClick={() => setIsScannerOpen(true)}>
                         <Camera className="mr-2 h-4 w-4" />
@@ -235,7 +231,7 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
         setAccessLogs([newLog, ...accessLogs]);
         toast({
             title: `Acesso Registrado: ${newLog.type}`,
-            description: `${newLog.personName} - ${newe.timestamp}`,
+            description: `${newLog.personName} - ${newLog.timestamp}`,
             variant: newLog.type === 'Entrada' ? 'default' : 'destructive'
         });
     };
