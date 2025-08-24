@@ -8,13 +8,15 @@ import type { User } from '@/lib/types';
 // Mock user data (replace with a real API call in a real app)
 const MOCK_USERS: User[] = [
     { id: '1', username: 'rh', role: 'rh' },
-    { id: '2', username: 'portaria', role: 'portaria' },
+    { id: '2', username: 'portaria1', role: 'portaria' },
+    { id: '3', username: 'portaria2', role: 'portaria' },
 ];
 
 // Mock password data (in a real app, NEVER store passwords in plaintext)
 const MOCK_PASSWORDS: { [key: string]: string } = {
     rh: 'rh123',
-    portaria: 'portaria123',
+    portaria1: 'portaria123',
+    portaria2: 'portaria123',
 };
 
 
