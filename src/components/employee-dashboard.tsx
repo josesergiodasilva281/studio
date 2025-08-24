@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from './ui/button';
-import { Pencil, Trash2, GanttChartSquare, Camera, Home, Building } from 'lucide-react';
+import { Pencil, Trash2, GanttChartSquare, Camera, Home, Building, LogIn } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -272,20 +272,21 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
+    const { toast } = useToast();
+
+    const loadLogs = () => {
+         try {
+            const storedLogs = localStorage.getItem('accessLogs');
+            if (storedLogs) {
+                setAccessLogs(JSON.parse(storedLogs));
+            }
+        } catch (error) {
+            console.error("Error reading access logs from localStorage", error);
+        }
+    };
 
     // Load access logs from localStorage on initial render
     useEffect(() => {
-        const loadLogs = () => {
-             try {
-                const storedLogs = localStorage.getItem('accessLogs');
-                if (storedLogs) {
-                    setAccessLogs(JSON.parse(storedLogs));
-                }
-            } catch (error) {
-                console.error("Error reading access logs from localStorage", error);
-            }
-        };
-
         loadLogs();
 
         // Listen for custom event to reload logs when a new access is registered
@@ -295,6 +296,45 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             window.removeEventListener('storage', loadLogs);
         };
     }, []);
+
+    const handleManualEntry = (employee: Employee) => {
+        if (employee.status === 'Inativo') {
+            toast({ variant: 'destructive', title: 'Acesso Negado', description: `Funcionário ${employee.name} está inativo.` });
+            return;
+        }
+
+        const employeeLogs = accessLogs
+            .filter(log => log.personId === employee.id)
+            .sort((a, b) => new Date(b.id).getTime() - new Date(a.id).getTime());
+
+        const lastLog = employeeLogs[0];
+        const newLogType = !lastLog || lastLog.type === 'Saída' ? 'Entrada' : 'Saída';
+
+        const newLog: AccessLog = {
+            id: new Date().toISOString(),
+            personId: employee.id,
+            personName: employee.name,
+            personType: 'employee',
+            timestamp: new Date().toLocaleString('pt-BR'),
+            type: newLogType,
+        };
+        
+        const updatedLogs = [newLog, ...accessLogs];
+        setAccessLogs(updatedLogs);
+
+        try {
+            localStorage.setItem('accessLogs', JSON.stringify(updatedLogs));
+            window.dispatchEvent(new Event('storage'));
+        } catch (error) {
+            console.error("Error writing access logs to localStorage", error);
+        }
+
+        toast({
+            title: `Acesso Registrado: ${newLog.type}`,
+            description: `${newLog.personName} - ${newLog.timestamp}`,
+            variant: newLog.type === 'Entrada' ? 'default' : 'destructive'
+        });
+    };
 
     const handleEditClick = (employee: Employee) => {
         setSelectedEmployee(JSON.parse(JSON.stringify(employee))); // Deep copy to avoid mutation
@@ -401,6 +441,9 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                         </Badge>
                     </TableCell>
                     <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" onClick={() => handleManualEntry(employee)} title="Registrar Entrada/Saída Manual">
+                            <LogIn className="h-4 w-4" />
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => handleEditClick(employee)}>
                         <Pencil className="h-4 w-4" />
                         </Button>
