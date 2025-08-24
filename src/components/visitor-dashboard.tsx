@@ -137,8 +137,27 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
     };
 
     const handleAddNewVisitor = (visitor: Visitor) => {
+        // Add the new visitor to the list
         setVisitors([visitor, ...visitors]);
         setIsAddDialogOpen(false);
+
+        // Automatically create an 'Entrada' log for the new visitor
+        const newLog: AccessLog = {
+            id: new Date().toISOString(),
+            personId: visitor.id,
+            personName: visitor.name,
+            personType: 'visitor',
+            timestamp: new Date().toLocaleString('pt-BR'),
+            type: 'Entrada',
+        };
+
+        setAccessLogs(prevLogs => [newLog, ...prevLogs]);
+
+        toast({
+            title: `Acesso Registrado: Entrada`,
+            description: `${visitor.name} - ${newLog.timestamp}`,
+            variant: 'default'
+        });
     };
 
     const getPresenceStatus = (visitorId: string) => {
@@ -574,3 +593,5 @@ export function VisitorDashboard({
 }
  
 
+
+    
