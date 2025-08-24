@@ -82,7 +82,7 @@ function AccessControlUI({
                             </Select>
                         </div>
                     )}
-                    <div id="reader-main" ref={readerRef} className="w-full aspect-square rounded-md bg-black overflow-hidden" />
+                    <div id="reader-main" ref={readerRef} className="w-full aspect-video rounded-md bg-black overflow-hidden" />
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => handleDialogOpenChange(false)}>Fechar</Button>
