@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState, useRef, KeyboardEvent, Dispatch, SetStateAction } from 'react';
@@ -34,6 +35,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from './ui/badge';
 import type { Visitor, AccessLog } from '@/lib/types';
@@ -62,8 +64,7 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isReturningVisitorDialogOpen, setIsReturningVisitorDialogOpen] = useState(false);
     const [selectedVisitor, setSelectedVisitor] = useState<Visitor | null>(null);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [inputValue, setInputValue] = useState('');
+    const [searchTerm, setInputValue] = useState('');
     const { toast } = useToast();
 
     const handleEditClick = (visitor: Visitor) => {
@@ -202,12 +203,6 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
         return 'Dentro';
     };
 
-    const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-        if (event.key === 'Enter') {
-            setSearchTerm(inputValue);
-        }
-    };
-
     const filteredVisitors = searchTerm ? visitors.filter(visitor => {
         const searchTermLower = searchTerm.toLowerCase();
         return (
@@ -246,9 +241,8 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
            <div className="flex items-center py-4">
             <Input
                 placeholder="Buscar visitante por nome, RG, CPF..."
-                value={inputValue}
+                value={searchTerm}
                 onChange={(event) => setInputValue(event.target.value)}
-                onKeyDown={handleSearchKeyDown}
                 className="max-w-sm"
             />
           </div>
@@ -276,10 +270,17 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
                         return (
                         <TableRow key={visitor.id}>
                         <TableCell>
-                            <Avatar>
-                                <AvatarImage src={visitor.photoDataUrl} alt={visitor.name} />
-                                <AvatarFallback><User /></AvatarFallback>
-                            </Avatar>
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Avatar className="cursor-pointer">
+                                        <AvatarImage src={visitor.photoDataUrl} alt={visitor.name} />
+                                        <AvatarFallback><User /></AvatarFallback>
+                                    </Avatar>
+                                </DialogTrigger>
+                                <DialogContent className="p-0 max-w-lg">
+                                    <img src={visitor.photoDataUrl} alt={`Foto de ${visitor.name}`} className="w-full h-auto rounded-md" />
+                                </DialogContent>
+                            </Dialog>
                         </TableCell>
                         <TableCell>{visitor.name}</TableCell>
                         <TableCell>{visitor.rg}</TableCell>
@@ -613,40 +614,6 @@ export function VisitorDashboard({
   accessLogs: AccessLog[], 
   setAccessLogs: Dispatch<SetStateAction<AccessLog[]>> 
 }) {
-
-  // Load visitors from localStorage on initial render
-  useEffect(() => {
-    try {
-        const storedVisitors = localStorage.getItem('visitors');
-        if (storedVisitors) {
-            setVisitors(JSON.parse(storedVisitors));
-        }
-    } catch (error) {
-        console.error("Error reading visitors from localStorage", error);
-    }
-  }, [setVisitors]);
-
-  // Save visitors to localStorage whenever they change
-  useEffect(() => {
-      try {
-          // Only save if there are visitors to avoid overwriting on initial empty load
-          if (visitors.length > 0) {
-            localStorage.setItem('visitors', JSON.stringify(visitors));
-          } else {
-             // If the user intentionally deletes all visitors, clear from storage
-            const stored = localStorage.getItem('visitors');
-            if (stored) {
-                const parsed = JSON.parse(stored);
-                if(parsed.length > 0) {
-                     localStorage.removeItem('visitors');
-                }
-            }
-          }
-      } catch (error) {
-          console.error("Error writing visitors to localStorage", error);
-      }
-  }, [visitors]);
-
   return (
     <div className="container mx-auto">
         <VisitorTable 

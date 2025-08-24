@@ -19,6 +19,7 @@ import { Building, Home, User } from 'lucide-react';
 import { Button } from './ui/button';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { Dialog, DialogContent, DialogTrigger } from './ui/dialog';
 
 
 export function VisitorAccessLogTable() {
@@ -105,9 +106,9 @@ export function VisitorAccessLogTable() {
                                     <TableHead>Empresa</TableHead>
                                     <TableHead>Placa</TableHead>
                                     <TableHead>Responsável</TableHead>
-                                    <TableHead>Motivo da Visita</TableHead>
-                                    <TableHead>Data e Hora Entrada</TableHead>
-                                    <TableHead>Data e Hora Saída</TableHead>
+                                    <TableHead>Motivo</TableHead>
+                                    <TableHead>Entrada</TableHead>
+                                    <TableHead>Saída</TableHead>
                                     <TableHead>Presença</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -124,10 +125,17 @@ export function VisitorAccessLogTable() {
                                         return (
                                         <TableRow key={log.id}>
                                             <TableCell>
-                                                <Avatar>
-                                                    <AvatarImage src={log.photoDataUrl} alt={log.personName} />
-                                                    <AvatarFallback><User /></AvatarFallback>
-                                                </Avatar>
+                                                <Dialog>
+                                                    <DialogTrigger asChild>
+                                                        <Avatar className="cursor-pointer">
+                                                            <AvatarImage src={log.photoDataUrl} alt={log.personName} />
+                                                            <AvatarFallback><User /></AvatarFallback>
+                                                        </Avatar>
+                                                    </DialogTrigger>
+                                                    <DialogContent className="p-0 max-w-lg">
+                                                        <img src={log.photoDataUrl} alt={`Foto de ${log.personName}`} className="w-full h-auto rounded-md" />
+                                                    </DialogContent>
+                                                </Dialog>
                                             </TableCell>
                                             <TableCell>{log.personName}</TableCell>
                                             <TableCell>{log.rg || '-'}</TableCell>
