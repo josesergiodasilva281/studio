@@ -41,10 +41,10 @@ import type { Car, CarLog, Employee } from '@/lib/types';
 import Link from 'next/link';
 
 const emptyCar: Car = {
-    id: '', // Plate
-    model: '',
-    brand: '',
-    year: '',
+    id: '', // Placa
+    driver: '',
+    fleet: '',
+    km: '',
     status: 'Disponível',
 };
 
@@ -59,11 +59,11 @@ function AddCarDialog({ open, onOpenChange, onSave, cars }: { open: boolean, onO
     }, [open]);
 
     const handleSaveClick = () => {
-        if (!newCar.id || !newCar.model || !newCar.brand || !newCar.year) {
+        if (!newCar.id || !newCar.driver || !newCar.fleet) {
             toast({
                 variant: 'destructive',
                 title: 'Campos Obrigatórios',
-                description: 'Placa, Modelo, Marca e Ano são obrigatórios.',
+                description: 'Motorista, Frota e Placa são obrigatórios.',
             });
             return;
         }
@@ -87,33 +87,20 @@ function AddCarDialog({ open, onOpenChange, onSave, cars }: { open: boolean, onO
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="driver" className="text-right">Motorista</Label>
+                        <Input id="driver" value={newCar.driver} onChange={(e) => setNewCar({ ...newCar, driver: e.target.value })} className="col-span-3" />
+                    </div>
+                     <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="fleet" className="text-right">Frota</Label>
+                        <Input id="fleet" value={newCar.fleet} onChange={(e) => setNewCar({ ...newCar, fleet: e.target.value })} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="id" className="text-right">Placa</Label>
                         <Input id="id" value={newCar.id} onChange={(e) => setNewCar({ ...newCar, id: e.target.value.toUpperCase() })} className="col-span-3" />
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="brand" className="text-right">Marca</Label>
-                        <Input id="brand" value={newCar.brand} onChange={(e) => setNewCar({ ...newCar, brand: e.target.value })} className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="model" className="text-right">Modelo</Label>
-                        <Input id="model" value={newCar.model} onChange={(e) => setNewCar({ ...newCar, model: e.target.value })} className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="year" className="text-right">Ano</Label>
-                        <Input id="year" type="number" value={newCar.year} onChange={(e) => setNewCar({ ...newCar, year: e.target.value })} className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="status" className="text-right">Status</Label>
-                        <Select value={newCar.status} onValueChange={(value: 'Disponível' | 'Em uso' | 'Manutenção') => setNewCar({ ...newCar, status: value })}>
-                            <SelectTrigger id="status" className="col-span-3">
-                                <SelectValue placeholder="Selecione o status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Disponível">Disponível</SelectItem>
-                                <SelectItem value="Em uso">Em uso</SelectItem>
-                                <SelectItem value="Manutenção">Manutenção</SelectItem>
-                            </SelectContent>
-                        </Select>
+                     <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="km" className="text-right">KM</Label>
+                        <Input id="km" type="text" value={newCar.km} onChange={(e) => setNewCar({ ...newCar, km: e.target.value })} className="col-span-3" placeholder="Opcional" />
                     </div>
                 </div>
                 <DialogFooter>
@@ -125,23 +112,17 @@ function AddCarDialog({ open, onOpenChange, onSave, cars }: { open: boolean, onO
     );
 }
 
-function CarLogDialog({ open, onOpenChange, car, employees, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, car: Car, employees: Employee[], onSave: (log: Omit<CarLog, 'id' | 'carId' | 'carModel' | 'carBrand' | 'startTime' | 'endTime'>) => void }) {
-    const [driverId, setDriverId] = useState('');
+function CarLogDialog({ open, onOpenChange, car, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, car: Car, onSave: (log: Omit<CarLog, 'id' | 'carId' | 'carFleet' | 'driverName' | 'startTime' | 'endTime'>) => void }) {
     const [destination, setDestination] = useState('');
     const [notes, setNotes] = useState('');
     const { toast } = useToast();
 
     const handleSave = () => {
-        if (!driverId || !destination) {
-            toast({ variant: 'destructive', title: 'Campos Obrigatórios', description: 'Motorista e Destino são obrigatórios.' });
+        if (!destination) {
+            toast({ variant: 'destructive', title: 'Campo Obrigatório', description: 'Destino é obrigatório.' });
             return;
         }
-        const driver = employees.find(e => e.id === driverId);
-        if (!driver) {
-            toast({ variant: 'destructive', title: 'Motorista não encontrado' });
-            return;
-        }
-        onSave({ driverId, driverName: driver.name, destination, notes });
+        onSave({ destination, notes });
         onOpenChange(false);
     };
 
@@ -151,22 +132,13 @@ function CarLogDialog({ open, onOpenChange, car, employees, onSave }: { open: bo
                 <DialogHeader>
                     <DialogTitle>Registrar Saída de Veículo</DialogTitle>
                     <DialogDescription>
-                        Carro: {car.brand} {car.model} - {car.id}
+                        Frota: {car.fleet} - Placa: {car.id}
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="driver" className="text-right">Motorista</Label>
-                        <Select value={driverId} onValueChange={setDriverId}>
-                            <SelectTrigger id="driver" className="col-span-3">
-                                <SelectValue placeholder="Selecione um funcionário" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {employees.filter(e => e.status === 'Ativo').map(employee => (
-                                    <SelectItem key={employee.id} value={employee.id}>{employee.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                     <div className="grid grid-cols-4 items-center gap-4">
+                        <Label className="text-right">Motorista</Label>
+                        <p className="col-span-3">{car.driver}</p>
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="destination" className="text-right">Destino</Label>
@@ -186,7 +158,7 @@ function CarLogDialog({ open, onOpenChange, car, employees, onSave }: { open: bo
     )
 }
 
-function CarTable({ cars, setCars, carLogs, setCarLogs, employees }: { cars: Car[], setCars: Dispatch<SetStateAction<Car[]>>, carLogs: CarLog[], setCarLogs: Dispatch<SetStateAction<CarLog[]>>, employees: Employee[] }) {
+function CarTable({ cars, setCars, carLogs, setCarLogs }: { cars: Car[], setCars: Dispatch<SetStateAction<Car[]>>, carLogs: CarLog[], setCarLogs: Dispatch<SetStateAction<CarLog[]>> }) {
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isLogDialogOpen, setIsLogDialogOpen] = useState(false);
@@ -223,17 +195,17 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, employees }: { cars: Car
         const updatedCars = cars.map(car => car.id === carId ? { ...car, status: 'Disponível' } : car);
         setCars(updatedCars);
         
-        toast({ title: 'Retorno Registrado', description: `O carro ${carId} está disponível novamente.` });
+        toast({ title: 'Retorno Registrado', description: `O carro de placa ${carId} está disponível novamente.` });
     };
 
-    const handleCheckout = (logData: Omit<CarLog, 'id' | 'carId' | 'carModel' | 'carBrand' | 'startTime' | 'endTime'>) => {
+    const handleCheckout = (logData: Omit<CarLog, 'id' | 'carId' | 'carFleet' | 'driverName' | 'startTime' | 'endTime'>) => {
         if (!selectedCar) return;
 
         const newLog: CarLog = {
             id: `carlog-${Date.now()}`,
             carId: selectedCar.id,
-            carModel: selectedCar.model,
-            carBrand: selectedCar.brand,
+            carFleet: selectedCar.fleet,
+            driverName: selectedCar.driver,
             startTime: new Date().toLocaleString('pt-BR'),
             endTime: null,
             ...logData
@@ -244,7 +216,7 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, employees }: { cars: Car
         const updatedCars = cars.map(c => c.id === selectedCar.id ? { ...c, status: 'Em uso' as const } : c);
         setCars(updatedCars);
 
-        toast({ title: 'Saída Registrada', description: `O carro ${selectedCar.id} está em uso por ${logData.driverName}.` });
+        toast({ title: 'Saída Registrada', description: `O carro ${selectedCar.id} está em uso por ${selectedCar.driver}.` });
         setSelectedCar(null);
     };
 
@@ -273,9 +245,9 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, employees }: { cars: Car
         const searchTermLower = searchTerm.toLowerCase();
         return (
             car.id.toLowerCase().includes(searchTermLower) ||
-            car.model.toLowerCase().includes(searchTermLower) ||
-            car.brand.toLowerCase().includes(searchTermLower) ||
-            car.year.toLowerCase().includes(searchTermLower) ||
+            car.driver.toLowerCase().includes(searchTermLower) ||
+            car.fleet.toLowerCase().includes(searchTermLower) ||
+            (car.km && car.km.toLowerCase().includes(searchTermLower)) ||
             car.status.toLowerCase().includes(searchTermLower)
         );
     });
@@ -301,7 +273,7 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, employees }: { cars: Car
                 <CardContent>
                     <div className="flex items-center py-4">
                         <Input
-                            placeholder="Filtrar por placa, modelo, marca..."
+                            placeholder="Filtrar por placa, motorista, frota..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="max-w-sm"
@@ -311,10 +283,10 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, employees }: { cars: Car
                         <Table>
                             <TableHeader>
                                 <TableRow>
+                                    <TableHead>Motorista</TableHead>
+                                    <TableHead>Frota</TableHead>
                                     <TableHead>Placa</TableHead>
-                                    <TableHead>Marca</TableHead>
-                                    <TableHead>Modelo</TableHead>
-                                    <TableHead>Ano</TableHead>
+                                    <TableHead>KM</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead className="text-right">Ações</TableHead>
                                 </TableRow>
@@ -322,10 +294,10 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, employees }: { cars: Car
                             <TableBody>
                                 {filteredCars.length > 0 ? filteredCars.map((car) => (
                                     <TableRow key={car.id}>
+                                        <TableCell>{car.driver}</TableCell>
+                                        <TableCell>{car.fleet}</TableCell>
                                         <TableCell className="font-medium">{car.id}</TableCell>
-                                        <TableCell>{car.brand}</TableCell>
-                                        <TableCell>{car.model}</TableCell>
-                                        <TableCell>{car.year}</TableCell>
+                                        <TableCell>{car.km || '-'}</TableCell>
                                         <TableCell>
                                             <Badge variant={
                                                 car.status === 'Disponível' ? 'default' : car.status === 'Em uso' ? 'destructive' : 'secondary'
@@ -380,20 +352,20 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, employees }: { cars: Car
                     {selectedCar && (
                         <div className="grid gap-4 py-4">
                             <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="driver-edit" className="text-right">Motorista</Label>
+                                <Input id="driver-edit" value={selectedCar.driver} onChange={(e) => setSelectedCar({ ...selectedCar, driver: e.target.value })} className="col-span-3" />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="fleet-edit" className="text-right">Frota</Label>
+                                <Input id="fleet-edit" value={selectedCar.fleet} onChange={(e) => setSelectedCar({ ...selectedCar, fleet: e.target.value })} className="col-span-3" />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="id-edit" className="text-right">Placa</Label>
                                 <Input id="id-edit" value={selectedCar.id} className="col-span-3" disabled />
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="brand-edit" className="text-right">Marca</Label>
-                                <Input id="brand-edit" value={selectedCar.brand} onChange={(e) => setSelectedCar({ ...selectedCar, brand: e.target.value })} className="col-span-3" />
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="model-edit" className="text-right">Modelo</Label>
-                                <Input id="model-edit" value={selectedCar.model} onChange={(e) => setSelectedCar({ ...selectedCar, model: e.target.value })} className="col-span-3" />
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="year-edit" className="text-right">Ano</Label>
-                                <Input id="year-edit" value={selectedCar.year} onChange={(e) => setSelectedCar({ ...selectedCar, year: e.target.value })} className="col-span-3" />
+                                <Label htmlFor="km-edit" className="text-right">KM</Label>
+                                <Input id="km-edit" value={selectedCar.km} onChange={(e) => setSelectedCar({ ...selectedCar, km: e.target.value })} className="col-span-3" />
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="status-edit" className="text-right">Status</Label>
@@ -416,7 +388,7 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, employees }: { cars: Car
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-            {selectedCar && <CarLogDialog open={isLogDialogOpen} onOpenChange={setIsLogDialogOpen} car={selectedCar} employees={employees} onSave={handleCheckout} />}
+            {selectedCar && <CarLogDialog open={isLogDialogOpen} onOpenChange={setIsLogDialogOpen} car={selectedCar} onSave={handleCheckout} />}
         </>
     );
 }
@@ -426,21 +398,23 @@ export function CarDashboard({ cars, setCars, carLogs, setCarLogs, employees }: 
     // Load initial data from localStorage if not provided
     useEffect(() => {
         if (cars.length === 0) {
-            const storedCars = localStorage.getItem('cars');
-            if (storedCars) {
-                setCars(JSON.parse(storedCars));
+            try {
+                const storedCars = localStorage.getItem('cars');
+                if (storedCars) {
+                    setCars(JSON.parse(storedCars));
+                }
+            } catch (error) {
+                console.error("Error reading cars from localStorage", error);
             }
         }
          if (carLogs.length === 0) {
-            const storedLogs = localStorage.getItem('carLogs');
-            if (storedLogs) {
-                setCarLogs(JSON.parse(storedLogs));
-            }
-        }
-         if (employees.length === 0) {
-            const storedEmployees = localStorage.getItem('employees');
-            if (storedEmployees) {
-                setCarLogs(JSON.parse(storedEmployees));
+            try {
+                const storedLogs = localStorage.getItem('carLogs');
+                if (storedLogs) {
+                    setCarLogs(JSON.parse(storedLogs));
+                }
+            } catch (error) {
+                console.error("Error reading car logs from localStorage", error);
             }
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -448,11 +422,21 @@ export function CarDashboard({ cars, setCars, carLogs, setCarLogs, employees }: 
 
     // Save data to localStorage when it changes
     useEffect(() => {
-        if(cars.length > 0) localStorage.setItem('cars', JSON.stringify(cars));
+        if(cars.length > 0) {
+            localStorage.setItem('cars', JSON.stringify(cars));
+        } else {
+             const stored = localStorage.getItem('cars');
+             if (stored) localStorage.removeItem('cars');
+        }
     }, [cars]);
     
     useEffect(() => {
-        if(carLogs.length > 0) localStorage.setItem('carLogs', JSON.stringify(carLogs));
+        if(carLogs.length > 0) {
+            localStorage.setItem('carLogs', JSON.stringify(carLogs));
+        } else {
+             const stored = localStorage.getItem('carLogs');
+             if (stored) localStorage.removeItem('carLogs');
+        }
     }, [carLogs]);
 
     return (
@@ -462,7 +446,6 @@ export function CarDashboard({ cars, setCars, carLogs, setCarLogs, employees }: 
                 setCars={setCars}
                 carLogs={carLogs}
                 setCarLogs={setCarLogs}
-                employees={employees}
             />
         </div>
     );

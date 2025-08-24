@@ -48,8 +48,7 @@ export function CarAccessLogTable() {
         const searchTermLower = searchTerm.toLowerCase();
         return (
             log.carId.toLowerCase().includes(searchTermLower) ||
-            log.carModel.toLowerCase().includes(searchTermLower) ||
-            log.carBrand.toLowerCase().includes(searchTermLower) ||
+            log.carFleet.toLowerCase().includes(searchTermLower) ||
             log.driverName.toLowerCase().includes(searchTermLower) ||
             log.destination.toLowerCase().includes(searchTermLower) ||
             (log.notes && log.notes.toLowerCase().includes(searchTermLower))
@@ -85,8 +84,8 @@ export function CarAccessLogTable() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
+                                    <TableHead>Frota</TableHead>
                                     <TableHead>Placa</TableHead>
-                                    <TableHead>Veículo</TableHead>
                                     <TableHead>Motorista</TableHead>
                                     <TableHead>Destino</TableHead>
                                     <TableHead>Saída</TableHead>
@@ -99,8 +98,8 @@ export function CarAccessLogTable() {
                                 {filteredLogs.length > 0 ? (
                                     filteredLogs.map((log) => (
                                         <TableRow key={log.id}>
+                                            <TableCell>{log.carFleet}</TableCell>
                                             <TableCell className="font-medium">{log.carId}</TableCell>
-                                            <TableCell>{log.carBrand} {log.carModel}</TableCell>
                                             <TableCell>{log.driverName}</TableCell>
                                             <TableCell>{log.destination}</TableCell>
                                             <TableCell>{log.startTime}</TableCell>
