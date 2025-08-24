@@ -52,6 +52,7 @@ function VisitorTable({ visitors, setVisitors, accessLogs }: { visitors: Visitor
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [selectedVisitor, setSelectedVisitor] = useState<Visitor | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [inputValue, setInputValue] = useState('');
     const { toast } = useToast();
 
     const handleEditClick = (visitor: Visitor) => {
@@ -92,6 +93,12 @@ function VisitorTable({ visitors, setVisitors, accessLogs }: { visitors: Visitor
         return 'Dentro';
     };
 
+    const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'Enter') {
+            setSearchTerm(inputValue);
+        }
+    };
+
     const filteredVisitors = visitors.filter(visitor => {
         const presenceStatus = getPresenceStatus(visitor.id);
         const searchTermLower = searchTerm.toLowerCase();
@@ -119,8 +126,9 @@ function VisitorTable({ visitors, setVisitors, accessLogs }: { visitors: Visitor
            <div className="flex items-center py-4">
             <Input
                 placeholder="Filtrar visitantes..."
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
+                value={inputValue}
+                onChange={(event) => setInputValue(event.target.value)}
+                onKeyDown={handleSearchKeyDown}
                 className="max-w-sm"
             />
           </div>

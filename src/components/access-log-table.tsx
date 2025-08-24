@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, KeyboardEvent } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -23,6 +23,7 @@ export function AccessLogTable() {
     const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [inputValue, setInputValue] = useState('');
 
     // Load data from localStorage on initial render
     useEffect(() => {
@@ -82,6 +83,12 @@ export function AccessLogTable() {
             );
         });
 
+    const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'Enter') {
+            setSearchTerm(inputValue);
+        }
+    };
+
     return (
         <div className="container mx-auto">
             <Card>
@@ -92,8 +99,9 @@ export function AccessLogTable() {
                     <div className="flex items-center py-4">
                         <Input
                             placeholder="Filtrar histórico..."
-                            value={searchTerm}
-                            onChange={(event) => setSearchTerm(event.target.value)}
+                            value={inputValue}
+                            onChange={(event) => setInputValue(event.target.value)}
+                            onKeyDown={handleSearchKeyDown}
                             className="max-w-sm"
                         />
                     </div>

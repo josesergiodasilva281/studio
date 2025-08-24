@@ -296,6 +296,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [inputValue, setInputValue] = useState('');
     const { toast } = useToast();
 
     const handleManualEntry = (employee: Employee) => {
@@ -362,6 +363,12 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         return 'Dentro';
     };
 
+    const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'Enter') {
+            setSearchTerm(inputValue);
+        }
+    };
+
     const filteredEmployees = employees.filter(employee => {
         const presenceStatus = getPresenceStatus(employee.id);
         const searchTermLower = searchTerm.toLowerCase();
@@ -399,8 +406,9 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
            <div className="flex items-center py-4">
             <Input
                 placeholder="Filtrar funcionários..."
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
+                value={inputValue}
+                onChange={(event) => setInputValue(event.target.value)}
+                onKeyDown={handleSearchKeyDown}
                 className="max-w-sm"
             />
           </div>
