@@ -9,6 +9,7 @@ import type { Car, CarLog, Employee } from '@/lib/types';
 export default function CarsPage() {
   const [cars, setCars] = useState<Car[]>([]);
   const [carLogs, setCarLogs] = useState<CarLog[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
 
   // Load cars from localStorage
   useEffect(() => {
@@ -63,6 +64,18 @@ export default function CarsPage() {
     }
   }, [carLogs]);
 
+  // Load employees from localStorage
+  useEffect(() => {
+    try {
+        const storedEmployees = localStorage.getItem('employees');
+        if (storedEmployees) {
+            setEmployees(JSON.parse(storedEmployees));
+        }
+    } catch (error) {
+        console.error("Error reading employees from localStorage", error);
+    }
+  }, []);
+
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -73,7 +86,7 @@ export default function CarsPage() {
           setCars={setCars}
           carLogs={carLogs}
           setCarLogs={setCarLogs}
-          employees={[]}
+          employees={employees}
         />
       </main>
     </div>

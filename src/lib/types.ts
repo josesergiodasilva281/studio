@@ -22,11 +22,12 @@ export interface Visitor {
 
 export interface Car {
   id: string; // Plate number
-  driver: string;
   fleet: string;
-  km?: string;
   status: 'Disponível' | 'Em uso' | 'Manutenção';
+  lastDriverId?: string;
+  lastKm?: string;
 }
+
 
 export interface AccessLog {
   id: string;
@@ -50,9 +51,12 @@ export interface CarLog {
   id: string;
   carId: string; // Plate number
   carFleet: string;
+  driverId: string;
   driverName: string;
   startTime: string;
   endTime: string | null;
   destination: string;
+  startKm?: string;
+  endKm?: string;
   notes?: string;
 }
