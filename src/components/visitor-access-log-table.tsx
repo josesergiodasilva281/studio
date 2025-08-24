@@ -120,7 +120,6 @@ export function VisitorAccessLogTable() {
                                     <TableHead>Placa</TableHead>
                                     <TableHead>Responsável</TableHead>
                                     <TableHead>Motivo da Visita</TableHead>
-                                    <TableHead>Tipo</TableHead>
                                     <TableHead>Data e Hora</TableHead>
                                     <TableHead>Presença</TableHead>
                                 </TableRow>
@@ -128,7 +127,7 @@ export function VisitorAccessLogTable() {
                             <TableBody>
                                 {enrichedLogs.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={11} className="text-center">
+                                        <TableCell colSpan={10} className="text-center">
                                             Nenhum registro de acesso encontrado.
                                         </TableCell>
                                     </TableRow>
@@ -150,12 +149,6 @@ export function VisitorAccessLogTable() {
                                             <TableCell>{log.plate || '-'}</TableCell>
                                             <TableCell>{log.responsible || '-'}</TableCell>
                                             <TableCell>{log.reason || '-'}</TableCell>
-                                            <TableCell>
-                                                <Badge variant={log.type === 'Entrada' ? 'default' : 'secondary'} className="flex items-center w-fit">
-                                                     {log.type === 'Entrada' ? <LogIn className="mr-1 h-3 w-3" /> : <LogOut className="mr-1 h-3 w-3" />}
-                                                    <span>{log.type}</span>
-                                                </Badge>
-                                            </TableCell>
                                             <TableCell>{log.timestamp}</TableCell>
                                             <TableCell>
                                                  <Badge 
