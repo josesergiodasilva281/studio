@@ -20,6 +20,14 @@ export interface Visitor {
     reason: string;
 }
 
+export interface Car {
+  id: string; // Plate number
+  model: string;
+  brand: string;
+  year: string;
+  status: 'Disponível' | 'Em uso' | 'Manutenção';
+}
+
 export interface AccessLog {
   id: string;
   personName: string;
@@ -36,4 +44,17 @@ export interface AccessLog {
   cpf?: string;
   company?: string;
   plate?: string;
+}
+
+export interface CarLog {
+  id: string;
+  carId: string; // Plate number
+  carModel: string;
+  carBrand: string;
+  driverId: string;
+  driverName: string;
+  startTime: string;
+  endTime: string | null;
+  destination: string;
+  notes?: string;
 }

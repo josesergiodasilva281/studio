@@ -1,7 +1,7 @@
 
 'use client'
 
-import { KeyRound, Users } from 'lucide-react';
+import { KeyRound, Users, Car } from 'lucide-react';
 import { ThemeToggle } from './theme-toggle';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -15,6 +15,7 @@ export function Header() {
   const navLinks = [
     { href: '/', label: 'Funcionários', icon: KeyRound },
     { href: '/dashboard', label: 'Visitantes', icon: Users },
+    { href: '/cars', label: 'Carros', icon: Car },
   ];
 
   return (
@@ -32,7 +33,7 @@ export function Header() {
               variant="ghost"
               className={cn(
                 "text-sm font-medium",
-                pathname === link.href ? "text-primary" : "text-muted-foreground",
+                pathname.startsWith(link.href) && link.href !== '/' || pathname === link.href ? "text-primary" : "text-muted-foreground",
                 "hover:text-primary"
               )}
             >
