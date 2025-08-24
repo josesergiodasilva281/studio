@@ -26,6 +26,8 @@ export default function Home() {
   // Save access logs to localStorage whenever they change
   useEffect(() => {
     try {
+      // Only write to localStorage if accessLogs has been initialized and has items.
+      // This prevents overwriting existing logs with an empty array on initial load.
       if (accessLogs.length > 0) {
         localStorage.setItem('accessLogs', JSON.stringify(accessLogs));
         // Dispatch a custom event to notify other components like the history page

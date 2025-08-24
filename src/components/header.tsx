@@ -13,6 +13,7 @@ export function Header() {
   const pathname = usePathname();
 
   const navLinks = [
+    { href: '/', label: 'Funcionários', icon: KeyRound },
     { href: '/dashboard', label: 'Visitantes', icon: Users },
   ];
 

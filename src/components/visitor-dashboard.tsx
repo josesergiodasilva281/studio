@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from './ui/button';
-import { Pencil, Trash2, PlusCircle, Home, Building } from 'lucide-react';
+import { Pencil, Trash2, PlusCircle, Home, Building, GanttChartSquare } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from './ui/badge';
 import type { Visitor, AccessLog } from '@/lib/types';
+import Link from 'next/link';
 
 
 const emptyVisitor: Visitor = {
@@ -116,11 +117,21 @@ function VisitorTable({ visitors, setVisitors, accessLogs }: { visitors: Visitor
     <>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Visitantes</CardTitle>
-           <Button onClick={() => setIsAddDialogOpen(true)}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Cadastrar Visitante
-            </Button>
+            <div>
+                <CardTitle>Visitantes</CardTitle>
+            </div>
+            <div className="flex items-center gap-2">
+                <Link href="/visitors/history">
+                    <Button variant="outline">
+                      <GanttChartSquare className="mr-2 h-4 w-4" />
+                      Ver Histórico
+                    </Button>
+                </Link>
+                <Button onClick={() => setIsAddDialogOpen(true)}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Cadastrar Visitante
+                </Button>
+            </div>
         </CardHeader>
         <CardContent>
            <div className="flex items-center py-4">
@@ -346,5 +357,3 @@ export function VisitorDashboard() {
     </div>
   );
 }
-
-    

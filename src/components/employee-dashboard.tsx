@@ -395,7 +395,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Funcionários</CardTitle>
-          <Link href="/history">
+          <Link href="/employees/history">
             <Button variant="outline">
               <GanttChartSquare className="mr-2 h-4 w-4" />
               Ver Histórico
@@ -547,11 +547,12 @@ export function EmployeeDashboard({ isAddEmployeeDialogOpen, setIsAddEmployeeDia
             if (storedEmployees) {
                 setEmployees(JSON.parse(storedEmployees));
             } else {
+                // If nothing in localStorage, initialize with default data
                 setEmployees(initialEmployees);
             }
         } catch (error) {
             console.error("Error reading employees from localStorage", error);
-            setEmployees(initialEmployees);
+            setEmployees(initialEmployees); // Fallback to initial data on error
         }
     }, []);
 
@@ -580,5 +581,3 @@ export function EmployeeDashboard({ isAddEmployeeDialogOpen, setIsAddEmployeeDia
     </div>
   );
 }
-
-    

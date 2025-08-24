@@ -4,7 +4,7 @@
 import { Header } from '@/components/header';
 import { EmployeeAccessLogTable } from '@/components/employee-access-log-table';
 
-export default function HistoryPage() {
+export default function EmployeeHistoryPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <Header />

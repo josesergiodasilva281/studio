@@ -12,18 +12,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from './ui/badge';
-import type { AccessLog, Employee } from '@/lib/types';
+import type { AccessLog, Visitor } from '@/lib/types';
 import { Input } from './ui/input';
 import { LogIn, LogOut, Building, Home } from 'lucide-react';
 import { Button } from './ui/button';
 import Link from 'next/link';
 
-// Combine Log with Employee details
-type EnrichedAccessLog = AccessLog & Partial<Omit<Employee, 'id' | 'name'>>;
+// Combine Log with Visitor details
+type EnrichedAccessLog = AccessLog & Partial<Omit<Visitor, 'id' | 'name'>>;
 
-export function EmployeeAccessLogTable() {
+export function VisitorAccessLogTable() {
     const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
-    const [employees, setEmployees] = useState<Employee[]>([]);
+    const [visitors, setVisitors] = useState<Visitor[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [inputValue, setInputValue] = useState('');
 
@@ -35,9 +35,9 @@ export function EmployeeAccessLogTable() {
                 if (storedLogs) {
                     setAccessLogs(JSON.parse(storedLogs));
                 }
-                const storedEmployees = localStorage.getItem('employees');
-                 if (storedEmployees) {
-                    setEmployees(JSON.parse(storedEmployees));
+                const storedVisitors = localStorage.getItem('visitors');
+                 if (storedVisitors) {
+                    setVisitors(JSON.parse(storedVisitors));
                 }
             } catch (error) {
                 console.error("Error reading from localStorage", error);
@@ -57,15 +57,13 @@ export function EmployeeAccessLogTable() {
     }, []);
     
     const enrichedLogs: EnrichedAccessLog[] = accessLogs
-        .filter(log => log.personType === 'employee')
+        .filter(log => log.personType === 'visitor')
         .map(log => {
-            const employee = employees.find(e => e.id === log.personId);
+            const visitor = visitors.find(v => v.id === log.personId);
             return {
                 ...log,
-                department: employee?.department,
-                plate: employee?.plate,
-                ramal: employee?.ramal,
-                status: employee?.status,
+                document: visitor?.document,
+                company: visitor?.company,
             };
         })
         .filter(log => {
@@ -74,10 +72,8 @@ export function EmployeeAccessLogTable() {
             return (
                 log.personName.toLowerCase().includes(searchTermLower) ||
                 log.personId.toLowerCase().includes(searchTermLower) ||
-                (log.department && log.department.toLowerCase().includes(searchTermLower)) ||
-                (log.plate && log.plate.toLowerCase().includes(searchTermLower)) ||
-                (log.ramal && log.ramal.toLowerCase().includes(searchTermLower)) ||
-                (log.status && log.status.toLowerCase().includes(searchTermLower)) ||
+                (log.document && log.document.toLowerCase().includes(searchTermLower)) ||
+                (log.company && log.company.toLowerCase().includes(searchTermLower)) ||
                 log.timestamp.toLowerCase().includes(searchTermLower) ||
                 log.type.toLowerCase().includes(searchTermLower)
             );
@@ -92,9 +88,9 @@ export function EmployeeAccessLogTable() {
     return (
         <div className="container mx-auto">
             <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>Histórico de Acessos de Funcionários</CardTitle>
-                    <Link href="/">
+                 <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle>Histórico de Acessos de Visitantes</CardTitle>
+                    <Link href="/dashboard">
                         <Button variant="outline">Voltar</Button>
                     </Link>
                 </CardHeader>
@@ -112,12 +108,10 @@ export function EmployeeAccessLogTable() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Matrícula</TableHead>
+                                    <TableHead>ID</TableHead>
                                     <TableHead>Nome</TableHead>
-                                    <TableHead>Setor</TableHead>
-                                    <TableHead>Placa</TableHead>
-                                    <TableHead>Ramal</TableHead>
-                                    <TableHead>Status no Momento</TableHead>
+                                    <TableHead>Documento</TableHead>
+                                    <TableHead>Empresa</TableHead>
                                     <TableHead>Tipo</TableHead>
                                     <TableHead>Data e Hora</TableHead>
                                     <TableHead>Presença</TableHead>
@@ -126,7 +120,7 @@ export function EmployeeAccessLogTable() {
                             <TableBody>
                                 {enrichedLogs.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={9} className="text-center">
+                                        <TableCell colSpan={7} className="text-center">
                                             Nenhum registro de acesso encontrado.
                                         </TableCell>
                                     </TableRow>
@@ -137,16 +131,8 @@ export function EmployeeAccessLogTable() {
                                         <TableRow key={log.id}>
                                             <TableCell>{log.personId}</TableCell>
                                             <TableCell>{log.personName}</TableCell>
-                                            <TableCell>{log.department || '-'}</TableCell>
-                                            <TableCell>{log.plate || '-'}</TableCell>
-                                            <TableCell>{log.ramal || '-'}</TableCell>
-                                            <TableCell>
-                                                {log.status ? (
-                                                    <Badge variant={log.status === 'Ativo' ? 'default' : 'destructive'}>
-                                                        {log.status}
-                                                    </Badge>
-                                                ) : '-'}
-                                            </TableCell>
+                                            <TableCell>{log.document || '-'}</TableCell>
+                                            <TableCell>{log.company || '-'}</TableCell>
                                             <TableCell>
                                                 <Badge variant={log.type === 'Entrada' ? 'default' : 'secondary'} className="flex items-center w-fit">
                                                      {log.type === 'Entrada' ? <LogIn className="mr-1 h-3 w-3" /> : <LogOut className="mr-1 h-3 w-3" />}
@@ -154,7 +140,7 @@ export function EmployeeAccessLogTable() {
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>{log.timestamp}</TableCell>
-                                             <TableCell>
+                                            <TableCell>
                                                  <Badge 
                                                     variant={presence === 'Dentro' ? 'default' : 'destructive'}
                                                  >

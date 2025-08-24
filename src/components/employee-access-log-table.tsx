@@ -94,7 +94,7 @@ export function EmployeeAccessLogTable() {
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>Histórico de Acessos de Funcionários</CardTitle>
-                    <Link href="/">
+                     <Link href="/">
                         <Button variant="outline">Voltar</Button>
                     </Link>
                 </CardHeader>
