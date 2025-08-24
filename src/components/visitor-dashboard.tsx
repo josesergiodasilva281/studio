@@ -421,13 +421,12 @@ export function VisitorDashboard() {
     // Save visitors to localStorage whenever they change
     useEffect(() => {
         try {
-            // Do not save empty array if it was just initialized
             if (visitors.length > 0) {
                 localStorage.setItem('visitors', JSON.stringify(visitors));
             } else {
                 // If the user deletes all visitors, remove the item from localStorage
                 const storedVisitors = localStorage.getItem('visitors');
-                if(storedVisitors) {
+                if (storedVisitors) {
                     localStorage.removeItem('visitors');
                 }
             }
@@ -468,3 +467,4 @@ export function VisitorDashboard() {
     </div>
   );
 }
+ 
