@@ -136,26 +136,43 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
         return () => window.removeEventListener('storage', loadVisitors);
     }, []);
 
-    const handleNewLog = (logData: Omit<AccessLog, 'type' | 'id'>) => {
-         const personLogs = accessLogs
-            .filter(log => log.personId === logData.personId)
-            .sort((a, b) => new Date(b.id).getTime() - new Date(a.id).getTime());
+     const handleNewLog = (person: Employee | Visitor, personType: 'employee' | 'visitor') => {
+        const openLog = accessLogs.find(
+            log => log.personId === person.id && log.exitTimestamp === null
+        );
 
-        const lastLog = personLogs[0];
-        const newLogType = !lastLog || lastLog.type === 'Saída' ? 'Entrada' : 'Saída';
-
-        const newLog: AccessLog = {
-            ...logData,
-            id: new Date().toISOString(),
-            type: newLogType,
-        };
-
-        setAccessLogs(prevLogs => [newLog, ...prevLogs]);
-        toast({
-            title: `Acesso Registrado: ${newLog.type}`,
-            description: `${newLog.personName} - ${newLog.timestamp}`,
-            variant: newLog.type === 'Entrada' ? 'default' : 'destructive'
-        });
+        if (openLog) {
+            // Registering an exit
+            const updatedLogs = accessLogs.map(log => 
+                log.id === openLog.id 
+                ? { ...log, exitTimestamp: new Date().toLocaleString('pt-BR') }
+                : log
+            );
+            setAccessLogs(updatedLogs);
+            toast({
+                title: "Acesso Registrado: Saída",
+                description: `${person.name} - ${new Date().toLocaleString('pt-BR')}`,
+                variant: 'destructive'
+            });
+        } else {
+            // Registering an entry
+            const newLog: AccessLog = {
+                id: `log-${Date.now()}`,
+                personId: person.id,
+                personName: person.name,
+                personType: personType,
+                entryTimestamp: new Date().toLocaleString('pt-BR'),
+                exitTimestamp: null,
+                reason: personType === 'visitor' ? (person as Visitor).reason : undefined,
+                responsible: personType === 'visitor' ? (person as Visitor).responsible : undefined,
+            };
+            setAccessLogs(prevLogs => [newLog, ...prevLogs]);
+            toast({
+                title: "Acesso Registrado: Entrada",
+                description: `${person.name} - ${newLog.entryTimestamp}`,
+                variant: 'default'
+            });
+        }
     };
     
     // Scanner Logic
@@ -181,14 +198,15 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
     
     const stopScanner = () => {
         if (scannerRef.current) {
-            if (scannerRef.current.isScanning) {
-                scannerRef.current.stop().catch(err => {
+            const scanner = scannerRef.current;
+            scannerRef.current = null; // Clear ref immediately
+            if (scanner.isScanning) {
+                scanner.stop().catch(err => {
                     console.warn("Scanner could not be stopped, likely already stopped.", err);
                 });
             }
-            scannerRef.current.clear();
+             scanner.clear();
         }
-        scannerRef.current = null;
     };
 
     const handleScanSuccess = (decodedText: string) => {
@@ -206,20 +224,14 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
         } else if (personType === 'employee' && (person as Employee).status === 'Inativo') {
             toast({ variant: 'destructive', title: 'Acesso Negado', description: `Funcionário ${person.name} está inativo.` });
         } else {
-            handleNewLog({
-                personId: person.id,
-                personName: person.name,
-                personType: personType,
-                timestamp: new Date().toLocaleString('pt-BR'),
-            });
+            handleNewLog(person, personType);
         }
         
         setTimeout(() => setIsScannerPaused(false), 2000);
     };
 
      useEffect(() => {
-        if (isScannerOpen && selectedDeviceId && readerRef.current && !scannerRef.current?.isScanning) {
-            
+        if (isScannerOpen && selectedDeviceId && readerRef.current && !scannerRef.current) {
             const newScanner = new Html5Qrcode(readerRef.current.id, { verbose: false });
             scannerRef.current = newScanner;
 
@@ -238,17 +250,20 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
             ).catch((err) => {
                 console.error("Unable to start scanning.", err);
                 toast({ variant: "destructive", title: "Erro ao iniciar a câmera." });
+                scannerRef.current = null; // Reset on error
             });
             
         }
-
-        return () => {
-             if (scannerRef.current && scannerRef.current.isScanning) {
-                stopScanner();
-             }
-        }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isScannerOpen, selectedDeviceId, employees, visitors, isScannerPaused]); // Dependencies are important here
+    }, [isScannerOpen, selectedDeviceId]);
+
+    useEffect(() => {
+        // This is a cleanup effect that runs when the component unmounts.
+        return () => {
+             stopScanner();
+        }
+    }, []);
+
 
      const handleDialogOpenChange = (open: boolean) => {
         setIsScannerOpen(open);
@@ -272,5 +287,3 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
     </div>
   );
 }
-
-    

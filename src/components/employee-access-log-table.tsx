@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState, KeyboardEvent } from 'react';
@@ -78,8 +79,8 @@ export function EmployeeAccessLogTable() {
                 (log.plate && log.plate.toLowerCase().includes(searchTermLower)) ||
                 (log.ramal && log.ramal.toLowerCase().includes(searchTermLower)) ||
                 (log.status && log.status.toLowerCase().includes(searchTermLower)) ||
-                log.timestamp.toLowerCase().includes(searchTermLower) ||
-                log.type.toLowerCase().includes(searchTermLower)
+                log.entryTimestamp.toLowerCase().includes(searchTermLower) ||
+                (log.exitTimestamp && log.exitTimestamp.toLowerCase().includes(searchTermLower))
             );
         });
 
@@ -118,8 +119,8 @@ export function EmployeeAccessLogTable() {
                                     <TableHead>Placa</TableHead>
                                     <TableHead>Ramal</TableHead>
                                     <TableHead>Status no Momento</TableHead>
-                                    <TableHead>Tipo</TableHead>
-                                    <TableHead>Data e Hora</TableHead>
+                                    <TableHead>Entrada</TableHead>
+                                    <TableHead>Saída</TableHead>
                                     <TableHead>Presença</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -132,7 +133,7 @@ export function EmployeeAccessLogTable() {
                                     </TableRow>
                                 ) : (
                                     enrichedLogs.map((log) => {
-                                        const presence = log.type === 'Entrada' ? 'Dentro' : 'Fora';
+                                        const presence = log.exitTimestamp === null ? 'Dentro' : 'Fora';
                                         return (
                                         <TableRow key={log.id}>
                                             <TableCell>{log.personId}</TableCell>
@@ -147,13 +148,8 @@ export function EmployeeAccessLogTable() {
                                                     </Badge>
                                                 ) : '-'}
                                             </TableCell>
-                                            <TableCell>
-                                                <Badge variant={log.type === 'Entrada' ? 'default' : 'secondary'} className="flex items-center w-fit">
-                                                     {log.type === 'Entrada' ? <LogIn className="mr-1 h-3 w-3" /> : <LogOut className="mr-1 h-3 w-3" />}
-                                                    <span>{log.type}</span>
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell>{log.timestamp}</TableCell>
+                                            <TableCell>{log.entryTimestamp}</TableCell>
+                                            <TableCell>{log.exitTimestamp || '-'}</TableCell>
                                              <TableCell>
                                                  <Badge 
                                                     variant={presence === 'Dentro' ? 'default' : 'destructive'}

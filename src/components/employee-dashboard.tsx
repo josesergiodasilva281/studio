@@ -305,29 +305,40 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             return;
         }
 
-        const employeeLogs = accessLogs
-            .filter(log => log.personId === employee.id)
-            .sort((a, b) => new Date(b.id).getTime() - new Date(a.id).getTime());
+        const openLog = accessLogs.find(
+            log => log.personId === employee.id && log.exitTimestamp === null
+        );
 
-        const lastLog = employeeLogs[0];
-        const newLogType = !lastLog || lastLog.type === 'Saída' ? 'Entrada' : 'Saída';
-
-        const newLog: AccessLog = {
-            id: new Date().toISOString(),
-            personId: employee.id,
-            personName: employee.name,
-            personType: 'employee',
-            timestamp: new Date().toLocaleString('pt-BR'),
-            type: newLogType,
-        };
-        
-        setAccessLogs([newLog, ...accessLogs]);
-
-        toast({
-            title: `Acesso Registrado: ${newLog.type}`,
-            description: `${newLog.personName} - ${newLog.timestamp}`,
-            variant: newLog.type === 'Entrada' ? 'default' : 'destructive'
-        });
+        if (openLog) {
+            // Registering an exit
+            const updatedLogs = accessLogs.map(log => 
+                log.id === openLog.id 
+                ? { ...log, exitTimestamp: new Date().toLocaleString('pt-BR') }
+                : log
+            );
+            setAccessLogs(updatedLogs);
+            toast({
+                title: "Acesso Registrado: Saída",
+                description: `${employee.name} - ${new Date().toLocaleString('pt-BR')}`,
+                variant: 'destructive'
+            });
+        } else {
+            // Registering an entry
+            const newLog: AccessLog = {
+                id: `log-${Date.now()}`,
+                personId: employee.id,
+                personName: employee.name,
+                personType: 'employee',
+                entryTimestamp: new Date().toLocaleString('pt-BR'),
+                exitTimestamp: null,
+            };
+            setAccessLogs(prevLogs => [newLog, ...prevLogs]);
+            toast({
+                title: "Acesso Registrado: Entrada",
+                description: `${employee.name} - ${newLog.entryTimestamp}`,
+                variant: 'default'
+            });
+        }
     };
 
     const handleEditClick = (employee: Employee) => {
@@ -352,12 +363,11 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     };
 
     const getPresenceStatus = (employeeId: string) => {
-        const employeeLogs = accessLogs
+        const lastLog = accessLogs
             .filter(log => log.personId === employeeId && log.personType === 'employee')
-            .sort((a, b) => new Date(b.id).getTime() - new Date(a.id).getTime());
+            .sort((a, b) => new Date(b.entryTimestamp).getTime() - new Date(a.entryTimestamp).getTime())[0];
 
-        const lastLog = employeeLogs[0];
-        if (!lastLog || lastLog.type === 'Saída') {
+        if (!lastLog || lastLog.exitTimestamp !== null) {
             return 'Fora';
         }
         return 'Dentro';

@@ -25,6 +25,9 @@ export interface AccessLog {
   personName: string;
   personId: string;
   personType: 'employee' | 'visitor';
-  timestamp: string;
-  type: 'Entrada' | 'Saída';
+  entryTimestamp: string;
+  exitTimestamp: string | null;
+  // For visitors, capture the reason for this specific visit
+  reason?: string; 
+  responsible?: string;
 }

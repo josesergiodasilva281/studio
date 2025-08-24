@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState, KeyboardEvent } from 'react';
@@ -14,7 +15,7 @@ import {
 import { Badge } from './ui/badge';
 import type { AccessLog, Visitor } from '@/lib/types';
 import { Input } from './ui/input';
-import { LogIn, LogOut, Building, Home, User } from 'lucide-react';
+import { Building, Home, User } from 'lucide-react';
 import { Button } from './ui/button';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
@@ -64,7 +65,12 @@ export function VisitorAccessLogTable() {
             const visitor = visitors.find(v => v.id === log.personId);
             return {
                 ...log,
-                ...visitor,
+                // Make sure to get photo and other details from the visitor record
+                photoDataUrl: visitor?.photoDataUrl,
+                rg: visitor?.rg,
+                cpf: visitor?.cpf,
+                company: visitor?.company,
+                plate: visitor?.plate,
             };
         })
         .filter(log => {
@@ -78,8 +84,8 @@ export function VisitorAccessLogTable() {
                 (log.plate && log.plate.toLowerCase().includes(searchTermLower)) ||
                 (log.responsible && log.responsible.toLowerCase().includes(searchTermLower)) ||
                 (log.reason && log.reason.toLowerCase().includes(searchTermLower)) ||
-                log.timestamp.toLowerCase().includes(searchTermLower) ||
-                log.type.toLowerCase().includes(searchTermLower)
+                log.entryTimestamp.toLowerCase().includes(searchTermLower) ||
+                (log.exitTimestamp && log.exitTimestamp.toLowerCase().includes(searchTermLower))
             );
         });
 
@@ -120,20 +126,21 @@ export function VisitorAccessLogTable() {
                                     <TableHead>Placa</TableHead>
                                     <TableHead>Responsável</TableHead>
                                     <TableHead>Motivo da Visita</TableHead>
-                                    <TableHead>Data e Hora</TableHead>
+                                    <TableHead>Data e Hora Entrada</TableHead>
+                                    <TableHead>Data e Hora Saída</TableHead>
                                     <TableHead>Presença</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {enrichedLogs.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={10} className="text-center">
+                                        <TableCell colSpan={11} className="text-center">
                                             Nenhum registro de acesso encontrado.
                                         </TableCell>
                                     </TableRow>
                                 ) : (
                                     enrichedLogs.map((log) => {
-                                        const presence = log.type === 'Entrada' ? 'Dentro' : 'Fora';
+                                        const presence = log.exitTimestamp === null ? 'Dentro' : 'Fora';
                                         return (
                                         <TableRow key={log.id}>
                                             <TableCell>
@@ -149,7 +156,8 @@ export function VisitorAccessLogTable() {
                                             <TableCell>{log.plate || '-'}</TableCell>
                                             <TableCell>{log.responsible || '-'}</TableCell>
                                             <TableCell>{log.reason || '-'}</TableCell>
-                                            <TableCell>{log.timestamp}</TableCell>
+                                            <TableCell>{log.entryTimestamp}</TableCell>
+                                            <TableCell>{log.exitTimestamp || '-'}</TableCell>
                                             <TableCell>
                                                  <Badge 
                                                     variant={presence === 'Dentro' ? 'default' : 'destructive'}

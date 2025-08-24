@@ -71,54 +71,67 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
         setIsEditDialogOpen(true);
     };
 
-    const handleNewLog = (visitor: Visitor, newInfo?: ReturningVisitorInfo) => {
-        const visitorLogs = accessLogs
-            .filter(log => log.personId === visitor.id)
-            .sort((a, b) => new Date(b.id).getTime() - new Date(a.id).getTime());
-
-        const lastLog = visitorLogs[0];
-        const newLogType = !lastLog || lastLog.type === 'Saída' ? 'Entrada' : 'Saída';
-
-        // When registering an exit, we don't need newInfo. 
-        // The existing visitor data is enough.
-        // For a new entry, we might have new info.
-        const updatedVisitor = newInfo ? { ...visitor, ...newInfo } : visitor;
-
+    const handleNewEntry = (visitor: Visitor, newInfo: ReturningVisitorInfo) => {
+        // If it's a returning visitor with new info, update their details in the main visitors list
+        const updatedVisitor = { ...visitor, ...newInfo };
+        setVisitors(visitors.map(v => v.id === updatedVisitor.id ? updatedVisitor : v));
+        
         const newLog: AccessLog = {
-            id: new Date().toISOString(),
+            id: `log-${Date.now()}`,
             personId: updatedVisitor.id,
             personName: updatedVisitor.name,
             personType: 'visitor',
-            timestamp: new Date().toLocaleString('pt-BR'),
-            type: newLogType,
+            entryTimestamp: new Date().toLocaleString('pt-BR'),
+            exitTimestamp: null,
+            reason: newInfo.reason,
+            responsible: newInfo.responsible,
         };
         
         setAccessLogs([newLog, ...accessLogs]);
-        
-        // If it's a returning visitor with new info, update their details in the main visitors list
-        if (newInfo) {
-            setVisitors(visitors.map(v => v.id === updatedVisitor.id ? updatedVisitor : v));
-        }
 
         toast({
-            title: `Acesso Registrado: ${newLog.type}`,
-            description: `${newLog.personName} - ${newLog.timestamp}`,
-            variant: newLog.type === 'Entrada' ? 'default' : 'destructive'
+            title: `Acesso Registrado: Entrada`,
+            description: `${updatedVisitor.name} - ${newLog.entryTimestamp}`,
+            variant: 'default'
         });
-        
-        // Close the dialog if it was open
-        if (isReturningVisitorDialogOpen) {
-            setIsReturningVisitorDialogOpen(false);
-            setSelectedVisitor(null);
+
+        setIsReturningVisitorDialogOpen(false);
+        setSelectedVisitor(null);
+    };
+
+    const handleExit = (visitor: Visitor) => {
+        const openLog = accessLogs.find(
+            log => log.personId === visitor.id && log.exitTimestamp === null
+        );
+
+        if (openLog) {
+            const updatedLogs = accessLogs.map(log => 
+                log.id === openLog.id 
+                ? { ...log, exitTimestamp: new Date().toLocaleString('pt-BR') }
+                : log
+            );
+            setAccessLogs(updatedLogs);
+            toast({
+                title: "Acesso Registrado: Saída",
+                description: `${visitor.name} - ${new Date().toLocaleString('pt-BR')}`,
+                variant: 'destructive'
+            });
+        } else {
+             toast({
+                title: "Erro",
+                description: `Nenhum registro de entrada aberto para ${visitor.name}.`,
+                variant: 'destructive'
+            });
         }
     };
+
 
     const handleReturningVisitorClick = (visitor: Visitor) => {
         const presence = getPresenceStatus(visitor.id);
 
         if (presence === 'Dentro') {
             // If visitor is inside, register their exit directly.
-            handleNewLog(visitor);
+            handleExit(visitor);
         } else {
             // If visitor is outside, they are entering, so open the dialog to confirm details.
             setSelectedVisitor(JSON.parse(JSON.stringify(visitor))); // Deep copy
@@ -143,30 +156,31 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
 
         // Automatically create an 'Entrada' log for the new visitor
         const newLog: AccessLog = {
-            id: new Date().toISOString(),
+            id: `log-${Date.now()}`,
             personId: visitor.id,
             personName: visitor.name,
             personType: 'visitor',
-            timestamp: new Date().toLocaleString('pt-BR'),
-            type: 'Entrada',
+            entryTimestamp: new Date().toLocaleString('pt-BR'),
+            exitTimestamp: null,
+            reason: visitor.reason,
+            responsible: visitor.responsible,
         };
 
         setAccessLogs(prevLogs => [newLog, ...prevLogs]);
 
         toast({
             title: `Acesso Registrado: Entrada`,
-            description: `${visitor.name} - ${newLog.timestamp}`,
+            description: `${visitor.name} - ${newLog.entryTimestamp}`,
             variant: 'default'
         });
     };
 
     const getPresenceStatus = (visitorId: string) => {
-        const visitorLogs = accessLogs
+        const lastLog = accessLogs
             .filter(log => log.personId === visitorId && log.personType === 'visitor')
-            .sort((a, b) => new Date(b.id).getTime() - new Date(a.id).getTime());
+            .sort((a, b) => new Date(b.entryTimestamp).getTime() - new Date(a.entryTimestamp).getTime())[0];
 
-        const lastLog = visitorLogs[0];
-        if (!lastLog || lastLog.type === 'Saída') {
+        if (!lastLog || lastLog.exitTimestamp !== null) {
             return 'Fora';
         }
         return 'Dentro';
@@ -181,6 +195,8 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
     const filteredVisitors = visitors.filter(visitor => {
         const presenceStatus = getPresenceStatus(visitor.id);
         const searchTermLower = searchTerm.toLowerCase();
+
+        if (!searchTermLower) return true; // Show all visitors if no search term
 
         return (
             visitor.id.toLowerCase().includes(searchTermLower) ||
@@ -329,7 +345,7 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
               {selectedVisitor && (
                 <ReturningVisitorForm 
                     visitor={selectedVisitor}
-                    onSave={(info) => handleNewLog(selectedVisitor, info)}
+                    onSave={(info) => handleNewEntry(selectedVisitor, info)}
                     onCancel={() => setIsReturningVisitorDialogOpen(false)}
                 />
               )}
@@ -591,7 +607,3 @@ export function VisitorDashboard({
     </div>
   );
 }
- 
-
-
-    
