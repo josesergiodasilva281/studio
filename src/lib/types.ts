@@ -10,9 +10,14 @@ export interface Employee {
 
 export interface Visitor {
     id: string;
+    photoDataUrl: string;
     name: string;
-    document: string;
-    company: string;
+    rg: string;
+    cpf: string;
+    company?: string;
+    plate?: string;
+    responsible: string;
+    reason: string;
 }
 
 export interface AccessLog {

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useRef, KeyboardEvent } from 'react';
+import { useEffect, useState, useRef, KeyboardEvent, Dispatch, SetStateAction } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from './ui/button';
-import { Pencil, Trash2, PlusCircle, Home, Building, GanttChartSquare } from 'lucide-react';
+import { Pencil, Trash2, PlusCircle, Home, Building, GanttChartSquare, Camera, User } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,13 +38,20 @@ import {
 import { Badge } from './ui/badge';
 import type { Visitor, AccessLog } from '@/lib/types';
 import Link from 'next/link';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 
 const emptyVisitor: Visitor = {
     id: '',
+    photoDataUrl: '',
     name: '',
-    document: '',
+    rg: '',
+    cpf: '',
     company: '',
+    plate: '',
+    responsible: '',
+    reason: '',
 };
 
 
@@ -65,19 +72,13 @@ function VisitorTable({ visitors, setVisitors, accessLogs }: { visitors: Visitor
         setVisitors(visitors.filter(v => v.id !== visitorId));
     };
 
-    const handleSave = () => {
-        if (selectedVisitor) {
-            setVisitors(visitors.map(v => v.id === selectedVisitor.id ? selectedVisitor : v));
-        }
+    const handleSave = (visitor: Visitor) => {
+        setVisitors(visitors.map(v => v.id === visitor.id ? visitor : v));
         setIsEditDialogOpen(false);
         setSelectedVisitor(null);
     };
 
     const handleAddNewVisitor = (visitor: Visitor) => {
-        if (!visitor.name || !visitor.document) {
-            toast({ variant: 'destructive', title: 'Campos Obrigatórios', description: 'Nome e Documento são obrigatórios.' });
-            return;
-        }
         setVisitors([visitor, ...visitors]);
         setIsAddDialogOpen(false);
     };
@@ -107,8 +108,12 @@ function VisitorTable({ visitors, setVisitors, accessLogs }: { visitors: Visitor
         return (
             visitor.id.toLowerCase().includes(searchTermLower) ||
             visitor.name.toLowerCase().includes(searchTermLower) ||
-            visitor.document.toLowerCase().includes(searchTermLower) ||
-            visitor.company.toLowerCase().includes(searchTermLower) ||
+            visitor.rg.toLowerCase().includes(searchTermLower) ||
+            visitor.cpf.toLowerCase().includes(searchTermLower) ||
+            (visitor.company && visitor.company.toLowerCase().includes(searchTermLower)) ||
+            (visitor.plate && visitor.plate.toLowerCase().includes(searchTermLower)) ||
+            visitor.responsible.toLowerCase().includes(searchTermLower) ||
+            visitor.reason.toLowerCase().includes(searchTermLower) ||
             presenceStatus.toLowerCase().includes(searchTermLower)
         );
     });
@@ -147,9 +152,10 @@ function VisitorTable({ visitors, setVisitors, accessLogs }: { visitors: Visitor
             <Table>
                 <TableHeader>
                 <TableRow>
-                    <TableHead>ID</TableHead>
+                    <TableHead>Foto</TableHead>
                     <TableHead>Nome</TableHead>
-                    <TableHead>Documento</TableHead>
+                    <TableHead>RG</TableHead>
+                    <TableHead>CPF</TableHead>
                     <TableHead>Empresa</TableHead>
                     <TableHead>Presença</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
@@ -160,10 +166,16 @@ function VisitorTable({ visitors, setVisitors, accessLogs }: { visitors: Visitor
                     const presence = getPresenceStatus(visitor.id);
                     return (
                     <TableRow key={visitor.id}>
-                    <TableCell>{visitor.id}</TableCell>
+                    <TableCell>
+                        <Avatar>
+                            <AvatarImage src={visitor.photoDataUrl} alt={visitor.name} />
+                            <AvatarFallback><User /></AvatarFallback>
+                        </Avatar>
+                    </TableCell>
                     <TableCell>{visitor.name}</TableCell>
-                    <TableCell>{visitor.document}</TableCell>
-                    <TableCell>{visitor.company}</TableCell>
+                    <TableCell>{visitor.rg}</TableCell>
+                    <TableCell>{visitor.cpf}</TableCell>
+                    <TableCell>{visitor.company || '-'}</TableCell>
                      <TableCell>
                          <Badge
                             variant={presence === 'Dentro' ? 'default' : 'destructive'}
@@ -204,9 +216,8 @@ function VisitorTable({ visitors, setVisitors, accessLogs }: { visitors: Visitor
         </CardContent>
       </Card>
       
-      {/* Add/Edit Dialogs */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogContent>
+          <DialogContent className="sm:max-w-3xl">
               <DialogHeader>
                   <DialogTitle>Cadastrar Novo Visitante</DialogTitle>
               </DialogHeader>
@@ -215,19 +226,13 @@ function VisitorTable({ visitors, setVisitors, accessLogs }: { visitors: Visitor
       </Dialog>
       
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent>
+          <DialogContent className="sm:max-w-3xl">
               <DialogHeader>
                   <DialogTitle>Editar Visitante</DialogTitle>
               </DialogHeader>
               {selectedVisitor && <AddVisitorForm
                 initialData={selectedVisitor}
-                onSave={(visitor) => {
-                  handleSave();
-                  // A bit of a hack to update the selected visitor state
-                  // since the form is now self-contained
-                  setVisitors(visitors.map(v => v.id === visitor.id ? visitor : v));
-                  setIsEditDialogOpen(false);
-                }}
+                onSave={handleSave}
                 onCancel={() => setIsEditDialogOpen(false)}
               />}
           </DialogContent>
@@ -241,18 +246,69 @@ function AddVisitorForm({ onSave, onCancel, initialData }: { onSave: (visitor: V
     const [visitor, setVisitor] = useState(initialData || { ...emptyVisitor, id: `visit-${Date.now()}` });
     const { toast } = useToast();
     
+    const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+    const [isCameraOpen, setIsCameraOpen] = useState(false);
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    
     const nameInputRef = useRef<HTMLInputElement>(null);
-    const documentInputRef = useRef<HTMLInputElement>(null);
+    const rgInputRef = useRef<HTMLInputElement>(null);
+    const cpfInputRef = useRef<HTMLInputElement>(null);
     const companyInputRef = useRef<HTMLInputElement>(null);
+    const plateInputRef = useRef<HTMLInputElement>(null);
+    const responsibleInputRef = useRef<HTMLInputElement>(null);
+    const reasonInputRef = useRef<HTMLInputElement>(null);
     const saveButtonRef = useRef<HTMLButtonElement>(null);
     
     useEffect(() => {
-        if (!initialData) {
-            // Only focus on add new, not on edit
-            setTimeout(() => nameInputRef.current?.focus(), 100);
-        }
-    }, [initialData]);
+        if (isCameraOpen) {
+            const getCameraPermission = async () => {
+              try {
+                const stream = await navigator.mediaDevices.getUserMedia({video: true});
+                setHasCameraPermission(true);
+        
+                if (videoRef.current) {
+                  videoRef.current.srcObject = stream;
+                }
+              } catch (error) {
+                console.error('Error accessing camera:', error);
+                setHasCameraPermission(false);
+                toast({
+                  variant: 'destructive',
+                  title: 'Acesso à Câmera Negado',
+                  description: 'Por favor, habilite a permissão da câmera nas configurações do seu navegador.',
+                });
+              }
+            };
+        
+            getCameraPermission();
 
+            return () => {
+                // Stop camera stream when component unmounts or camera is closed
+                if (videoRef.current && videoRef.current.srcObject) {
+                    const stream = videoRef.current.srcObject as MediaStream;
+                    stream.getTracks().forEach(track => track.stop());
+                }
+            }
+        }
+    }, [isCameraOpen, toast]);
+
+    const handleTakePhoto = () => {
+        if (videoRef.current && canvasRef.current) {
+            const video = videoRef.current;
+            const canvas = canvasRef.current;
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            if (context) {
+                context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+                const dataUrl = canvas.toDataURL('image/jpeg');
+                setVisitor({ ...visitor, photoDataUrl: dataUrl });
+                setIsCameraOpen(false); // Close camera after taking photo
+            }
+        }
+    }
+    
     const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, nextFieldRef: React.RefObject<HTMLElement>) => {
         if (e.key === 'Enter') {
             e.preventDefault();
@@ -261,35 +317,87 @@ function AddVisitorForm({ onSave, onCancel, initialData }: { onSave: (visitor: V
     };
 
     const handleSave = () => {
-         if (!visitor.name || !visitor.document) {
-            toast({ variant: 'destructive', title: 'Campos Obrigatórios', description: 'Nome e Documento são obrigatórios.' });
+         if (!visitor.photoDataUrl) {
+            toast({ variant: 'destructive', title: 'Campo Obrigatório', description: 'A foto do visitante é obrigatória.' });
+            return;
+         }
+         if (!visitor.name || !visitor.rg || !visitor.cpf || !visitor.responsible || !visitor.reason) {
+            toast({ variant: 'destructive', title: 'Campos Obrigatórios', description: 'Nome, RG, CPF, Responsável e Motivo são obrigatórios.' });
             return;
         }
         onSave(visitor);
     };
 
     return (
-        <div className="grid gap-4 py-4">
-             <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="id-visitor" className="text-right">ID</Label>
-                <Input id="id-visitor" value={visitor.id} className="col-span-3" disabled />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+            {/* Coluna da Câmera */}
+            <div className="space-y-4 flex flex-col items-center">
+                 <Label>Foto do Visitante</Label>
+                 <div className="w-full max-w-xs aspect-square rounded-md border bg-muted flex items-center justify-center overflow-hidden">
+                    {isCameraOpen ? (
+                        <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted />
+                    ) : visitor.photoDataUrl ? (
+                         <img src={visitor.photoDataUrl} alt="Foto do Visitante" className="w-full h-full object-cover" />
+                    ) : (
+                        <User className="h-24 w-24 text-muted-foreground" />
+                    )}
+                 </div>
+                 {hasCameraPermission === false && (
+                    <Alert variant="destructive">
+                        <AlertTitle>Acesso à Câmera Necessário</AlertTitle>
+                        <AlertDescription>
+                        Por favor, permita o acesso à câmera para tirar a foto.
+                        </AlertDescription>
+                    </Alert>
+                 )}
+                 <div className="flex gap-2">
+                    <Button type="button" onClick={() => setIsCameraOpen(!isCameraOpen)}>
+                        <Camera className="mr-2 h-4 w-4" />
+                        {isCameraOpen ? 'Fechar Câmera' : 'Abrir Câmera'}
+                    </Button>
+                    {isCameraOpen && hasCameraPermission && (
+                        <Button type="button" onClick={handleTakePhoto}>Tirar Foto</Button>
+                    )}
+                 </div>
+                 <canvas ref={canvasRef} className="hidden" />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name-visitor" className="text-right">Nome</Label>
-                <Input ref={nameInputRef} onKeyDown={(e) => handleKeyDown(e, documentInputRef)} id="name-visitor" value={visitor.name} onChange={(e) => setVisitor({ ...visitor, name: e.target.value })} className="col-span-3" />
+
+            {/* Coluna do Formulário */}
+            <div className="space-y-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="name-visitor" className="text-right">Nome</Label>
+                    <Input ref={nameInputRef} onKeyDown={(e) => handleKeyDown(e, rgInputRef)} id="name-visitor" value={visitor.name} onChange={(e) => setVisitor({ ...visitor, name: e.target.value })} className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="rg-visitor" className="text-right">RG</Label>
+                    <Input ref={rgInputRef} onKeyDown={(e) => handleKeyDown(e, cpfInputRef)} id="rg-visitor" value={visitor.rg} onChange={(e) => setVisitor({ ...visitor, rg: e.target.value })} className="col-span-3" />
+                </div>
+                 <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="cpf-visitor" className="text-right">CPF</Label>
+                    <Input ref={cpfInputRef} onKeyDown={(e) => handleKeyDown(e, companyInputRef)} id="cpf-visitor" value={visitor.cpf} onChange={(e) => setVisitor({ ...visitor, cpf: e.target.value })} className="col-span-3" />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="company-visitor" className="text-right">Empresa</Label>
+                    <Input ref={companyInputRef} onKeyDown={(e) => handleKeyDown(e, plateInputRef)} id="company-visitor" value={visitor.company} onChange={(e) => setVisitor({ ...visitor, company: e.target.value })} className="col-span-3" placeholder="Opcional"/>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="plate-visitor" className="text-right">Placa</Label>
+                    <Input ref={plateInputRef} onKeyDown={(e) => handleKeyDown(e, responsibleInputRef)} id="plate-visitor" value={visitor.plate} onChange={(e) => setVisitor({ ...visitor, plate: e.target.value })} className="col-span-3" placeholder="Opcional"/>
+                </div>
+                 <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="responsible-visitor" className="text-right">Responsável</Label>
+                    <Input ref={responsibleInputRef} onKeyDown={(e) => handleKeyDown(e, reasonInputRef)} id="responsible-visitor" value={visitor.responsible} onChange={(e) => setVisitor({ ...visitor, responsible: e.target.value })} className="col-span-3" />
+                </div>
+                 <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="reason-visitor" className="text-right">Motivo</Label>
+                    <Input ref={reasonInputRef} onKeyDown={(e) => handleKeyDown(e, saveButtonRef)} id="reason-visitor" value={visitor.reason} onChange={(e) => setVisitor({ ...visitor, reason: e.target.value })} className="col-span-3" />
+                </div>
+
+                 <DialogFooter className="col-span-1 md:col-span-2 pt-4">
+                    <Button variant="outline" onClick={onCancel}>Cancelar</Button>
+                    <Button ref={saveButtonRef} onClick={handleSave}>Salvar</Button>
+                </DialogFooter>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="document-visitor" className="text-right">Documento</Label>
-                <Input ref={documentInputRef} onKeyDown={(e) => handleKeyDown(e, companyInputRef)} id="document-visitor" value={visitor.document} onChange={(e) => setVisitor({ ...visitor, document: e.target.value })} className="col-span-3" />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="company-visitor" className="text-right">Empresa</Label>
-                <Input ref={companyInputRef} onKeyDown={(e) => handleKeyDown(e, saveButtonRef)} id="company-visitor" value={visitor.company} onChange={(e) => setVisitor({ ...visitor, company: e.target.value })} className="col-span-3" />
-            </div>
-            <DialogFooter>
-                <Button variant="outline" onClick={onCancel}>Cancelar</Button>
-                <Button ref={saveButtonRef} onClick={handleSave}>Salvar</Button>
-            </DialogFooter>
         </div>
     );
 }
@@ -318,7 +426,10 @@ export function VisitorDashboard() {
                 localStorage.setItem('visitors', JSON.stringify(visitors));
             } else {
                 // If the user deletes all visitors, remove the item from localStorage
-                localStorage.removeItem('visitors');
+                const storedVisitors = localStorage.getItem('visitors');
+                if(storedVisitors) {
+                    localStorage.removeItem('visitors');
+                }
             }
         } catch (error) {
             console.error("Error writing visitors to localStorage", error);

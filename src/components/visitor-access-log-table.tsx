@@ -14,9 +14,11 @@ import {
 import { Badge } from './ui/badge';
 import type { AccessLog, Visitor } from '@/lib/types';
 import { Input } from './ui/input';
-import { LogIn, LogOut, Building, Home } from 'lucide-react';
+import { LogIn, LogOut, Building, Home, User } from 'lucide-react';
 import { Button } from './ui/button';
 import Link from 'next/link';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+
 
 // Combine Log with Visitor details
 type EnrichedAccessLog = AccessLog & Partial<Omit<Visitor, 'id' | 'name'>>;
@@ -62,8 +64,7 @@ export function VisitorAccessLogTable() {
             const visitor = visitors.find(v => v.id === log.personId);
             return {
                 ...log,
-                document: visitor?.document,
-                company: visitor?.company,
+                ...visitor,
             };
         })
         .filter(log => {
@@ -71,9 +72,12 @@ export function VisitorAccessLogTable() {
 
             return (
                 log.personName.toLowerCase().includes(searchTermLower) ||
-                log.personId.toLowerCase().includes(searchTermLower) ||
-                (log.document && log.document.toLowerCase().includes(searchTermLower)) ||
+                (log.rg && log.rg.toLowerCase().includes(searchTermLower)) ||
+                (log.cpf && log.cpf.toLowerCase().includes(searchTermLower)) ||
                 (log.company && log.company.toLowerCase().includes(searchTermLower)) ||
+                (log.plate && log.plate.toLowerCase().includes(searchTermLower)) ||
+                (log.responsible && log.responsible.toLowerCase().includes(searchTermLower)) ||
+                (log.reason && log.reason.toLowerCase().includes(searchTermLower)) ||
                 log.timestamp.toLowerCase().includes(searchTermLower) ||
                 log.type.toLowerCase().includes(searchTermLower)
             );
@@ -108,10 +112,14 @@ export function VisitorAccessLogTable() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>ID</TableHead>
+                                    <TableHead>Foto</TableHead>
                                     <TableHead>Nome</TableHead>
-                                    <TableHead>Documento</TableHead>
+                                    <TableHead>RG</TableHead>
+                                    <TableHead>CPF</TableHead>
                                     <TableHead>Empresa</TableHead>
+                                    <TableHead>Placa</TableHead>
+                                    <TableHead>Responsável</TableHead>
+                                    <TableHead>Motivo da Visita</TableHead>
                                     <TableHead>Tipo</TableHead>
                                     <TableHead>Data e Hora</TableHead>
                                     <TableHead>Presença</TableHead>
@@ -120,7 +128,7 @@ export function VisitorAccessLogTable() {
                             <TableBody>
                                 {enrichedLogs.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="text-center">
+                                        <TableCell colSpan={11} className="text-center">
                                             Nenhum registro de acesso encontrado.
                                         </TableCell>
                                     </TableRow>
@@ -129,10 +137,19 @@ export function VisitorAccessLogTable() {
                                         const presence = log.type === 'Entrada' ? 'Dentro' : 'Fora';
                                         return (
                                         <TableRow key={log.id}>
-                                            <TableCell>{log.personId}</TableCell>
+                                            <TableCell>
+                                                <Avatar>
+                                                    <AvatarImage src={log.photoDataUrl} alt={log.personName} />
+                                                    <AvatarFallback><User /></AvatarFallback>
+                                                </Avatar>
+                                            </TableCell>
                                             <TableCell>{log.personName}</TableCell>
-                                            <TableCell>{log.document || '-'}</TableCell>
+                                            <TableCell>{log.rg || '-'}</TableCell>
+                                            <TableCell>{log.cpf || '-'}</TableCell>
                                             <TableCell>{log.company || '-'}</TableCell>
+                                            <TableCell>{log.plate || '-'}</TableCell>
+                                            <TableCell>{log.responsible || '-'}</TableCell>
+                                            <TableCell>{log.reason || '-'}</TableCell>
                                             <TableCell>
                                                 <Badge variant={log.type === 'Entrada' ? 'default' : 'secondary'} className="flex items-center w-fit">
                                                      {log.type === 'Entrada' ? <LogIn className="mr-1 h-3 w-3" /> : <LogOut className="mr-1 h-3 w-3" />}

@@ -119,14 +119,20 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
 
      // Load visitors from localStorage on initial render
     useEffect(() => {
-        try {
-            const storedVisitors = localStorage.getItem('visitors');
-            if (storedVisitors) {
-                setVisitors(JSON.parse(storedVisitors));
+        const loadVisitors = () => {
+            try {
+                const storedVisitors = localStorage.getItem('visitors');
+                if (storedVisitors) {
+                    setVisitors(JSON.parse(storedVisitors));
+                }
+            } catch (error) {
+                console.error("Error reading visitors from localStorage", error);
             }
-        } catch (error) {
-            console.error("Error reading visitors from localStorage", error);
-        }
+        };
+        loadVisitors();
+        // Also listen for changes from other tabs/windows
+        window.addEventListener('storage', loadVisitors);
+        return () => window.removeEventListener('storage', loadVisitors);
     }, []);
 
     const handleNewLog = (logData: Omit<AccessLog, 'type' | 'id'>) => {
