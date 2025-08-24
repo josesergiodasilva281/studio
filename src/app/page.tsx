@@ -49,6 +49,7 @@ export default function Home() {
           setAccessLogs={setAccessLogs}
         />
         <EmployeeDashboard 
+          role="rh"
           isAddEmployeeDialogOpen={isAddEmployeeDialogOpen} 
           setIsAddEmployeeDialogOpen={setIsAddEmployeeDialogOpen}
           accessLogs={accessLogs}

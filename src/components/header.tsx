@@ -1,7 +1,7 @@
 
 'use client'
 
-import { KeyRound, Users, Car } from 'lucide-react';
+import { KeyRound, Users, Car, Shield } from 'lucide-react';
 import { ThemeToggle } from './theme-toggle';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -13,7 +13,8 @@ export function Header() {
   const pathname = usePathname();
 
   const navLinks = [
-    { href: '/', label: 'Funcionários', icon: KeyRound },
+    { href: '/', label: 'RH', icon: KeyRound },
+    { href: '/portaria', label: 'Portaria', icon: Shield },
     { href: '/dashboard', label: 'Visitantes', icon: Users },
     { href: '/cars', label: 'Carros', icon: Car },
   ];
@@ -27,13 +28,16 @@ export function Header() {
         </h1>
       </Link>
       <nav className="ml-10 flex items-center gap-4 sm:gap-6">
-        {navLinks.map((link) => (
+        {navLinks.map((link) => {
+          // Special handling for RH page which is at '/'
+          const isActive = link.href === '/' ? pathname === '/' : pathname.startsWith(link.href);
+          return (
           <Link key={link.href} href={link.href}>
             <Button
               variant="ghost"
               className={cn(
                 "text-sm font-medium",
-                pathname.startsWith(link.href) && link.href !== '/' || pathname === link.href ? "text-primary" : "text-muted-foreground",
+                 isActive ? "text-primary" : "text-muted-foreground",
                 "hover:text-primary"
               )}
             >
@@ -41,7 +45,7 @@ export function Header() {
               {link.label}
             </Button>
           </Link>
-        ))}
+        )})}
       </nav>
       <div className="ml-auto">
         <ThemeToggle />

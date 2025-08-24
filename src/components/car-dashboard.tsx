@@ -216,7 +216,7 @@ function CarReturnDialog({ open, onOpenChange, car, onSave }: { open: boolean, o
 }
 
 
-function CarTable({ cars, setCars, carLogs, setCarLogs }: { cars: Car[], setCars: Dispatch<SetStateAction<Car[]>>, carLogs: CarLog[], setCarLogs: Dispatch<SetStateAction<CarLog[]>> }) {
+function CarTable({ cars, setCars, carLogs, setCarLogs, role }: { cars: Car[], setCars: Dispatch<SetStateAction<Car[]>>, carLogs: CarLog[], setCarLogs: Dispatch<SetStateAction<CarLog[]>>, role: 'rh' | 'portaria' }) {
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isLogDialogOpen, setIsLogDialogOpen] = useState(false);
@@ -382,25 +382,27 @@ function CarTable({ cars, setCars, carLogs, setCarLogs }: { cars: Car[], setCars
                                             <Button variant="ghost" size="icon" onClick={() => handleEditClick(car)}>
                                                 <Pencil className="h-4 w-4" />
                                             </Button>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button variant="ghost" size="icon">
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            Essa ação não pode ser desfeita. Isso irá apagar permanentemente o carro.
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleDeleteClick(car.id)}>Apagar</AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
+                                            {role === 'rh' && (
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button variant="ghost" size="icon">
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                Essa ação não pode ser desfeita. Isso irá apagar permanentemente o carro.
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={() => handleDeleteClick(car.id)}>Apagar</AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 )) : (
@@ -458,7 +460,7 @@ function CarTable({ cars, setCars, carLogs, setCarLogs }: { cars: Car[], setCars
     );
 }
 
-export function CarDashboard({ cars, setCars, carLogs, setCarLogs, employees: initialEmployees }: { cars: Car[], setCars: Dispatch<SetStateAction<Car[]>>, carLogs: CarLog[], setCarLogs: Dispatch<SetStateAction<CarLog[]>>, employees: Employee[] }) {
+export function CarDashboard({ cars, setCars, carLogs, setCarLogs, employees: initialEmployees, role = 'rh' }: { cars: Car[], setCars: Dispatch<SetStateAction<Car[]>>, carLogs: CarLog[], setCarLogs: Dispatch<SetStateAction<CarLog[]>>, employees: Employee[], role?: 'rh' | 'portaria' }) {
 
     // This component no longer needs employees, but we keep the prop for now to avoid breaking changes in parent components.
     
@@ -469,9 +471,8 @@ export function CarDashboard({ cars, setCars, carLogs, setCarLogs, employees: in
                 setCars={setCars}
                 carLogs={carLogs}
                 setCarLogs={setCarLogs}
+                role={role}
             />
         </div>
     );
 }
-
-    

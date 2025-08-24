@@ -292,7 +292,7 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
     )
 }
 
-function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen, accessLogs, setAccessLogs }: { employees: Employee[], setEmployees: (employees: Employee[]) => void, isAddEmployeeDialogOpen: boolean, setIsAddEmployeeDialogOpen: Dispatch<SetStateAction<boolean>>, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>> }) {
+function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen, accessLogs, setAccessLogs, role }: { employees: Employee[], setEmployees: (employees: Employee[]) => void, isAddEmployeeDialogOpen: boolean, setIsAddEmployeeDialogOpen: Dispatch<SetStateAction<boolean>>, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>>, role: 'rh' | 'portaria' }) {
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -466,25 +466,27 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                         <Button variant="ghost" size="icon" onClick={() => handleEditClick(employee)}>
                         <Pencil className="h-4 w-4" />
                         </Button>
-                        <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                            <Trash2 className="h-4 w-4" />
-                            </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Essa ação não pode ser desfeita. Isso irá apagar permanentemente o funcionário.
-                            </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteClick(employee.id)}>Apagar</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                        </AlertDialog>
+                        {role === 'rh' && (
+                            <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Essa ação não pode ser desfeita. Isso irá apagar permanentemente o funcionário.
+                                </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteClick(employee.id)}>Apagar</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                            </AlertDialog>
+                        )}
                     </TableCell>
                     </TableRow>
                 )})}
@@ -525,7 +527,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="status-edit" className="text-right">Status</Label>
-                    <Select value={selectedEmployee.status} onValueChange={(value: 'Ativo' | 'Inativo') => setSelectedEmployee({...selectedEmployee, status: value})}>
+                    <Select disabled={role === 'portaria'} value={selectedEmployee.status} onValueChange={(value: 'Ativo' | 'Inativo') => setSelectedEmployee({...selectedEmployee, status: value})}>
                         <SelectTrigger id="status-edit" className="col-span-3">
                             <SelectValue placeholder="Selecione o status" />
                         </SelectTrigger>
@@ -547,7 +549,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
   );
 }
 
-export function EmployeeDashboard({ isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen, accessLogs, setAccessLogs }: { isAddEmployeeDialogOpen: boolean, setIsAddEmployeeDialogOpen: Dispatch<SetStateAction<boolean>>, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>> }) {
+export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen, accessLogs, setAccessLogs }: { role: 'rh' | 'portaria', isAddEmployeeDialogOpen: boolean, setIsAddEmployeeDialogOpen: Dispatch<SetStateAction<boolean>>, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>> }) {
     const [employees, setEmployees] = useState<Employee[]>([]);
 
     // Load employees from localStorage on initial render
@@ -587,6 +589,7 @@ export function EmployeeDashboard({ isAddEmployeeDialogOpen, setIsAddEmployeeDia
             setIsAddEmployeeDialogOpen={setIsAddEmployeeDialogOpen}
             accessLogs={accessLogs}
             setAccessLogs={setAccessLogs}
+            role={role}
         />
     </div>
   );

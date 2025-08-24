@@ -59,7 +59,7 @@ const emptyVisitor: Visitor = {
 type ReturningVisitorInfo = Pick<Visitor, 'company' | 'plate' | 'responsible' | 'reason'>;
 
 
-function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { visitors: Visitor[], setVisitors: Dispatch<SetStateAction<Visitor[]>>, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>> }) {
+function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs, role }: { visitors: Visitor[], setVisitors: Dispatch<SetStateAction<Visitor[]>>, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>>, role: 'rh' | 'portaria' }) {
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isReturningVisitorDialogOpen, setIsReturningVisitorDialogOpen] = useState(false);
@@ -304,25 +304,27 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
                             <Button variant="ghost" size="icon" onClick={() => handleEditClick(visitor)}>
                             <Pencil className="h-4 w-4" />
                             </Button>
-                            <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                <Trash2 className="h-4 w-4" />
-                                </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    Essa ação não pode ser desfeita. Isso irá apagar permanentemente o visitante, mas seu histórico de acesso será mantido.
-                                </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDeleteClick(visitor.id)}>Apagar</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                            </AlertDialog>
+                            {role === 'rh' && (
+                                <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon">
+                                    <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                    <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Essa ação não pode ser desfeita. Isso irá apagar permanentemente o visitante, mas seu histórico de acesso será mantido.
+                                    </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeleteClick(visitor.id)}>Apagar</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                                </AlertDialog>
+                            )}
                         </TableCell>
                         </TableRow>
                     )})
@@ -610,12 +612,14 @@ export function VisitorDashboard({
   visitors, 
   setVisitors, 
   accessLogs, 
-  setAccessLogs 
+  setAccessLogs,
+  role = 'rh'
 }: { 
   visitors: Visitor[], 
   setVisitors: Dispatch<SetStateAction<Visitor[]>>, 
   accessLogs: AccessLog[], 
-  setAccessLogs: Dispatch<SetStateAction<AccessLog[]>> 
+  setAccessLogs: Dispatch<SetStateAction<AccessLog[]>>,
+  role?: 'rh' | 'portaria'
 }) {
   return (
     <div className="container mx-auto">
@@ -624,6 +628,7 @@ export function VisitorDashboard({
             setVisitors={setVisitors} 
             accessLogs={accessLogs}
             setAccessLogs={setAccessLogs}
+            role={role}
         />
     </div>
   );
