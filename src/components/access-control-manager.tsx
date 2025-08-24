@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useEffect, useState, useRef, Dispatch, SetStateAction } from 'react';
@@ -54,7 +53,7 @@ function AccessControlUI({
             </CardHeader>
             <CardContent>
                 <div className="text-center text-muted-foreground p-8">
-                    Clique no botão "Abrir Leitor" para iniciar a câmera.
+                    Clique em "Abrir Leitor" para usar a câmera ou use um leitor de código de barras externo.
                 </div>
             </CardContent>
         </Card>
@@ -106,6 +105,10 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
     const [isScannerPaused, setIsScannerPaused] = useState(false);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
 
+    // For external barcode scanner (keyboard input)
+    const [barcodeScanInput, setBarcodeScanInput] = useState('');
+    const barcodeScanTimer = useRef<NodeJS.Timeout | null>(null);
+
     // Load employees from localStorage on initial render
     useEffect(() => {
         try {
@@ -135,6 +138,24 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
         window.addEventListener('storage', loadVisitors);
         return () => window.removeEventListener('storage', loadVisitors);
     }, []);
+
+    const processScan = (scannedCode: string) => {
+        if (!scannedCode) return;
+
+        const employee = employees.find(e => e.id === scannedCode);
+        const visitor = visitors.find(v => v.id === scannedCode);
+        let person: Employee | Visitor | undefined = employee || visitor;
+        let personType: 'employee' | 'visitor' | undefined = employee ? 'employee' : (visitor ? 'visitor' : undefined);
+
+        if (!person || !personType) {
+            toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Pessoa não encontrada.' });
+        } else if (personType === 'employee' && (person as Employee).status === 'Inativo') {
+            toast({ variant: 'destructive', title: 'Acesso Negado', description: `Funcionário ${person.name} está inativo.` });
+        } else {
+            handleNewLog(person, personType);
+        }
+    };
+
 
      const handleNewLog = (person: Employee | Visitor, personType: 'employee' | 'visitor') => {
         const openLog = accessLogs.find(
@@ -183,7 +204,7 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
         }
     };
     
-    // Scanner Logic
+    // Camera Scanner Logic
     useEffect(() => {
         if (!isScannerOpen) {
             return;
@@ -219,22 +240,8 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
 
     const handleScanSuccess = (decodedText: string) => {
         if (isScannerPaused) return;
-
         setIsScannerPaused(true);
-
-        const employee = employees.find(e => e.id === decodedText);
-        const visitor = visitors.find(v => v.id === decodedText);
-        let person: Employee | Visitor | undefined = employee || visitor;
-        let personType: 'employee' | 'visitor' | undefined = employee ? 'employee' : (visitor ? 'visitor' : undefined);
-
-        if (!person || !personType) {
-            toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Pessoa não encontrada.' });
-        } else if (personType === 'employee' && (person as Employee).status === 'Inativo') {
-            toast({ variant: 'destructive', title: 'Acesso Negado', description: `Funcionário ${person.name} está inativo.` });
-        } else {
-            handleNewLog(person, personType);
-        }
-        
+        processScan(decodedText);
         setTimeout(() => setIsScannerPaused(false), 2000);
     };
 
@@ -280,6 +287,49 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
         }
     }
 
+    // External (keyboard-like) scanner listener
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Ignore if a dialog is open or if typing in an input/textarea
+            const activeElement = document.activeElement;
+            if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.getAttribute('role') === 'dialog')) {
+                return;
+            }
+
+            if (e.key === 'Enter') {
+                if (barcodeScanInput.length > 2) { // Minimum length for a valid scan
+                    processScan(barcodeScanInput);
+                }
+                setBarcodeScanInput(''); // Reset after processing
+                return;
+            }
+
+            // Ignore special keys, except for alphanumeric and some symbols
+            if (e.key.length === 1) {
+                 setBarcodeScanInput(prev => prev + e.key);
+            }
+           
+
+            // Reset the buffer if there's a pause in typing
+            if (barcodeScanTimer.current) {
+                clearTimeout(barcodeScanTimer.current);
+            }
+            barcodeScanTimer.current = setTimeout(() => {
+                setBarcodeScanInput('');
+            }, 100); // 100ms pause is usually enough to indicate end of scan
+        };
+        
+        window.addEventListener('keydown', handleKeyDown as any);
+
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown as any);
+            if (barcodeScanTimer.current) {
+                clearTimeout(barcodeScanTimer.current);
+            }
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [barcodeScanInput, employees, visitors, accessLogs]);
+
 
   return (
     <div className="container mx-auto max-w-xl">
@@ -295,3 +345,5 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
     </div>
   );
 }
+
+    
