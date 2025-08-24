@@ -217,7 +217,7 @@ function VisitorTable({ visitors, setVisitors, accessLogs }: { visitors: Visitor
       </Card>
       
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogContent className="sm:max-w-3xl">
+          <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                   <DialogTitle>Cadastrar Novo Visitante</DialogTitle>
               </DialogHeader>
@@ -226,7 +226,7 @@ function VisitorTable({ visitors, setVisitors, accessLogs }: { visitors: Visitor
       </Dialog>
       
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-3xl">
+          <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                   <DialogTitle>Editar Visitante</DialogTitle>
               </DialogHeader>
