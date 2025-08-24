@@ -404,7 +404,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                     </TableCell>
                     <TableCell>
                          <Badge
-                            className={presence === 'Dentro' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}
+                            variant={presence === 'Dentro' ? 'default' : 'destructive'}
                          >
                             {presence === 'Dentro' ? <Building className="mr-1 h-3 w-3" /> : <Home className="mr-1 h-3 w-3" />}
                             {presence}
