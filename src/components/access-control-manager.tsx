@@ -49,15 +49,17 @@ function AccessControl({ employees, visitors, onNewLog, onAddEmployeeClick }: { 
     }, [isScannerOpen]);
 
     const stopScanner = () => {
-      if (scannerRef.current) {
-        if (scannerRef.current.isScanning) {
-          scannerRef.current.stop().catch(err => {
-            console.warn("Scanner could not be stopped, likely already stopped.", err);
-          });
+        if (scannerRef.current) {
+            if (scannerRef.current.isScanning) {
+                scannerRef.current.stop().catch(err => {
+                    console.warn("Scanner could not be stopped, likely already stopped.", err);
+                });
+            }
+            scannerRef.current.clear();
         }
         scannerRef.current = null;
-      }
     };
+
     
     const handleScanSuccess = (decodedText: string) => {
         if (isScannerPaused) return;
@@ -82,41 +84,37 @@ function AccessControl({ employees, visitors, onNewLog, onAddEmployeeClick }: { 
             });
         }
         
-        setIsScannerOpen(false); // Close scanner on success
+        // Don't close scanner, just pause it to allow for multiple scans
         setTimeout(() => setIsScannerPaused(false), 2000);
     };
 
     useEffect(() => {
-        if (isScannerOpen && selectedDeviceId && readerRef.current) {
-            if (scannerRef.current) {
-               stopScanner();
-            }
-
+        if (isScannerOpen && selectedDeviceId && readerRef.current && !scannerRef.current?.isScanning) {
+            
             const newScanner = new Html5Qrcode(readerRef.current.id, { verbose: false });
             scannerRef.current = newScanner;
 
-            if (!newScanner.isScanning) {
-                newScanner.start(
-                    selectedDeviceId,
-                    {
-                        fps: 5,
-                        qrbox: (viewfinderWidth, viewfinderHeight) => {
-                            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                            const qrboxSize = Math.floor(minEdge * 0.8);
-                            return { width: qrboxSize, height: qrboxSize };
-                        },
+            newScanner.start(
+                selectedDeviceId,
+                {
+                    fps: 5,
+                    qrbox: (viewfinderWidth, viewfinderHeight) => {
+                        const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                        const qrboxSize = Math.floor(minEdge * 0.8);
+                        return { width: qrboxSize, height: qrboxSize };
                     },
-                    handleScanSuccess,
-                    () => { /* ignore errors */ }
-                ).catch((err) => {
-                    console.error("Unable to start scanning.", err);
-                    toast({ variant: "destructive", title: "Erro ao iniciar a câmera." });
-                });
-            }
+                },
+                handleScanSuccess,
+                () => { /* ignore errors */ }
+            ).catch((err) => {
+                console.error("Unable to start scanning.", err);
+                toast({ variant: "destructive", title: "Erro ao iniciar a câmera." });
+            });
+            
         }
 
         return () => {
-             if (isScannerOpen) {
+             if (scannerRef.current && scannerRef.current.isScanning) {
                 stopScanner();
              }
         }
@@ -133,8 +131,8 @@ function AccessControl({ employees, visitors, onNewLog, onAddEmployeeClick }: { 
     return (
       <>
         <Card>
-            <CardHeader className="flex flex-row items-center justify-end">
-                 <div className="flex items-center gap-2 p-4">
+            <CardHeader className="flex flex-row items-center justify-end p-4">
+                 <div className="flex items-center gap-2">
                     <Button onClick={() => setIsScannerOpen(true)}>
                         <Camera className="mr-2 h-4 w-4" />
                         Abrir Leitor
@@ -155,7 +153,7 @@ function AccessControl({ employees, visitors, onNewLog, onAddEmployeeClick }: { 
             <DialogContent className="sm:max-w-xl">
                  <DialogHeader>
                     <DialogTitle>Leitor de QR Code</DialogTitle>
-                    <DialogDescription>Aponte a câmera para o código.</DialogDescription>
+                    <DialogDescription>Aponte a câmera para o código. O leitor permanecerá aberto para múltiplas leituras.</DialogDescription>
                 </DialogHeader>
                  <div className="grid gap-4 py-4">
                     {devices.length > 1 && (
