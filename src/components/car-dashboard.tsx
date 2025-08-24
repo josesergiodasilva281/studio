@@ -248,7 +248,7 @@ function CarTable({ cars, setCars, carLogs, setCarLogs }: { cars: Car[], setCars
             return;
         }
 
-        const updatedLogs = carLogs.map(log => log.id === openLog.id ? { ...log, endTime: new Date().toLocaleString('pt-BR'), endKm: returnData.endKm, driverName: returnData.driverName } : log);
+        const updatedLogs = carLogs.map(log => log.id === openLog.id ? { ...log, endTime: new Date().toLocaleString('pt-BR'), endKm: returnData.endKm, returnDriverName: returnData.driverName } : log);
         setCarLogs(updatedLogs);
 
         const updatedCars = cars.map(car => car.id === carId ? { ...car, status: 'Disponível', lastKm: returnData.endKm, lastDriverName: returnData.driverName } : car);

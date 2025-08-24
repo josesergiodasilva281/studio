@@ -52,9 +52,11 @@ export interface CarLog {
   carId: string; // Plate number
   carFleet: string;
   driverName: string;
+  returnDriverName?: string;
   startTime: string;
   endTime: string | null;
   startKm?: string;
   endKm?: string;
 }
+
 
