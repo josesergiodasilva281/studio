@@ -14,9 +14,9 @@ const MOCK_USERS: User[] = [
 
 // Mock password data (in a real app, NEVER store passwords in plaintext)
 const MOCK_PASSWORDS: { [key: string]: string } = {
-    rh: 'rh123',
-    portaria1: 'portaria123',
-    portaria2: 'portaria123',
+    rh: '250250',
+    portaria1: '332030',
+    portaria2: '102030',
 };
 
 
