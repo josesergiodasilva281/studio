@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useRef, Dispatch, SetStateAction } from 'react';
+import { useEffect, useState, useRef, Dispatch, SetStateAction, KeyboardEvent } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -182,12 +182,37 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
     const [newEmployee, setNewEmployee] = useState(emptyEmployee);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
 
+    const idInputRef = useRef<HTMLInputElement>(null);
+    const nameInputRef = useRef<HTMLInputElement>(null);
+    const departmentInputRef = useRef<HTMLInputElement>(null);
+    const plateInputRef = useRef<HTMLInputElement>(null);
+    const ramalInputRef = useRef<HTMLInputElement>(null);
+    const statusTriggerRef = useRef<HTMLButtonElement>(null);
+    const saveButtonRef = useRef<HTMLButtonElement>(null);
+
     useEffect(() => {
         if (open) {
              // Reset with a unique ID when dialog opens
             setNewEmployee({...emptyEmployee, id: `func-${Date.now()}` });
+            // Focus the first input when the dialog opens
+            setTimeout(() => idInputRef.current?.focus(), 100);
         }
     }, [open]);
+
+    const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, nextFieldRef: React.RefObject<HTMLElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            nextFieldRef.current?.focus();
+        }
+    };
+    
+    const handleStatusKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            saveButtonRef.current?.focus();
+        }
+    }
+
 
     const handleSaveClick = () => {
         if (!newEmployee.name || !newEmployee.department) {
@@ -213,7 +238,7 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
                      <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="id" className="text-right">Matrícula</Label>
                         <div className="col-span-3 flex items-center gap-2">
-                           <Input id="id" value={newEmployee.id} onChange={(e) => setNewEmployee({...newEmployee, id: e.target.value})} className="flex-grow" />
+                           <Input ref={idInputRef} onKeyDown={(e) => handleKeyDown(e, nameInputRef)} id="id" value={newEmployee.id} onChange={(e) => setNewEmployee({...newEmployee, id: e.target.value})} className="flex-grow" />
                             <Button type="button" variant="outline" size="icon" onClick={() => setIsScannerOpen(true)}>
                                 <Camera className="h-4 w-4" />
                                 <span className="sr-only">Ler código de barras</span>
@@ -222,24 +247,24 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="name" className="text-right">Nome</Label>
-                        <Input id="name" value={newEmployee.name} onChange={(e) => setNewEmployee({...newEmployee, name: e.target.value})} className="col-span-3" />
+                        <Input ref={nameInputRef} onKeyDown={(e) => handleKeyDown(e, departmentInputRef)} id="name" value={newEmployee.name} onChange={(e) => setNewEmployee({...newEmployee, name: e.target.value})} className="col-span-3" />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="department" className="text-right">Setor</Label>
-                        <Input id="department" value={newEmployee.department} onChange={(e) => setNewEmployee({...newEmployee, department: e.target.value})} className="col-span-3" />
+                        <Input ref={departmentInputRef} onKeyDown={(e) => handleKeyDown(e, plateInputRef)} id="department" value={newEmployee.department} onChange={(e) => setNewEmployee({...newEmployee, department: e.target.value})} className="col-span-3" />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="plate" className="text-right">Placa</Label>
-                        <Input id="plate" value={newEmployee.plate} onChange={(e) => setNewEmployee({...newEmployee, plate: e.target.value})} className="col-span-3" />
+                        <Input ref={plateInputRef} onKeyDown={(e) => handleKeyDown(e, ramalInputRef)} id="plate" value={newEmployee.plate} onChange={(e) => setNewEmployee({...newEmployee, plate: e.target.value})} className="col-span-3" />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="ramal" className="text-right">Ramal</Label>
-                        <Input id="ramal" value={newEmployee.ramal} onChange={(e) => setNewEmployee({...newEmployee, ramal: e.target.value})} className="col-span-3" />
+                        <Input ref={ramalInputRef} onKeyDown={(e) => handleKeyDown(e, statusTriggerRef as any)} id="ramal" value={newEmployee.ramal} onChange={(e) => setNewEmployee({...newEmployee, ramal: e.target.value})} className="col-span-3" />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="status" className="text-right">Status</Label>
                         <Select value={newEmployee.status} onValueChange={(value: 'Ativo' | 'Inativo') => setNewEmployee({...newEmployee, status: value})}>
-                            <SelectTrigger id="status" className="col-span-3">
+                            <SelectTrigger ref={statusTriggerRef} onKeyDown={handleStatusKeyDown} id="status" className="col-span-3">
                                 <SelectValue placeholder="Selecione o status" />
                             </SelectTrigger>
                             <SelectContent>
@@ -251,7 +276,7 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
                 </div>
                 <DialogFooter>
                      <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-                    <Button type="submit" onClick={handleSaveClick}>Salvar</Button>
+                    <Button ref={saveButtonRef} type="submit" onClick={handleSaveClick}>Salvar</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -547,3 +572,5 @@ export function EmployeeDashboard({ isAddEmployeeDialogOpen, setIsAddEmployeeDia
     </div>
   );
 }
+
+    

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, KeyboardEvent } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -221,6 +221,25 @@ function VisitorTable({ visitors, setVisitors, accessLogs }: { visitors: Visitor
 function AddVisitorForm({ onSave, onCancel, initialData }: { onSave: (visitor: Visitor) => void, onCancel: () => void, initialData?: Visitor }) {
     const [visitor, setVisitor] = useState(initialData || { ...emptyVisitor, id: `visit-${Date.now()}` });
     const { toast } = useToast();
+    
+    const nameInputRef = useRef<HTMLInputElement>(null);
+    const documentInputRef = useRef<HTMLInputElement>(null);
+    const companyInputRef = useRef<HTMLInputElement>(null);
+    const saveButtonRef = useRef<HTMLButtonElement>(null);
+    
+    useEffect(() => {
+        if (!initialData) {
+            // Only focus on add new, not on edit
+            setTimeout(() => nameInputRef.current?.focus(), 100);
+        }
+    }, [initialData]);
+
+    const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, nextFieldRef: React.RefObject<HTMLElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            nextFieldRef.current?.focus();
+        }
+    };
 
     const handleSave = () => {
          if (!visitor.name || !visitor.document) {
@@ -238,19 +257,19 @@ function AddVisitorForm({ onSave, onCancel, initialData }: { onSave: (visitor: V
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="name-visitor" className="text-right">Nome</Label>
-                <Input id="name-visitor" value={visitor.name} onChange={(e) => setVisitor({ ...visitor, name: e.target.value })} className="col-span-3" />
+                <Input ref={nameInputRef} onKeyDown={(e) => handleKeyDown(e, documentInputRef)} id="name-visitor" value={visitor.name} onChange={(e) => setVisitor({ ...visitor, name: e.target.value })} className="col-span-3" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="document-visitor" className="text-right">Documento</Label>
-                <Input id="document-visitor" value={visitor.document} onChange={(e) => setVisitor({ ...visitor, document: e.target.value })} className="col-span-3" />
+                <Input ref={documentInputRef} onKeyDown={(e) => handleKeyDown(e, companyInputRef)} id="document-visitor" value={visitor.document} onChange={(e) => setVisitor({ ...visitor, document: e.target.value })} className="col-span-3" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="company-visitor" className="text-right">Empresa</Label>
-                <Input id="company-visitor" value={visitor.company} onChange={(e) => setVisitor({ ...visitor, company: e.target.value })} className="col-span-3" />
+                <Input ref={companyInputRef} onKeyDown={(e) => handleKeyDown(e, saveButtonRef)} id="company-visitor" value={visitor.company} onChange={(e) => setVisitor({ ...visitor, company: e.target.value })} className="col-span-3" />
             </div>
             <DialogFooter>
                 <Button variant="outline" onClick={onCancel}>Cancelar</Button>
-                <Button onClick={handleSave}>Salvar</Button>
+                <Button ref={saveButtonRef} onClick={handleSave}>Salvar</Button>
             </DialogFooter>
         </div>
     );
@@ -319,3 +338,5 @@ export function VisitorDashboard() {
     </div>
   );
 }
+
+    
