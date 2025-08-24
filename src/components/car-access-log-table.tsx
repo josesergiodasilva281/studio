@@ -88,8 +88,8 @@ export function CarAccessLogTable() {
                                     <TableHead>Frota</TableHead>
                                     <TableHead>Placa</TableHead>
                                     <TableHead>Motorista Saída</TableHead>
-                                    <TableHead>Saída</TableHead>
                                     <TableHead>KM Saída</TableHead>
+                                    <TableHead>Saída</TableHead>
                                     <TableHead>Retorno</TableHead>
                                     <TableHead>Quem Retornou</TableHead>
                                     <TableHead>KM Retorno</TableHead>
@@ -103,8 +103,8 @@ export function CarAccessLogTable() {
                                             <TableCell>{log.carFleet}</TableCell>
                                             <TableCell className="font-medium">{log.carId}</TableCell>
                                             <TableCell>{log.driverName}</TableCell>
-                                            <TableCell>{log.startTime}</TableCell>
                                             <TableCell>{log.startKm || '-'}</TableCell>
+                                            <TableCell>{log.startTime}</TableCell>
                                             <TableCell>{log.endTime || 'Em uso'}</TableCell>
                                             <TableCell>{log.returnDriverName || '-'}</TableCell>
                                             <TableCell>{log.endKm || '-'}</TableCell>
