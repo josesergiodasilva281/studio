@@ -192,17 +192,8 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
         }
     };
 
-    const filteredVisitors = visitors.filter(visitor => {
-        const presenceStatus = getPresenceStatus(visitor.id);
+    const filteredVisitors = searchTerm ? visitors.filter(visitor => {
         const searchTermLower = searchTerm.toLowerCase();
-
-        // Always filter by presence 'Dentro', and then by search term if it exists
-        if (presenceStatus !== 'Dentro') {
-            return false;
-        }
-
-        if (!searchTermLower) return true; // Show all 'Dentro' if no search term
-
         return (
             visitor.id.toLowerCase().includes(searchTermLower) ||
             visitor.name.toLowerCase().includes(searchTermLower) ||
@@ -210,10 +201,10 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
             visitor.cpf.toLowerCase().includes(searchTermLower) ||
             (visitor.company && visitor.company.toLowerCase().includes(searchTermLower)) ||
             (visitor.plate && visitor.plate.toLowerCase().includes(searchTermLower)) ||
-            visitor.responsible.toLowerCase().includes(searchTermLower) ||
-            visitor.reason.toLowerCase().includes(searchTermLower)
+            (visitor.responsible && visitor.responsible.toLowerCase().includes(searchTermLower)) ||
+            (visitor.reason && visitor.reason.toLowerCase().includes(searchTermLower))
         );
-    });
+    }) : [];
 
   return (
     <>
@@ -238,7 +229,7 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
         <CardContent>
            <div className="flex items-center py-4">
             <Input
-                placeholder="Filtrar visitantes presentes..."
+                placeholder="Buscar visitante por nome, RG, CPF..."
                 value={inputValue}
                 onChange={(event) => setInputValue(event.target.value)}
                 onKeyDown={handleSearchKeyDown}
@@ -259,57 +250,63 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
                 </TableRow>
                 </TableHeader>
                 <TableBody>
-                {filteredVisitors.map((visitor) => {
-                    const presence = getPresenceStatus(visitor.id);
-                    return (
-                    <TableRow key={visitor.id}>
-                    <TableCell>
-                        <Avatar>
-                            <AvatarImage src={visitor.photoDataUrl} alt={visitor.name} />
-                            <AvatarFallback><User /></AvatarFallback>
-                        </Avatar>
-                    </TableCell>
-                    <TableCell>{visitor.name}</TableCell>
-                    <TableCell>{visitor.rg}</TableCell>
-                    <TableCell>{visitor.cpf}</TableCell>
-                    <TableCell>{visitor.company || '-'}</TableCell>
-                     <TableCell>
-                         <Badge
-                            variant={presence === 'Dentro' ? 'default' : 'destructive'}
-                         >
-                            {presence === 'Dentro' ? <Building className="mr-2 h-3 w-3" /> : <Home className="mr-2 h-3 w-3" />}
-                            {presence}
-                        </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handleReturningVisitorClick(visitor)} title="Registrar Entrada/Saída">
-                            <LogIn className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(visitor)}>
-                        <Pencil className="h-4 w-4" />
-                        </Button>
-                        <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                            <Trash2 className="h-4 w-4" />
-                            </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Essa ação não pode ser desfeita. Isso irá apagar permanentemente o visitante.
-                            </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteClick(visitor.id)}>Apagar</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                        </AlertDialog>
-                    </TableCell>
+                 {searchTerm && filteredVisitors.length === 0 ? (
+                    <TableRow>
+                        <TableCell colSpan={7} className="text-center">Nenhum visitante encontrado.</TableCell>
                     </TableRow>
-                )})}
+                 ) : (
+                    filteredVisitors.map((visitor) => {
+                        const presence = getPresenceStatus(visitor.id);
+                        return (
+                        <TableRow key={visitor.id}>
+                        <TableCell>
+                            <Avatar>
+                                <AvatarImage src={visitor.photoDataUrl} alt={visitor.name} />
+                                <AvatarFallback><User /></AvatarFallback>
+                            </Avatar>
+                        </TableCell>
+                        <TableCell>{visitor.name}</TableCell>
+                        <TableCell>{visitor.rg}</TableCell>
+                        <TableCell>{visitor.cpf}</TableCell>
+                        <TableCell>{visitor.company || '-'}</TableCell>
+                         <TableCell>
+                             <Badge
+                                variant={presence === 'Dentro' ? 'default' : 'destructive'}
+                             >
+                                {presence === 'Dentro' ? <Building className="mr-2 h-3 w-3" /> : <Home className="mr-2 h-3 w-3" />}
+                                {presence}
+                            </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" onClick={() => handleReturningVisitorClick(visitor)} title="Registrar Entrada/Saída">
+                                <LogIn className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(visitor)}>
+                            <Pencil className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Essa ação não pode ser desfeita. Isso irá apagar permanentemente o visitante.
+                                </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteClick(visitor.id)}>Apagar</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                            </AlertDialog>
+                        </TableCell>
+                        </TableRow>
+                    )})
+                 )}
                 </TableBody>
             </Table>
           </div>
@@ -611,5 +608,7 @@ export function VisitorDashboard({
     </div>
   );
 }
+
+    
 
     
