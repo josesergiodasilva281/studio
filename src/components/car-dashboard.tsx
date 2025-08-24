@@ -102,9 +102,7 @@ function AddCarDialog({ open, onOpenChange, onSave, cars }: { open: boolean, onO
 
 type CarCheckoutData = {
     driverId: string;
-    destination: string;
     startKm?: string;
-    notes?: string;
 }
 
 type CarReturnData = {
@@ -114,9 +112,7 @@ type CarReturnData = {
 function CarLogDialog({ open, onOpenChange, car, employees, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, car: Car, employees: Employee[], onSave: (logData: CarCheckoutData) => void }) {
     const [checkoutData, setCheckoutData] = useState<CarCheckoutData>({
       driverId: car.lastDriverId || '',
-      destination: '',
       startKm: car.lastKm || '',
-      notes: ''
     });
     const { toast } = useToast();
 
@@ -124,17 +120,15 @@ function CarLogDialog({ open, onOpenChange, car, employees, onSave }: { open: bo
         if(open){
             setCheckoutData({
                 driverId: car.lastDriverId || '',
-                destination: '',
                 startKm: car.lastKm || '',
-                notes: ''
             })
         }
     }, [open, car]);
 
 
     const handleSave = () => {
-        if (!checkoutData.driverId || !checkoutData.destination) {
-            toast({ variant: 'destructive', title: 'Campos Obrigatórios', description: 'Motorista e Destino são obrigatórios.' });
+        if (!checkoutData.driverId) {
+            toast({ variant: 'destructive', title: 'Campo Obrigatório', description: 'Motorista é obrigatório.' });
             return;
         }
         onSave(checkoutData);
@@ -169,14 +163,6 @@ function CarLogDialog({ open, onOpenChange, car, employees, onSave }: { open: bo
                      <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="startKm" className="text-right">KM Saída</Label>
                         <Input id="startKm" value={checkoutData.startKm} onChange={(e) => setCheckoutData({...checkoutData, startKm: e.target.value})} className="col-span-3" placeholder="Opcional"/>
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="destination" className="text-right">Destino</Label>
-                        <Input id="destination" value={checkoutData.destination} onChange={(e) => setCheckoutData({...checkoutData, destination: e.target.value})} className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="notes" className="text-right">Observações</Label>
-                        <Input id="notes" value={checkoutData.notes} onChange={(e) => setCheckoutData({...checkoutData, notes: e.target.value})} className="col-span-3" />
                     </div>
                 </div>
                 <DialogFooter>
@@ -286,9 +272,7 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, employees }: { cars: Car
             driverName: driver.name,
             startTime: new Date().toLocaleString('pt-BR'),
             endTime: null,
-            destination: logData.destination,
             startKm: logData.startKm,
-            notes: logData.notes,
         };
 
         setCarLogs([newLog, ...carLogs]);

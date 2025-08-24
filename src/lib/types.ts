@@ -55,8 +55,6 @@ export interface CarLog {
   driverName: string;
   startTime: string;
   endTime: string | null;
-  destination: string;
   startKm?: string;
   endKm?: string;
-  notes?: string;
 }

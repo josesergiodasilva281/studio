@@ -50,10 +50,8 @@ export function CarAccessLogTable() {
             log.carId.toLowerCase().includes(searchTermLower) ||
             log.carFleet.toLowerCase().includes(searchTermLower) ||
             log.driverName.toLowerCase().includes(searchTermLower) ||
-            log.destination.toLowerCase().includes(searchTermLower) ||
             (log.startKm && log.startKm.toLowerCase().includes(searchTermLower)) ||
-            (log.endKm && log.endKm.toLowerCase().includes(searchTermLower)) ||
-            (log.notes && log.notes.toLowerCase().includes(searchTermLower))
+            (log.endKm && log.endKm.toLowerCase().includes(searchTermLower))
         );
     });
 
@@ -89,12 +87,10 @@ export function CarAccessLogTable() {
                                     <TableHead>Frota</TableHead>
                                     <TableHead>Placa</TableHead>
                                     <TableHead>Motorista</TableHead>
-                                    <TableHead>Destino</TableHead>
                                     <TableHead>Saída</TableHead>
                                     <TableHead>KM Saída</TableHead>
                                     <TableHead>Retorno</TableHead>
                                     <TableHead>KM Retorno</TableHead>
-                                    <TableHead>Observações</TableHead>
                                     <TableHead>Status</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -105,12 +101,10 @@ export function CarAccessLogTable() {
                                             <TableCell>{log.carFleet}</TableCell>
                                             <TableCell className="font-medium">{log.carId}</TableCell>
                                             <TableCell>{log.driverName}</TableCell>
-                                            <TableCell>{log.destination}</TableCell>
                                             <TableCell>{log.startTime}</TableCell>
                                             <TableCell>{log.startKm || '-'}</TableCell>
                                             <TableCell>{log.endTime || 'Em uso'}</TableCell>
                                             <TableCell>{log.endKm || '-'}</TableCell>
-                                            <TableCell>{log.notes || '-'}</TableCell>
                                             <TableCell>
                                                 <Badge variant={log.endTime ? 'default' : 'destructive'}>
                                                     {log.endTime ? 'Finalizado' : 'Em uso'}
@@ -120,7 +114,7 @@ export function CarAccessLogTable() {
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={10} className="text-center">
+                                        <TableCell colSpan={8} className="text-center">
                                             Nenhum registro encontrado.
                                         </TableCell>
                                     </TableRow>
