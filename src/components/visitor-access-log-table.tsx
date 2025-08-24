@@ -53,17 +53,18 @@ export function VisitorAccessLogTable() {
     
     const filteredLogs: AccessLog[] = accessLogs
         .filter(log => {
+            if (!searchTerm) return true; // Return all logs if search is empty
             const searchTermLower = searchTerm.toLowerCase();
 
             return (
-                log.personName.toLowerCase().includes(searchTermLower) ||
+                (log.personName && log.personName.toLowerCase().includes(searchTermLower)) ||
                 (log.rg && log.rg.toLowerCase().includes(searchTermLower)) ||
                 (log.cpf && log.cpf.toLowerCase().includes(searchTermLower)) ||
                 (log.company && log.company.toLowerCase().includes(searchTermLower)) ||
                 (log.plate && log.plate.toLowerCase().includes(searchTermLower)) ||
                 (log.responsible && log.responsible.toLowerCase().includes(searchTermLower)) ||
                 (log.reason && log.reason.toLowerCase().includes(searchTermLower)) ||
-                log.entryTimestamp.toLowerCase().includes(searchTermLower) ||
+                (log.entryTimestamp && log.entryTimestamp.toLowerCase().includes(searchTermLower)) ||
                 (log.exitTimestamp && log.exitTimestamp.toLowerCase().includes(searchTermLower))
             );
         });
