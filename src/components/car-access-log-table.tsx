@@ -47,9 +47,9 @@ export function CarAccessLogTable() {
     const filteredLogs = carLogs.filter(log => {
         const searchTermLower = searchTerm.toLowerCase();
         return (
-            log.carId.toLowerCase().includes(searchTermLower) ||
-            log.carFleet.toLowerCase().includes(searchTermLower) ||
-            log.driverName.toLowerCase().includes(searchTermLower) ||
+            (log.carId && log.carId.toLowerCase().includes(searchTermLower)) ||
+            (log.carFleet && log.carFleet.toLowerCase().includes(searchTermLower)) ||
+            (log.driverName && log.driverName.toLowerCase().includes(searchTermLower)) ||
             (log.startKm && log.startKm.toLowerCase().includes(searchTermLower)) ||
             (log.endKm && log.endKm.toLowerCase().includes(searchTermLower))
         );
