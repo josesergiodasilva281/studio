@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState, useRef, Dispatch, SetStateAction } from 'react';
@@ -149,7 +150,7 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
             type: newLogType,
         };
 
-        setAccessLogs([newLog, ...accessLogs]);
+        setAccessLogs(prevLogs => [newLog, ...prevLogs]);
         toast({
             title: `Acesso Registrado: ${newLog.type}`,
             description: `${newLog.personName} - ${newLog.timestamp}`,
@@ -271,3 +272,5 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
     </div>
   );
 }
+
+    
