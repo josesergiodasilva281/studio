@@ -172,6 +172,7 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
             personType: 'visitor',
             entryTimestamp: new Date().toLocaleString('pt-BR'),
             exitTimestamp: null,
+            // Snapshot visitor details
             reason: visitor.reason,
             responsible: visitor.responsible,
             photoDataUrl: visitor.photoDataUrl,
@@ -219,7 +220,7 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
             (visitor.responsible && visitor.responsible.toLowerCase().includes(searchTermLower)) ||
             (visitor.reason && visitor.reason.toLowerCase().includes(searchTermLower))
         );
-    }) : [];
+    }) : visitors.filter(v => getPresenceStatus(v.id) === 'Dentro');
 
   return (
     <>
@@ -229,16 +230,16 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
                 <CardTitle>Visitantes</CardTitle>
             </div>
             <div className="flex items-center gap-2">
+                <Button onClick={() => setIsAddDialogOpen(true)}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Cadastrar Visitante
+                </Button>
                 <Link href="/visitors/history">
                     <Button variant="outline">
                       <GanttChartSquare className="mr-2 h-4 w-4" />
                       Ver Histórico
                     </Button>
                 </Link>
-                <Button onClick={() => setIsAddDialogOpen(true)}>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Cadastrar Visitante
-                </Button>
             </div>
         </CardHeader>
         <CardContent>
@@ -265,9 +266,9 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { vi
                 </TableRow>
                 </TableHeader>
                 <TableBody>
-                 {searchTerm && filteredVisitors.length === 0 ? (
+                 {filteredVisitors.length === 0 ? (
                     <TableRow>
-                        <TableCell colSpan={7} className="text-center">Nenhum visitante encontrado.</TableCell>
+                        <TableCell colSpan={7} className="text-center">{searchTerm ? 'Nenhum visitante encontrado.' : 'Nenhum visitante presente.'}</TableCell>
                     </TableRow>
                  ) : (
                     filteredVisitors.map((visitor) => {
@@ -612,6 +613,40 @@ export function VisitorDashboard({
   accessLogs: AccessLog[], 
   setAccessLogs: Dispatch<SetStateAction<AccessLog[]>> 
 }) {
+
+  // Load visitors from localStorage on initial render
+  useEffect(() => {
+    try {
+        const storedVisitors = localStorage.getItem('visitors');
+        if (storedVisitors) {
+            setVisitors(JSON.parse(storedVisitors));
+        }
+    } catch (error) {
+        console.error("Error reading visitors from localStorage", error);
+    }
+  }, [setVisitors]);
+
+  // Save visitors to localStorage whenever they change
+  useEffect(() => {
+      try {
+          // Only save if there are visitors to avoid overwriting on initial empty load
+          if (visitors.length > 0) {
+            localStorage.setItem('visitors', JSON.stringify(visitors));
+          } else {
+             // If the user intentionally deletes all visitors, clear from storage
+            const stored = localStorage.getItem('visitors');
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if(parsed.length > 0) {
+                     localStorage.removeItem('visitors');
+                }
+            }
+          }
+      } catch (error) {
+          console.error("Error writing visitors to localStorage", error);
+      }
+  }, [visitors]);
+
   return (
     <div className="container mx-auto">
         <VisitorTable 
