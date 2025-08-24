@@ -106,6 +106,7 @@ type CarCheckoutData = {
 }
 
 type CarReturnData = {
+    driverName: string;
     endKm?: string;
 }
 
@@ -170,11 +171,14 @@ function CarLogDialog({ open, onOpenChange, car, onSave }: { open: boolean, onOp
 }
 
 function CarReturnDialog({ open, onOpenChange, car, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, car: Car, onSave: (returnData: CarReturnData) => void }) {
-    const [returnData, setReturnData] = useState<CarReturnData>({ endKm: car.lastKm || '' });
+    const [returnData, setReturnData] = useState<CarReturnData>({ driverName: car.lastDriverName || '', endKm: car.lastKm || '' });
     
     useEffect(() => {
         if(open){
-            setReturnData({ endKm: car.lastKm || '' })
+            setReturnData({ 
+                driverName: car.lastDriverName || '',
+                endKm: car.lastKm || '' 
+            })
         }
     }, [open, car]);
 
@@ -194,8 +198,12 @@ function CarReturnDialog({ open, onOpenChange, car, onSave }: { open: boolean, o
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="driverName-return" className="text-right">Motorista</Label>
+                        <Input id="driverName-return" value={returnData.driverName} onChange={(e) => setReturnData({...returnData, driverName: e.target.value})} className="col-span-3" />
+                    </div>
+                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="endKm" className="text-right">KM Retorno</Label>
-                        <Input id="endKm" value={returnData.endKm} onChange={(e) => setReturnData({ endKm: e.target.value })} className="col-span-3" placeholder="Opcional"/>
+                        <Input id="endKm" value={returnData.endKm} onChange={(e) => setReturnData({ ...returnData, endKm: e.target.value })} className="col-span-3" placeholder="Opcional"/>
                     </div>
                 </div>
                 <DialogFooter>
@@ -240,10 +248,10 @@ function CarTable({ cars, setCars, carLogs, setCarLogs }: { cars: Car[], setCars
             return;
         }
 
-        const updatedLogs = carLogs.map(log => log.id === openLog.id ? { ...log, endTime: new Date().toLocaleString('pt-BR'), endKm: returnData.endKm } : log);
+        const updatedLogs = carLogs.map(log => log.id === openLog.id ? { ...log, endTime: new Date().toLocaleString('pt-BR'), endKm: returnData.endKm, driverName: returnData.driverName } : log);
         setCarLogs(updatedLogs);
 
-        const updatedCars = cars.map(car => car.id === carId ? { ...car, status: 'Disponível', lastKm: returnData.endKm } : car);
+        const updatedCars = cars.map(car => car.id === carId ? { ...car, status: 'Disponível', lastKm: returnData.endKm, lastDriverName: returnData.driverName } : car);
         setCars(updatedCars);
         
         toast({ title: 'Retorno Registrado', description: `O carro de placa ${carId} está disponível novamente.` });
@@ -465,3 +473,5 @@ export function CarDashboard({ cars, setCars, carLogs, setCarLogs, employees: in
         </div>
     );
 }
+
+    
