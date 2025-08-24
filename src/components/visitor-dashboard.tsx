@@ -57,7 +57,7 @@ const emptyVisitor: Visitor = {
 type ReturningVisitorInfo = Pick<Visitor, 'company' | 'plate' | 'responsible' | 'reason'>;
 
 
-function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { visitors: Visitor[], setVisitors: (visitors: Visitor[]) => void, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>> }) {
+function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs }: { visitors: Visitor[], setVisitors: Dispatch<SetStateAction<Visitor[]>>, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>> }) {
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isReturningVisitorDialogOpen, setIsReturningVisitorDialogOpen] = useState(false);
@@ -537,78 +537,17 @@ function AddVisitorForm({ onSave, onCancel, initialData }: { onSave: (visitor: V
     );
 }
 
-export function VisitorDashboard() {
-    const [visitors, setVisitors] = useState<Visitor[]>([]);
-    const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
-
-     // Load visitors from localStorage on initial render
-    useEffect(() => {
-        try {
-            const storedVisitors = localStorage.getItem('visitors');
-            if (storedVisitors) {
-                setVisitors(JSON.parse(storedVisitors));
-            }
-        } catch (error) {
-            console.error("Error reading visitors from localStorage", error);
-        }
-    }, []);
-
-    // Save visitors to localStorage whenever they change
-    useEffect(() => {
-        try {
-            // Only write to localStorage if visitors array has been initialized.
-            // This prevents overwriting existing data with an empty array on first load.
-            if (visitors && visitors.length > 0) {
-                 localStorage.setItem('visitors', JSON.stringify(visitors));
-            } else if (visitors?.length === 0) {
-                 // If user deletes all visitors, clear from storage as well
-                 const stored = localStorage.getItem('visitors');
-                 if(stored) localStorage.removeItem('visitors');
-            }
-        } catch (error) {
-            console.error("Error writing visitors to localStorage", error);
-        }
-    }, [visitors]);
-
-    // Load access logs from localStorage on initial render
-     useEffect(() => {
-        const loadLogs = () => {
-            try {
-                const storedLogs = localStorage.getItem('accessLogs');
-                if (storedLogs) {
-                    setAccessLogs(JSON.parse(storedLogs));
-                }
-            } catch (error) {
-                console.error("Error reading access logs from localStorage", error);
-            }
-        };
-
-        loadLogs();
-        
-        // Use a custom event listener that triggers when localStorage is updated from anywhere
-        const handleStorageChange = () => loadLogs();
-        window.addEventListener('storage', handleStorageChange);
-        
-        // Cleanup listener
-        return () => {
-            window.removeEventListener('storage', handleStorageChange);
-        };
-    }, []);
-
-    // Save access logs to localStorage whenever they change
-    useEffect(() => {
-        try {
-            if (accessLogs.length > 0) {
-                 localStorage.setItem('accessLogs', JSON.stringify(accessLogs));
-                 // Dispatch a custom event to notify other components like the history page
-                 window.dispatchEvent(new Event('storage'));
-            }
-        } catch (error) {
-            console.error("Error writing access logs to localStorage", error);
-        }
-  }, [accessLogs]);
-
-
+export function VisitorDashboard({ 
+  visitors, 
+  setVisitors, 
+  accessLogs, 
+  setAccessLogs 
+}: { 
+  visitors: Visitor[], 
+  setVisitors: Dispatch<SetStateAction<Visitor[]>>, 
+  accessLogs: AccessLog[], 
+  setAccessLogs: Dispatch<SetStateAction<AccessLog[]>> 
+}) {
   return (
     <div className="container mx-auto">
         <VisitorTable 
