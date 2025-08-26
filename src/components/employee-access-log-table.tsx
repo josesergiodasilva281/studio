@@ -18,7 +18,7 @@ import {
 import { Badge } from './ui/badge';
 import type { AccessLog, Employee } from '@/lib/types';
 import { Input } from './ui/input';
-import { LogIn, LogOut, Building, Home, Calendar as CalendarIcon } from 'lucide-react';
+import { Building, Home, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from './ui/button';
 import Link from 'next/link';
 import { Calendar } from './ui/calendar';
@@ -33,13 +33,14 @@ const parsePtBrDate = (dateString: string): Date | null => {
     if (!dateString) return null;
     // Format: "26/07/2024, 15:30:00" -> "2024-07-26T15:30:00"
     const parts = dateString.split(', ');
+    if (parts.length < 2) return null;
     const dateParts = parts[0].split('/');
     if (dateParts.length !== 3) return null;
     // year, month (0-indexed), day
     return new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}T${parts[1]}`);
 };
 
-export function EmployeeAccessLogTable() {
+export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolean }) {
     const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -128,6 +129,7 @@ export function EmployeeAccessLogTable() {
         setDate(selectedDate);
         if (selectedDate?.from && selectedDate?.to) {
             setIsCalendarOpen(false);
+            setSearchTerm(inputValue); // Trigger search
         }
     }
 
@@ -135,10 +137,12 @@ export function EmployeeAccessLogTable() {
         <div className="container mx-auto">
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>HISTÓRICO</CardTitle>
-                     <Link href="/">
-                        <Button variant="outline">Voltar</Button>
-                    </Link>
+                    <CardTitle>Histórico de Acessos de Funcionários</CardTitle>
+                    {!readOnly && (
+                        <Link href="/">
+                            <Button variant="outline">Voltar</Button>
+                        </Link>
+                    )}
                 </CardHeader>
                 <CardContent>
                     <div className="flex items-center gap-4 py-4">
@@ -196,7 +200,7 @@ export function EmployeeAccessLogTable() {
                                     <TableHead>Setor</TableHead>
                                     <TableHead>Entrada</TableHead>
                                     <TableHead>Saída</TableHead>
-                                    <TableHead>Portaria</TableHead>
+                                    <TableHead>Portaria do Acesso</TableHead>
                                     <TableHead>Presença</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -239,5 +243,3 @@ export function EmployeeAccessLogTable() {
         </div>
     );
 }
-
-

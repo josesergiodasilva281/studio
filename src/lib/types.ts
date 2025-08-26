@@ -37,7 +37,7 @@ export interface AccessLog {
   personType: 'employee' | 'visitor';
   entryTimestamp: string;
   exitTimestamp: string | null;
-  registeredBy: 'P1' | 'P2' | 'RH'; // Which gate/user registered the access
+  registeredBy: 'P1' | 'P2' | 'RH' | 'Supervisor'; // Which gate/user registered the access
   // For visitors, capture the reason for this specific visit
   reason?: string; 
   responsible?: string;
@@ -59,12 +59,12 @@ export interface CarLog {
   endTime: string | null;
   startKm?: string;
   endKm?: string;
-  startRegisteredBy?: 'P1' | 'P2' | 'RH';
-  endRegisteredBy?: 'P1' | 'P2' | 'RH';
+  startRegisteredBy?: 'P1' | 'P2' | 'RH' | 'Supervisor';
+  endRegisteredBy?: 'P1' | 'P2' | 'RH' | 'Supervisor';
 }
 
 export interface User {
     id: string;
     username: string;
-    role: 'rh' | 'portaria';
+    role: 'rh' | 'portaria' | 'supervisor';
 }

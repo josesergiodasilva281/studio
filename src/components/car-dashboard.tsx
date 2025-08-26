@@ -226,6 +226,15 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, role }: { cars: Car[], s
     const [searchTerm, setSearchTerm] = useState('');
     const { toast } = useToast();
     const { user } = useAuth();
+    
+    const getRegisteredBy = (): 'RH' | 'P1' | 'P2' | 'Supervisor' => {
+        if (!user) return 'P1'; // Should not happen
+        if (user.role === 'rh') return 'RH';
+        if (user.role === 'supervisor') return 'Supervisor';
+        if (user.username === 'portaria1') return 'P1';
+        if (user.username === 'portaria2') return 'P2';
+        return 'P1'; // Default, should not happen
+    }
 
     const handleEditClick = (car: Car) => {
         setSelectedCar(JSON.parse(JSON.stringify(car)));
@@ -244,8 +253,7 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, role }: { cars: Car[], s
     };
 
     const handleReturn = (carId: string, returnData: CarReturnData) => {
-        if (!user) return;
-        const registeredBy = user.role === 'rh' ? 'RH' : (user.username === 'portaria1' ? 'P1' : 'P2');
+        const registeredBy = getRegisteredBy();
         
         const openLog = carLogs.find(log => log.carId === carId && log.endTime === null);
         if (!openLog) {
@@ -268,9 +276,9 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, role }: { cars: Car[], s
     };
 
     const handleCheckout = (logData: CarCheckoutData) => {
-        if (!selectedCar || !user) return;
+        if (!selectedCar) return;
         
-        const registeredBy = user.role === 'rh' ? 'RH' : (user.username === 'portaria1' ? 'P1' : 'P2');
+        const registeredBy = getRegisteredBy();
 
         const newLog: CarLog = {
             id: `carlog-${Date.now()}`,

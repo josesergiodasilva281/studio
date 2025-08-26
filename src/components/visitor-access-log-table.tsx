@@ -31,13 +31,14 @@ import { cn } from '@/lib/utils';
 const parsePtBrDate = (dateString: string): Date | null => {
     if (!dateString) return null;
     const parts = dateString.split(', ');
+    if (parts.length < 2) return null;
     const dateParts = parts[0].split('/');
     if (dateParts.length !== 3) return null;
     return new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}T${parts[1]}`);
 };
 
 
-export function VisitorAccessLogTable() {
+export function VisitorAccessLogTable({ readOnly = false }: { readOnly?: boolean }) {
     const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [inputValue, setInputValue] = useState('');
@@ -112,6 +113,7 @@ export function VisitorAccessLogTable() {
         setDate(selectedDate);
         if (selectedDate?.from && selectedDate?.to) {
             setIsCalendarOpen(false);
+            setSearchTerm(inputValue); // Trigger search
         }
     }
 
@@ -120,10 +122,12 @@ export function VisitorAccessLogTable() {
         <div className="container mx-auto">
             <Card>
                  <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>HISTÓRICO</CardTitle>
-                    <Link href="/dashboard">
-                        <Button variant="outline">Voltar</Button>
-                    </Link>
+                    <CardTitle>Histórico de Acessos de Visitantes</CardTitle>
+                    {!readOnly && (
+                        <Link href="/dashboard">
+                            <Button variant="outline">Voltar</Button>
+                        </Link>
+                    )}
                 </CardHeader>
                 <CardContent>
                     <div className="flex items-center gap-4 py-4">
@@ -183,7 +187,7 @@ export function VisitorAccessLogTable() {
                                     <TableHead>Motivo</TableHead>
                                     <TableHead>Entrada</TableHead>
                                     <TableHead>Saída</TableHead>
-                                    <TableHead>Portaria</TableHead>
+                                    <TableHead>Portaria do Acesso</TableHead>
                                     <TableHead>Presença</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -243,5 +247,3 @@ export function VisitorAccessLogTable() {
         </div>
     );
 }
-
-

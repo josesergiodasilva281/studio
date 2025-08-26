@@ -37,7 +37,7 @@ function AccessControlUI({
     selectedDeviceId: string,
     setSelectedDeviceId: Dispatch<SetStateAction<string>>,
     readerRef: React.RefObject<HTMLDivElement>,
-    role: 'rh' | 'portaria'
+    role: 'rh' | 'portaria' | 'supervisor'
 }) {
     return (
       <>
@@ -166,7 +166,15 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
      const handleNewLog = (person: Employee | Visitor, personType: 'employee' | 'visitor') => {
         if (!user) return;
         
-        const registeredBy = user.role === 'rh' ? 'RH' : (user.username === 'portaria1' ? 'P1' : 'P2');
+        const getRegisteredBy = (): 'RH' | 'P1' | 'P2' | 'Supervisor' => {
+            if (user.role === 'rh') return 'RH';
+            if (user.role === 'supervisor') return 'Supervisor';
+            if (user.username === 'portaria1') return 'P1';
+            if (user.username === 'portaria2') return 'P2';
+            return 'P1'; // Default, should not happen
+        }
+        
+        const registeredBy = getRegisteredBy();
         
         const openLog = accessLogs.find(
             log => log.personId === person.id && log.exitTimestamp === null
@@ -365,5 +373,3 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
     </div>
   );
 }
-
-    

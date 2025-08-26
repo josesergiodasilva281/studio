@@ -311,10 +311,18 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
 function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen, accessLogs, setAccessLogs, role }: { employees: Employee[], setEmployees: (employees: Employee[]) => void, isAddEmployeeDialogOpen: boolean, setIsAddEmployeeDialogOpen: Dispatch<SetStateAction<boolean>>, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>>, role: 'rh' | 'portaria' }) {
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [inputValue, setInputValue] = useState('');
+    const [searchTerm, setInputValue] = useState('');
     const { toast } = useToast();
     const { user } = useAuth();
+    
+    const getRegisteredBy = (): 'RH' | 'P1' | 'P2' | 'Supervisor' => {
+        if (!user) return 'P1'; // Should not happen
+        if (user.role === 'rh') return 'RH';
+        if (user.role === 'supervisor') return 'Supervisor';
+        if (user.username === 'portaria1') return 'P1';
+        if (user.username === 'portaria2') return 'P2';
+        return 'P1'; // Default, should not happen
+    }
 
     const handleManualEntry = (employee: Employee) => {
         if (!user) return;
@@ -328,7 +336,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             log => log.personId === employee.id && log.exitTimestamp === null
         );
 
-        const registeredBy = user.role === 'rh' ? 'RH' : (user.username === 'portaria1' ? 'P1' : 'P2');
+        const registeredBy = getRegisteredBy();
 
         if (openLog) {
             // Registering an exit
@@ -395,11 +403,6 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         return 'Dentro';
     };
 
-    const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-        if (event.key === 'Enter') {
-            setSearchTerm(inputValue);
-        }
-    };
 
     const filteredEmployees = employees.filter(employee => {
         const presenceStatus = getPresenceStatus(employee.id);
@@ -439,9 +442,8 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
            <div className="flex items-center py-4">
             <Input
                 placeholder="Filtrar funcionários..."
-                value={inputValue}
+                value={searchTerm}
                 onChange={(event) => setInputValue(event.target.value)}
-                onKeyDown={handleSearchKeyDown}
                 className="max-w-sm"
             />
           </div>
@@ -632,4 +634,3 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
     </div>
   );
 }
-

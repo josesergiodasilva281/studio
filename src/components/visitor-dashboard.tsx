@@ -68,6 +68,15 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs, role }
     const [selectedVisitor, setSelectedVisitor] = useState<Visitor | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const { toast } = useToast();
+    
+    const getRegisteredBy = (): 'RH' | 'P1' | 'P2' | 'Supervisor' => {
+        if (!user) return 'P1'; // Should not happen
+        if (user.role === 'rh') return 'RH';
+        if (user.role === 'supervisor') return 'Supervisor';
+        if (user.username === 'portaria1') return 'P1';
+        if (user.username === 'portaria2') return 'P2';
+        return 'P1'; // Default, should not happen
+    }
 
     const handleEditClick = (visitor: Visitor) => {
         setSelectedVisitor(JSON.parse(JSON.stringify(visitor))); // Deep copy
@@ -77,7 +86,7 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs, role }
     const handleNewEntry = (visitor: Visitor, newInfo: ReturningVisitorInfo) => {
         if (!user) return;
         
-        const registeredBy = user.role === 'rh' ? 'RH' : (user.username === 'portaria1' ? 'P1' : 'P2');
+        const registeredBy = getRegisteredBy();
 
         // If it's a returning visitor with new info, update their details in the main visitors list
         const updatedVisitor = { ...visitor, ...newInfo };
@@ -113,9 +122,7 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs, role }
     };
 
     const handleExit = (visitor: Visitor) => {
-         if (!user) return;
-        
-        const registeredBy = user.role === 'rh' ? 'RH' : (user.username === 'portaria1' ? 'P1' : 'P2');
+        const registeredBy = getRegisteredBy();
 
         const openLog = accessLogs.find(
             log => log.personId === visitor.id && log.exitTimestamp === null
@@ -172,8 +179,7 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs, role }
     };
 
     const handleAddNewVisitor = (visitor: Visitor) => {
-        if (!user) return;
-        const registeredBy = user.role === 'rh' ? 'RH' : (user.username === 'portaria1' ? 'P1' : 'P2');
+        const registeredBy = getRegisteredBy();
 
         // Add the new visitor to the list
         setVisitors([visitor, ...visitors]);
@@ -650,5 +656,3 @@ export function VisitorDashboard({
     </div>
   );
 }
-
-

@@ -29,12 +29,13 @@ import { cn } from '@/lib/utils';
 const parsePtBrDate = (dateString: string): Date | null => {
     if (!dateString) return null;
     const parts = dateString.split(', ');
+    if (parts.length < 2) return null;
     const dateParts = parts[0].split('/');
     if (dateParts.length !== 3) return null;
     return new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}T${parts[1]}`);
 };
 
-export function CarAccessLogTable() {
+export function CarAccessLogTable({ readOnly = false }: { readOnly?: boolean }) {
     const [carLogs, setCarLogs] = useState<CarLog[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [inputValue, setInputValue] = useState('');
@@ -102,6 +103,7 @@ export function CarAccessLogTable() {
         setDate(selectedDate);
         if (selectedDate?.from && selectedDate?.to) {
             setIsCalendarOpen(false);
+            setSearchTerm(inputValue); // Trigger search
         }
     }
 
@@ -111,9 +113,11 @@ export function CarAccessLogTable() {
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>Histórico de Uso dos Carros</CardTitle>
-                    <Link href="/cars">
-                        <Button variant="outline">Voltar</Button>
-                    </Link>
+                    {!readOnly && (
+                        <Link href="/cars">
+                            <Button variant="outline">Voltar</Button>
+                        </Link>
+                    )}
                 </CardHeader>
                 <CardContent>
                     <div className="flex items-center gap-4 py-4">

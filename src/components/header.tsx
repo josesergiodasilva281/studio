@@ -1,7 +1,7 @@
 
 'use client'
 
-import { KeyRound, Users, Car, Shield, LogOut, UserCircle } from 'lucide-react';
+import { KeyRound, Users, Car, Shield, LogOut, UserCircle, History } from 'lucide-react';
 import { ThemeToggle } from './theme-toggle';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -13,20 +13,6 @@ import { useAuth } from '@/context/auth-context';
 export function Header() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
-
-  const navLinks = [
-    { href: '/', label: 'RH', icon: KeyRound, role: 'rh' },
-    { href: '/portaria', label: 'Portaria', icon: Shield, role: 'portaria' },
-    { href: '/dashboard', label: 'Visitantes', icon: Users, role: 'rh' },
-    { href: '/cars', label: 'Carros', icon: Car, role: 'rh' },
-  ];
-
-  const availableLinks = navLinks.filter(link => {
-    if (user?.role === 'rh') return true;
-    if (user?.role === 'portaria' && link.role === 'portaria') return true;
-    return false;
-  });
-  
 
   return (
     <header className="px-4 lg:px-6 h-16 flex items-center border-b bg-card text-card-foreground shadow-sm">
@@ -60,6 +46,13 @@ export function Header() {
           <Link href="/portaria">
             <Button variant="ghost" className={cn("text-sm font-medium", pathname.startsWith('/portaria') ? "text-primary" : "text-muted-foreground", "hover:text-primary")}>
               <Shield className="mr-2 h-4 w-4" /> Portaria
+            </Button>
+          </Link>
+        )}
+         {user?.role === 'supervisor' && (
+          <Link href="/history">
+            <Button variant="ghost" className={cn("text-sm font-medium", pathname.startsWith('/history') ? "text-primary" : "text-muted-foreground", "hover:text-primary")}>
+              <History className="mr-2 h-4 w-4" /> Históricos
             </Button>
           </Link>
         )}

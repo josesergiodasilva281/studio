@@ -10,6 +10,7 @@ const MOCK_USERS: User[] = [
     { id: '1', username: 'rh', role: 'rh' },
     { id: '2', username: 'portaria1', role: 'portaria' },
     { id: '3', username: 'portaria2', role: 'portaria' },
+    { id: '4', username: 'supervisor', role: 'supervisor' },
 ];
 
 // Mock password data (in a real app, NEVER store passwords in plaintext)
@@ -17,6 +18,7 @@ const MOCK_PASSWORDS: { [key: string]: string } = {
     rh: '250250',
     portaria1: '332030',
     portaria2: '102030',
+    supervisor: 'supervisor',
 };
 
 
@@ -53,6 +55,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else if (user && isAuthPage) {
         if(user.role === 'rh') {
             router.push('/');
+        } else if (user.role === 'supervisor') {
+            router.push('/history');
         } else {
             router.push('/portaria');
         }
