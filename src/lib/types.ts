@@ -6,6 +6,7 @@ export interface Employee {
   plate: string;
   ramal: string;
   status: 'Ativo' | 'Inativo';
+  portaria?: 'Nenhuma' | 'P1' | 'P2';
 }
 
 export interface Visitor {

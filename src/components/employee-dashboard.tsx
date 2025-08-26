@@ -43,8 +43,8 @@ import Link from 'next/link';
 
 
 const initialEmployees: Employee[] = [
-  { id: '1', name: 'João da Silva', department: 'Produção', plate: 'ABC-1234', ramal: '2101', status: 'Ativo' },
-  { id: '2', name: 'Maria Oliveira', department: 'Logística', plate: 'DEF-5678', ramal: '2102', status: 'Ativo' },
+  { id: '1', name: 'João da Silva', department: 'Produção', plate: 'ABC-1234', ramal: '2101', status: 'Ativo', portaria: 'P1' },
+  { id: '2', name: 'Maria Oliveira', department: 'Logística', plate: 'DEF-5678', ramal: '2102', status: 'Ativo', portaria: 'P2' },
   { id: '3', name: 'Pedro Souza', department: 'Administrativo', plate: 'GHI-9012', ramal: '2103', status: 'Inativo' },
 ];
 
@@ -55,6 +55,7 @@ const emptyEmployee: Employee = {
     plate: '',
     ramal: '',
     status: 'Ativo',
+    portaria: 'Nenhuma',
 };
 
 function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boolean; onOpenChange: (open: boolean) => void; onBarcodeScan: (barcode: string) => void; }) {
@@ -188,6 +189,7 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
     const plateInputRef = useRef<HTMLInputElement>(null);
     const ramalInputRef = useRef<HTMLInputElement>(null);
     const statusTriggerRef = useRef<HTMLButtonElement>(null);
+    const portariaTriggerRef = useRef<HTMLButtonElement>(null);
     const saveButtonRef = useRef<HTMLButtonElement>(null);
 
     useEffect(() => {
@@ -206,10 +208,10 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
         }
     };
     
-    const handleStatusKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
+    const handleSelectKeyDown = (e: KeyboardEvent<HTMLButtonElement>, nextFieldRef: React.RefObject<HTMLElement>) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            saveButtonRef.current?.focus();
+            nextFieldRef.current?.focus();
         }
     }
 
@@ -230,7 +232,7 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
     return (
         <>
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Cadastrar Novo Funcionário</DialogTitle>
                 </DialogHeader>
@@ -259,12 +261,25 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="ramal" className="text-right">Ramal</Label>
-                        <Input ref={ramalInputRef} onKeyDown={(e) => handleKeyDown(e, statusTriggerRef as any)} id="ramal" value={newEmployee.ramal} onChange={(e) => setNewEmployee({...newEmployee, ramal: e.target.value})} className="col-span-3" />
+                        <Input ref={ramalInputRef} onKeyDown={(e) => handleKeyDown(e, portariaTriggerRef as any)} id="ramal" value={newEmployee.ramal} onChange={(e) => setNewEmployee({...newEmployee, ramal: e.target.value})} className="col-span-3" />
+                    </div>
+                     <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="portaria" className="text-right">Portaria</Label>
+                        <Select value={newEmployee.portaria} onValueChange={(value: 'Nenhuma' | 'P1' | 'P2') => setNewEmployee({...newEmployee, portaria: value})}>
+                            <SelectTrigger ref={portariaTriggerRef} onKeyDown={(e) => handleSelectKeyDown(e, statusTriggerRef as any)} id="portaria" className="col-span-3">
+                                <SelectValue placeholder="Selecione a portaria" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Nenhuma">Nenhuma</SelectItem>
+                                <SelectItem value="P1">P1</SelectItem>
+                                <SelectItem value="P2">P2</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="status" className="text-right">Status</Label>
                         <Select value={newEmployee.status} onValueChange={(value: 'Ativo' | 'Inativo') => setNewEmployee({...newEmployee, status: value})}>
-                            <SelectTrigger ref={statusTriggerRef} onKeyDown={handleStatusKeyDown} id="status" className="col-span-3">
+                            <SelectTrigger ref={statusTriggerRef} onKeyDown={(e) => handleSelectKeyDown(e, saveButtonRef as any)} id="status" className="col-span-3">
                                 <SelectValue placeholder="Selecione o status" />
                             </SelectTrigger>
                             <SelectContent>
@@ -391,6 +406,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 employee.department.toLowerCase().includes(searchTermLower) ||
                 (employee.plate && employee.plate.toLowerCase().includes(searchTermLower)) ||
                 (employee.ramal && employee.ramal.toLowerCase().includes(searchTermLower)) ||
+                (employee.portaria && employee.portaria.toLowerCase().includes(searchTermLower)) ||
                 employee.status.toLowerCase().includes(searchTermLower) ||
                 presenceStatus.toLowerCase().includes(searchTermLower)
             );
@@ -431,6 +447,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                     <TableHead>Setor</TableHead>
                     <TableHead>Placa</TableHead>
                     <TableHead>Ramal</TableHead>
+                    <TableHead>Portaria</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Presença</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
@@ -446,6 +463,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                     <TableCell>{employee.department}</TableCell>
                     <TableCell>{employee.plate}</TableCell>
                     <TableCell>{employee.ramal}</TableCell>
+                    <TableCell>{employee.portaria && employee.portaria !== 'Nenhuma' ? employee.portaria : '-'}</TableCell>
                     <TableCell>
                         <Badge variant={employee.status === 'Ativo' ? 'default' : 'destructive'}>
                             {employee.status}
@@ -499,7 +517,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
       <AddEmployeeDialog open={isAddEmployeeDialogOpen} onOpenChange={setIsAddEmployeeDialogOpen} onSave={handleAddNewEmployee} />
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Funcionário</DialogTitle>
           </DialogHeader>
@@ -525,6 +543,19 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                   <Label htmlFor="ramal-edit" className="text-right">Ramal</Label>
                   <Input id="ramal-edit" value={selectedEmployee.ramal} onChange={(e) => setSelectedEmployee({...selectedEmployee, ramal: e.target.value})} className="col-span-3" />
                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="portaria-edit" className="text-right">Portaria</Label>
+                    <Select value={selectedEmployee.portaria} onValueChange={(value: 'Nenhuma' | 'P1' | 'P2') => setSelectedEmployee({...selectedEmployee, portaria: value})}>
+                        <SelectTrigger id="portaria-edit" className="col-span-3">
+                            <SelectValue placeholder="Selecione a portaria" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Nenhuma">Nenhuma</SelectItem>
+                            <SelectItem value="P1">P1</SelectItem>
+                            <SelectItem value="P2">P2</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="status-edit" className="text-right">Status</Label>
                     <Select disabled={role === 'portaria'} value={selectedEmployee.status} onValueChange={(value: 'Ativo' | 'Inativo') => setSelectedEmployee({...selectedEmployee, status: value})}>
