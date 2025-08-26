@@ -3,6 +3,9 @@
 "use client";
 
 import { useEffect, useState, KeyboardEvent } from 'react';
+import { format } from "date-fns";
+import { ptBR } from 'date-fns/locale';
+import { DateRange } from "react-day-picker";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -15,18 +18,36 @@ import {
 import { Badge } from './ui/badge';
 import type { AccessLog, Employee } from '@/lib/types';
 import { Input } from './ui/input';
-import { LogIn, LogOut, Building, Home } from 'lucide-react';
+import { LogIn, LogOut, Building, Home, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from './ui/button';
 import Link from 'next/link';
+import { Calendar } from './ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { cn } from '@/lib/utils';
 
 // Combine Log with Employee details
 type EnrichedAccessLog = AccessLog & Partial<Omit<Employee, 'id' | 'name'>>;
+
+// Helper function to parse pt-BR date strings
+const parsePtBrDate = (dateString: string): Date | null => {
+    if (!dateString) return null;
+    // Format: "26/07/2024, 15:30:00" -> "2024-07-26T15:30:00"
+    const parts = dateString.split(', ');
+    const dateParts = parts[0].split('/');
+    if (dateParts.length !== 3) return null;
+    // year, month (0-indexed), day
+    return new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}T${parts[1]}`);
+};
 
 export function EmployeeAccessLogTable() {
     const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [inputValue, setInputValue] = useState('');
+    const [date, setDate] = useState<DateRange | undefined>({
+        from: new Date(),
+        to: new Date(),
+    });
 
     // Load data from localStorage on initial render
     useEffect(() => {
@@ -70,6 +91,18 @@ export function EmployeeAccessLogTable() {
             };
         })
         .filter(log => {
+            // Date filtering
+            const logDate = parsePtBrDate(log.entryTimestamp);
+            if (!logDate) return false;
+            
+            const fromDate = date?.from ? new Date(date.from.setHours(0, 0, 0, 0)) : null;
+            const toDate = date?.to ? new Date(date.to.setHours(23, 59, 59, 999)) : null;
+
+            if (fromDate && logDate < fromDate) return false;
+            if (toDate && logDate > toDate) return false;
+
+            // Search term filtering
+            if (!searchTerm) return true;
             const searchTermLower = searchTerm.toLowerCase();
 
             return (
@@ -78,7 +111,6 @@ export function EmployeeAccessLogTable() {
                 (log.department && log.department.toLowerCase().includes(searchTermLower)) ||
                 (log.plate && log.plate.toLowerCase().includes(searchTermLower)) ||
                 (log.ramal && log.ramal.toLowerCase().includes(searchTermLower)) ||
-                (log.status && log.status.toLowerCase().includes(searchTermLower)) ||
                 log.entryTimestamp.toLowerCase().includes(searchTermLower) ||
                 (log.exitTimestamp && log.exitTimestamp.toLowerCase().includes(searchTermLower)) ||
                 (log.registeredBy && log.registeredBy.toLowerCase().includes(searchTermLower))
@@ -101,7 +133,7 @@ export function EmployeeAccessLogTable() {
                     </Link>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex items-center py-4">
+                    <div className="flex items-center gap-4 py-4">
                         <Input
                             placeholder="Filtrar histórico..."
                             value={inputValue}
@@ -109,6 +141,43 @@ export function EmployeeAccessLogTable() {
                             onKeyDown={handleSearchKeyDown}
                             className="max-w-sm"
                         />
+                         <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    id="date"
+                                    variant={"outline"}
+                                    className={cn(
+                                        "w-[300px] justify-start text-left font-normal",
+                                        !date && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {date?.from ? (
+                                        date.to ? (
+                                            <>
+                                                {format(date.from, "dd/MM/yy", {locale: ptBR})} -{" "}
+                                                {format(date.to, "dd/MM/yy", {locale: ptBR})}
+                                            </>
+                                        ) : (
+                                            format(date.from, "dd/MM/yy", {locale: ptBR})
+                                        )
+                                    ) : (
+                                        <span>Selecione um período</span>
+                                    )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    initialFocus
+                                    mode="range"
+                                    defaultMonth={date?.from}
+                                    selected={date}
+                                    onSelect={setDate}
+                                    numberOfMonths={2}
+                                    locale={ptBR}
+                                />
+                            </PopoverContent>
+                        </Popover>
                     </div>
                     <div className="rounded-md border">
                         <Table>
@@ -127,7 +196,7 @@ export function EmployeeAccessLogTable() {
                                 {enrichedLogs.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={7} className="text-center">
-                                            Nenhum registro de acesso encontrado.
+                                            Nenhum registro de acesso encontrado para o período selecionado.
                                         </TableCell>
                                     </TableRow>
                                 ) : (

@@ -1,7 +1,11 @@
 
+
 "use client";
 
 import { useEffect, useState, KeyboardEvent } from 'react';
+import { format } from "date-fns";
+import { ptBR } from 'date-fns/locale';
+import { DateRange } from "react-day-picker";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -16,11 +20,28 @@ import type { CarLog } from '@/lib/types';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import Link from 'next/link';
+import { Calendar as CalendarIcon } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Calendar } from './ui/calendar';
+import { cn } from '@/lib/utils';
+
+// Helper function to parse pt-BR date strings
+const parsePtBrDate = (dateString: string): Date | null => {
+    if (!dateString) return null;
+    const parts = dateString.split(', ');
+    const dateParts = parts[0].split('/');
+    if (dateParts.length !== 3) return null;
+    return new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}T${parts[1]}`);
+};
 
 export function CarAccessLogTable() {
     const [carLogs, setCarLogs] = useState<CarLog[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [inputValue, setInputValue] = useState('');
+    const [date, setDate] = useState<DateRange | undefined>({
+        from: new Date(),
+        to: new Date(),
+    });
 
     useEffect(() => {
         const loadData = () => {
@@ -45,6 +66,18 @@ export function CarAccessLogTable() {
     }, []);
     
     const filteredLogs = carLogs.filter(log => {
+        // Date filtering
+        const logDate = parsePtBrDate(log.startTime);
+        if (!logDate) return false;
+
+        const fromDate = date?.from ? new Date(date.from.setHours(0, 0, 0, 0)) : null;
+        const toDate = date?.to ? new Date(date.to.setHours(23, 59, 59, 999)) : null;
+
+        if (fromDate && logDate < fromDate) return false;
+        if (toDate && logDate > toDate) return false;
+
+        // Search term filtering
+        if (!searchTerm) return true;
         const searchTermLower = searchTerm.toLowerCase();
         return (
             (log.carId && log.carId.toLowerCase().includes(searchTermLower)) ||
@@ -74,7 +107,7 @@ export function CarAccessLogTable() {
                     </Link>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex items-center py-4">
+                    <div className="flex items-center gap-4 py-4">
                         <Input
                             placeholder="Filtrar histórico..."
                             value={inputValue}
@@ -82,6 +115,43 @@ export function CarAccessLogTable() {
                             onKeyDown={handleSearchKeyDown}
                             className="max-w-sm"
                         />
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    id="date"
+                                    variant={"outline"}
+                                    className={cn(
+                                        "w-[300px] justify-start text-left font-normal",
+                                        !date && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {date?.from ? (
+                                        date.to ? (
+                                            <>
+                                                {format(date.from, "dd/MM/yy", {locale: ptBR})} -{" "}
+                                                {format(date.to, "dd/MM/yy", {locale: ptBR})}
+                                            </>
+                                        ) : (
+                                            format(date.from, "dd/MM/yy", {locale: ptBR})
+                                        )
+                                    ) : (
+                                        <span>Selecione um período</span>
+                                    )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    initialFocus
+                                    mode="range"
+                                    defaultMonth={date?.from}
+                                    selected={date}
+                                    onSelect={setDate}
+                                    numberOfMonths={2}
+                                    locale={ptBR}
+                                />
+                            </PopoverContent>
+                        </Popover>
                     </div>
                     <div className="rounded-md border">
                         <Table>
@@ -128,7 +198,7 @@ export function CarAccessLogTable() {
                                 ) : (
                                     <TableRow>
                                         <TableCell colSpan={11} className="text-center">
-                                            Nenhum registro encontrado.
+                                            Nenhum registro encontrado para o período selecionado.
                                         </TableCell>
                                     </TableRow>
                                 )}

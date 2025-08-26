@@ -3,6 +3,9 @@
 "use client";
 
 import { useEffect, useState, KeyboardEvent } from 'react';
+import { format } from "date-fns";
+import { ptBR } from 'date-fns/locale';
+import { DateRange } from "react-day-picker";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -15,17 +18,33 @@ import {
 import { Badge } from './ui/badge';
 import type { AccessLog } from '@/lib/types';
 import { Input } from './ui/input';
-import { Building, Home, User } from 'lucide-react';
+import { Building, Home, User, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from './ui/button';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Calendar } from './ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { cn } from '@/lib/utils';
+
+// Helper function to parse pt-BR date strings
+const parsePtBrDate = (dateString: string): Date | null => {
+    if (!dateString) return null;
+    const parts = dateString.split(', ');
+    const dateParts = parts[0].split('/');
+    if (dateParts.length !== 3) return null;
+    return new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}T${parts[1]}`);
+};
 
 
 export function VisitorAccessLogTable() {
     const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [inputValue, setInputValue] = useState('');
+     const [date, setDate] = useState<DateRange | undefined>({
+        from: new Date(),
+        to: new Date(),
+    });
 
     // Load data from localStorage on initial render
     useEffect(() => {
@@ -54,6 +73,17 @@ export function VisitorAccessLogTable() {
     
     const filteredLogs: AccessLog[] = accessLogs
         .filter(log => {
+             // Date filtering
+            const logDate = parsePtBrDate(log.entryTimestamp);
+            if (!logDate) return false;
+            
+            const fromDate = date?.from ? new Date(date.from.setHours(0, 0, 0, 0)) : null;
+            const toDate = date?.to ? new Date(date.to.setHours(23, 59, 59, 999)) : null;
+
+            if (fromDate && logDate < fromDate) return false;
+            if (toDate && logDate > toDate) return false;
+
+
             if (!searchTerm) return true; // Return all logs if search is empty
             const searchTermLower = searchTerm.toLowerCase();
 
@@ -87,7 +117,7 @@ export function VisitorAccessLogTable() {
                     </Link>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex items-center py-4">
+                    <div className="flex items-center gap-4 py-4">
                         <Input
                             placeholder="Filtrar histórico..."
                             value={inputValue}
@@ -95,6 +125,43 @@ export function VisitorAccessLogTable() {
                             onKeyDown={handleSearchKeyDown}
                             className="max-w-sm"
                         />
+                         <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    id="date"
+                                    variant={"outline"}
+                                    className={cn(
+                                        "w-[300px] justify-start text-left font-normal",
+                                        !date && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {date?.from ? (
+                                        date.to ? (
+                                            <>
+                                                {format(date.from, "dd/MM/yy", {locale: ptBR})} -{" "}
+                                                {format(date.to, "dd/MM/yy", {locale: ptBR})}
+                                            </>
+                                        ) : (
+                                            format(date.from, "dd/MM/yy", {locale: ptBR})
+                                        )
+                                    ) : (
+                                        <span>Selecione um período</span>
+                                    )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    initialFocus
+                                    mode="range"
+                                    defaultMonth={date?.from}
+                                    selected={date}
+                                    onSelect={setDate}
+                                    numberOfMonths={2}
+                                    locale={ptBR}
+                                />
+                            </PopoverContent>
+                        </Popover>
                     </div>
                     <div className="rounded-md border">
                         <Table>
@@ -115,7 +182,7 @@ export function VisitorAccessLogTable() {
                                 {filteredLogs.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={9} className="text-center">
-                                            Nenhum registro de acesso encontrado.
+                                            Nenhum registro de acesso encontrado para o período selecionado.
                                         </TableCell>
                                     </TableRow>
                                 ) : (
