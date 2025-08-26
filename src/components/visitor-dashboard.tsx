@@ -42,6 +42,7 @@ import type { Visitor, AccessLog } from '@/lib/types';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { useAuth } from '@/context/auth-context';
 
 
 const emptyVisitor: Visitor = {
@@ -60,6 +61,7 @@ type ReturningVisitorInfo = Pick<Visitor, 'company' | 'plate' | 'responsible' | 
 
 
 function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs, role }: { visitors: Visitor[], setVisitors: Dispatch<SetStateAction<Visitor[]>>, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>>, role: 'rh' | 'portaria' }) {
+    const { user } = useAuth();
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isReturningVisitorDialogOpen, setIsReturningVisitorDialogOpen] = useState(false);
@@ -73,6 +75,10 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs, role }
     };
 
     const handleNewEntry = (visitor: Visitor, newInfo: ReturningVisitorInfo) => {
+        if (!user) return;
+        
+        const registeredBy = user.role === 'rh' ? 'RH' : (user.username === 'portaria1' ? 'P1' : 'P2');
+
         // If it's a returning visitor with new info, update their details in the main visitors list
         const updatedVisitor = { ...visitor, ...newInfo };
         setVisitors(visitors.map(v => v.id === updatedVisitor.id ? updatedVisitor : v));
@@ -84,6 +90,7 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs, role }
             personType: 'visitor',
             entryTimestamp: new Date().toLocaleString('pt-BR'),
             exitTimestamp: null,
+            registeredBy,
             reason: newInfo.reason,
             responsible: newInfo.responsible,
             photoDataUrl: updatedVisitor.photoDataUrl,
@@ -106,6 +113,10 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs, role }
     };
 
     const handleExit = (visitor: Visitor) => {
+         if (!user) return;
+        
+        const registeredBy = user.role === 'rh' ? 'RH' : (user.username === 'portaria1' ? 'P1' : 'P2');
+
         const openLog = accessLogs.find(
             log => log.personId === visitor.id && log.exitTimestamp === null
         );
@@ -113,7 +124,7 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs, role }
         if (openLog) {
             const updatedLogs = accessLogs.map(log => 
                 log.id === openLog.id 
-                ? { ...log, exitTimestamp: new Date().toLocaleString('pt-BR') }
+                ? { ...log, exitTimestamp: new Date().toLocaleString('pt-BR'), registeredBy }
                 : log
             );
             setAccessLogs(updatedLogs);
@@ -161,6 +172,9 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs, role }
     };
 
     const handleAddNewVisitor = (visitor: Visitor) => {
+        if (!user) return;
+        const registeredBy = user.role === 'rh' ? 'RH' : (user.username === 'portaria1' ? 'P1' : 'P2');
+
         // Add the new visitor to the list
         setVisitors([visitor, ...visitors]);
         setIsAddDialogOpen(false);
@@ -173,6 +187,7 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs, role }
             personType: 'visitor',
             entryTimestamp: new Date().toLocaleString('pt-BR'),
             exitTimestamp: null,
+            registeredBy,
             // Snapshot visitor details
             reason: visitor.reason,
             responsible: visitor.responsible,
@@ -635,4 +650,5 @@ export function VisitorDashboard({
     </div>
   );
 }
+
 

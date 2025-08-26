@@ -37,6 +37,7 @@ export interface AccessLog {
   personType: 'employee' | 'visitor';
   entryTimestamp: string;
   exitTimestamp: string | null;
+  registeredBy: 'P1' | 'P2' | 'RH'; // Which gate/user registered the access
   // For visitors, capture the reason for this specific visit
   reason?: string; 
   responsible?: string;
@@ -65,3 +66,4 @@ export interface User {
     username: string;
     role: 'rh' | 'portaria';
 }
+

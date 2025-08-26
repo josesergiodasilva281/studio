@@ -80,7 +80,8 @@ export function EmployeeAccessLogTable() {
                 (log.ramal && log.ramal.toLowerCase().includes(searchTermLower)) ||
                 (log.status && log.status.toLowerCase().includes(searchTermLower)) ||
                 log.entryTimestamp.toLowerCase().includes(searchTermLower) ||
-                (log.exitTimestamp && log.exitTimestamp.toLowerCase().includes(searchTermLower))
+                (log.exitTimestamp && log.exitTimestamp.toLowerCase().includes(searchTermLower)) ||
+                (log.registeredBy && log.registeredBy.toLowerCase().includes(searchTermLower))
             );
         });
 
@@ -116,18 +117,16 @@ export function EmployeeAccessLogTable() {
                                     <TableHead>Matrícula</TableHead>
                                     <TableHead>Nome</TableHead>
                                     <TableHead>Setor</TableHead>
-                                    <TableHead>Placa</TableHead>
-                                    <TableHead>Ramal</TableHead>
-                                    <TableHead>Status no Momento</TableHead>
                                     <TableHead>Entrada</TableHead>
                                     <TableHead>Saída</TableHead>
+                                    <TableHead>Portaria</TableHead>
                                     <TableHead>Presença</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {enrichedLogs.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={9} className="text-center">
+                                        <TableCell colSpan={7} className="text-center">
                                             Nenhum registro de acesso encontrado.
                                         </TableCell>
                                     </TableRow>
@@ -139,17 +138,11 @@ export function EmployeeAccessLogTable() {
                                             <TableCell>{log.personId}</TableCell>
                                             <TableCell>{log.personName}</TableCell>
                                             <TableCell>{log.department || '-'}</TableCell>
-                                            <TableCell>{log.plate || '-'}</TableCell>
-                                            <TableCell>{log.ramal || '-'}</TableCell>
-                                            <TableCell>
-                                                {log.status ? (
-                                                    <Badge variant={log.status === 'Ativo' ? 'default' : 'destructive'}>
-                                                        {log.status}
-                                                    </Badge>
-                                                ) : '-'}
-                                            </TableCell>
                                             <TableCell>{log.entryTimestamp}</TableCell>
                                             <TableCell>{log.exitTimestamp || '-'}</TableCell>
+                                            <TableCell>
+                                                <Badge variant="secondary">{log.registeredBy}</Badge>
+                                            </TableCell>
                                              <TableCell>
                                                  <Badge 
                                                     variant={presence === 'Dentro' ? 'default' : 'destructive'}
@@ -169,3 +162,4 @@ export function EmployeeAccessLogTable() {
         </div>
     );
 }
+

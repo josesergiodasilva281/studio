@@ -40,6 +40,7 @@ import { Badge } from './ui/badge';
 import type { Employee, AccessLog } from '@/lib/types';
 import { Html5Qrcode } from 'html5-qrcode';
 import Link from 'next/link';
+import { useAuth } from '@/context/auth-context';
 
 
 const initialEmployees: Employee[] = [
@@ -313,8 +314,11 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     const [searchTerm, setSearchTerm] = useState('');
     const [inputValue, setInputValue] = useState('');
     const { toast } = useToast();
+    const { user } = useAuth();
 
     const handleManualEntry = (employee: Employee) => {
+        if (!user) return;
+
         if (employee.status === 'Inativo') {
             toast({ variant: 'destructive', title: 'Acesso Negado', description: `Funcionário ${employee.name} está inativo.` });
             return;
@@ -324,11 +328,13 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             log => log.personId === employee.id && log.exitTimestamp === null
         );
 
+        const registeredBy = user.role === 'rh' ? 'RH' : (user.username === 'portaria1' ? 'P1' : 'P2');
+
         if (openLog) {
             // Registering an exit
             const updatedLogs = accessLogs.map(log => 
                 log.id === openLog.id 
-                ? { ...log, exitTimestamp: new Date().toLocaleString('pt-BR') }
+                ? { ...log, exitTimestamp: new Date().toLocaleString('pt-BR'), registeredBy }
                 : log
             );
             setAccessLogs(updatedLogs);
@@ -346,6 +352,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 personType: 'employee',
                 entryTimestamp: new Date().toLocaleString('pt-BR'),
                 exitTimestamp: null,
+                registeredBy,
             };
             setAccessLogs(prevLogs => [newLog, ...prevLogs]);
             toast({
@@ -625,3 +632,4 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
     </div>
   );
 }
+

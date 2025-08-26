@@ -66,7 +66,8 @@ export function VisitorAccessLogTable() {
                 (log.responsible && log.responsible.toLowerCase().includes(searchTermLower)) ||
                 (log.reason && log.reason.toLowerCase().includes(searchTermLower)) ||
                 (log.entryTimestamp && log.entryTimestamp.toLowerCase().includes(searchTermLower)) ||
-                (log.exitTimestamp && log.exitTimestamp.toLowerCase().includes(searchTermLower))
+                (log.exitTimestamp && log.exitTimestamp.toLowerCase().includes(searchTermLower)) ||
+                (log.registeredBy && log.registeredBy.toLowerCase().includes(searchTermLower))
             );
         });
 
@@ -101,21 +102,19 @@ export function VisitorAccessLogTable() {
                                 <TableRow>
                                     <TableHead>Foto</TableHead>
                                     <TableHead>Nome</TableHead>
-                                    <TableHead>RG</TableHead>
-                                    <TableHead>CPF</TableHead>
                                     <TableHead>Empresa</TableHead>
-                                    <TableHead>Placa</TableHead>
                                     <TableHead>Responsável</TableHead>
                                     <TableHead>Motivo</TableHead>
                                     <TableHead>Entrada</TableHead>
                                     <TableHead>Saída</TableHead>
+                                    <TableHead>Portaria</TableHead>
                                     <TableHead>Presença</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {filteredLogs.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={11} className="text-center">
+                                        <TableCell colSpan={9} className="text-center">
                                             Nenhum registro de acesso encontrado.
                                         </TableCell>
                                     </TableRow>
@@ -141,14 +140,14 @@ export function VisitorAccessLogTable() {
                                                 </Dialog>
                                             </TableCell>
                                             <TableCell>{log.personName}</TableCell>
-                                            <TableCell>{log.rg || '-'}</TableCell>
-                                            <TableCell>{log.cpf || '-'}</TableCell>
                                             <TableCell>{log.company || '-'}</TableCell>
-                                            <TableCell>{log.plate || '-'}</TableCell>
                                             <TableCell>{log.responsible || '-'}</TableCell>
                                             <TableCell>{log.reason || '-'}</TableCell>
                                             <TableCell>{log.entryTimestamp}</TableCell>
                                             <TableCell>{log.exitTimestamp || '-'}</TableCell>
+                                            <TableCell>
+                                                <Badge variant="secondary">{log.registeredBy}</Badge>
+                                            </TableCell>
                                             <TableCell>
                                                  <Badge 
                                                     variant={presence === 'Dentro' ? 'default' : 'destructive'}
@@ -168,3 +167,4 @@ export function VisitorAccessLogTable() {
         </div>
     );
 }
+

@@ -17,6 +17,7 @@ import type { Employee, Visitor, AccessLog } from '@/lib/types';
 import { Button } from './ui/button';
 import { PlusCircle, Camera } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from './ui/dialog';
+import { useAuth } from '@/context/auth-context';
 
 
 function AccessControlUI({ 
@@ -26,7 +27,8 @@ function AccessControlUI({
     devices, 
     selectedDeviceId, 
     setSelectedDeviceId, 
-    readerRef 
+    readerRef,
+    role
 }: { 
     onAddEmployeeClick: () => void,
     isScannerOpen: boolean,
@@ -34,7 +36,8 @@ function AccessControlUI({
     devices: MediaDeviceInfo[],
     selectedDeviceId: string,
     setSelectedDeviceId: Dispatch<SetStateAction<string>>,
-    readerRef: React.RefObject<HTMLDivElement>
+    readerRef: React.RefObject<HTMLDivElement>,
+    role: 'rh' | 'portaria'
 }) {
     return (
       <>
@@ -45,10 +48,12 @@ function AccessControlUI({
                         <Camera className="mr-2 h-4 w-4" />
                         Abrir Leitor
                     </Button>
-                    <Button onClick={onAddEmployeeClick} variant="outline">
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Cadastrar Funcionário
-                    </Button>
+                    {role === 'rh' && (
+                        <Button onClick={onAddEmployeeClick} variant="outline">
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Cadastrar Funcionário
+                        </Button>
+                    )}
                 </div>
             </CardHeader>
             <CardContent>
@@ -95,6 +100,7 @@ function AccessControlUI({
 
 export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccessLogs }: { onAddEmployeeClick: () => void, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>> }) {
     const { toast } = useToast();
+    const { user } = useAuth();
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [visitors, setVisitors] = useState<Visitor[]>([]);
     
@@ -158,6 +164,10 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
 
 
      const handleNewLog = (person: Employee | Visitor, personType: 'employee' | 'visitor') => {
+        if (!user) return;
+        
+        const registeredBy = user.role === 'rh' ? 'RH' : (user.username === 'portaria1' ? 'P1' : 'P2');
+        
         const openLog = accessLogs.find(
             log => log.personId === person.id && log.exitTimestamp === null
         );
@@ -166,7 +176,7 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
             // Registering an exit
             const updatedLogs = accessLogs.map(log => 
                 log.id === openLog.id 
-                ? { ...log, exitTimestamp: new Date().toLocaleString('pt-BR') }
+                ? { ...log, exitTimestamp: new Date().toLocaleString('pt-BR'), registeredBy }
                 : log
             );
             setAccessLogs(updatedLogs);
@@ -184,6 +194,7 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
                 personType: personType,
                 entryTimestamp: new Date().toLocaleString('pt-BR'),
                 exitTimestamp: null,
+                registeredBy,
                 // Snapshot visitor details if it's a visitor
                 ...(personType === 'visitor' && {
                     reason: (person as Visitor).reason,
@@ -349,6 +360,7 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
         selectedDeviceId={selectedDeviceId}
         setSelectedDeviceId={setSelectedDeviceId}
         readerRef={readerRef}
+        role={user?.role || 'portaria'}
       />
     </div>
   );
