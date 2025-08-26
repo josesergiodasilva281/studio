@@ -7,6 +7,7 @@ export interface Employee {
   ramal: string;
   status: 'Ativo' | 'Inativo';
   portaria?: 'Nenhuma' | 'P1' | 'P2';
+  inactiveUntil?: string | null; // YYYY-MM-DD format
 }
 
 export interface Visitor {

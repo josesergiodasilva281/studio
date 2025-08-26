@@ -19,6 +19,7 @@ import { PlusCircle, Camera } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from './ui/dialog';
 import { useAuth } from '@/context/auth-context';
 import { getEmployeesFromFirestore } from '@/lib/firestoreService';
+import { isEmployeeEffectivelyActive } from './employee-dashboard';
 
 
 function AccessControlUI({ 
@@ -163,7 +164,7 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
 
         if (!person || !personType) {
             toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Pessoa não encontrada.' });
-        } else if (personType === 'employee' && (person as Employee).status === 'Inativo') {
+        } else if (personType === 'employee' && !isEmployeeEffectivelyActive(person as Employee)) {
             toast({ variant: 'destructive', title: 'Acesso Negado', description: `Funcionário ${person.name} está inativo.` });
         } else {
             handleNewLog(person, personType);
@@ -381,5 +382,3 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
     </div>
   );
 }
-
-    

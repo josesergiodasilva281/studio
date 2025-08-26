@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from './ui/button';
-import { Pencil, Trash2, GanttChartSquare, Camera, Home, Building, LogIn } from 'lucide-react';
+import { Pencil, Trash2, GanttChartSquare, Camera, Home, Building, LogIn, CalendarIcon } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,7 +42,27 @@ import { Html5Qrcode } from 'html5-qrcode';
 import Link from 'next/link';
 import { useAuth } from '@/context/auth-context';
 import { getEmployeesFromFirestore, addEmployeeToFirestore, updateEmployeeInFirestore, deleteEmployeeFromFirestore, addInitialEmployeesToFirestore } from '@/lib/firestoreService';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Calendar } from './ui/calendar';
+import { format, parseISO } from 'date-fns';
+import { cn } from '@/lib/utils';
 
+
+// Helper function to check if an employee should be considered active
+export const isEmployeeEffectivelyActive = (employee: Employee | null): boolean => {
+    if (!employee) return false;
+    if (employee.status === 'Ativo') return true;
+    if (employee.status === 'Inativo') {
+        if (!employee.inactiveUntil) return false; // Inativo indefinidamente
+        // A data é armazenada como YYYY-MM-DD. Adicionamos 1 dia para a reativação.
+        const reactivationDate = new Date(employee.inactiveUntil + 'T00:00:00');
+        reactivationDate.setDate(reactivationDate.getDate() + 1);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Normaliza para o início do dia
+        return today >= reactivationDate;
+    }
+    return false;
+};
 
 const emptyEmployee: Employee = {
     id: '',
@@ -52,6 +72,7 @@ const emptyEmployee: Employee = {
     ramal: '',
     status: 'Ativo',
     portaria: 'Nenhuma',
+    inactiveUntil: null,
 };
 
 function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boolean; onOpenChange: (open: boolean) => void; onBarcodeScan: (barcode: string) => void; }) {
@@ -322,7 +343,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     const handleManualEntry = (employee: Employee) => {
         if (!user) return;
 
-        if (employee.status === 'Inativo') {
+        if (!isEmployeeEffectivelyActive(employee)) {
             toast({ variant: 'destructive', title: 'Acesso Negado', description: `Funcionário ${employee.name} está inativo.` });
             return;
         }
@@ -385,8 +406,14 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     const handleSave = async () => {
         if (selectedEmployee) {
             try {
-                await updateEmployeeInFirestore(selectedEmployee);
-                setEmployees(employees.map(e => e.id === selectedEmployee.id ? selectedEmployee : e));
+                // Se o status for Ativo, limpa a data de inatividade
+                const employeeToSave = { ...selectedEmployee };
+                if (employeeToSave.status === 'Ativo') {
+                    employeeToSave.inactiveUntil = null;
+                }
+
+                await updateEmployeeInFirestore(employeeToSave);
+                setEmployees(employees.map(e => e.id === employeeToSave.id ? employeeToSave : e));
                 setIsEditDialogOpen(false);
                 setSelectedEmployee(null);
                 toast({ title: 'Funcionário atualizado com sucesso!' });
@@ -481,6 +508,9 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 <TableBody>
                 {filteredEmployees.map((employee) => {
                     const presence = getPresenceStatus(employee.id);
+                    const isEffectivelyActive = isEmployeeEffectivelyActive(employee);
+                    const displayStatus = isEffectivelyActive ? 'Ativo' : 'Inativo';
+                    
                     return (
                     <TableRow key={employee.id}>
                     <TableCell>{employee.id}</TableCell>
@@ -490,8 +520,11 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                     <TableCell>{employee.ramal}</TableCell>
                     <TableCell>{employee.portaria && employee.portaria !== 'Nenhuma' ? employee.portaria : '-'}</TableCell>
                     <TableCell>
-                        <Badge variant={employee.status === 'Ativo' ? 'default' : 'destructive'}>
-                            {employee.status}
+                        <Badge variant={displayStatus === 'Ativo' ? 'default' : 'destructive'}>
+                            {displayStatus}
+                            {employee.status === 'Inativo' && !isEffectivelyActive && employee.inactiveUntil && (
+                                <span className="ml-1.5 text-xs"> (até {format(parseISO(employee.inactiveUntil), 'dd/MM/yy')})</span>
+                            )}
                         </Badge>
                     </TableCell>
                     <TableCell>
@@ -593,6 +626,33 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                         </SelectContent>
                     </Select>
                 </div>
+                {selectedEmployee.status === 'Inativo' && (
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="inactiveUntil-edit" className="text-right">Inativo até</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                variant={"outline"}
+                                className={cn(
+                                    "col-span-3 justify-start text-left font-normal",
+                                    !selectedEmployee.inactiveUntil && "text-muted-foreground"
+                                )}
+                                >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {selectedEmployee.inactiveUntil ? format(parseISO(selectedEmployee.inactiveUntil), "dd/MM/yyyy") : <span>Selecione a data</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                                <Calendar
+                                mode="single"
+                                selected={selectedEmployee.inactiveUntil ? parseISO(selectedEmployee.inactiveUntil) : undefined}
+                                onSelect={(date) => setSelectedEmployee({...selectedEmployee, inactiveUntil: date ? format(date, 'yyyy-MM-dd') : null})}
+                                initialFocus
+                                />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                )}
              </div>
           )}
           <DialogFooter>

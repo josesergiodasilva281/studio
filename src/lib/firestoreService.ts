@@ -5,10 +5,10 @@ import type { Employee } from './types';
 
 const EMPLOYEES_COLLECTION = 'employees';
 
-const initialEmployees: Employee[] = [
-  { id: '1', name: 'João da Silva', department: 'Produção', plate: 'ABC-1234', ramal: '2101', status: 'Ativo', portaria: 'P1' },
-  { id: '2', name: 'Maria Oliveira', department: 'Logística', plate: 'DEF-5678', ramal: '2102', status: 'Ativo', portaria: 'P2' },
-  { id: '3', name: 'Pedro Souza', department: 'Administrativo', plate: 'GHI-9012', ramal: '2103', status: 'Inativo' },
+const initialEmployees: Omit<Employee, 'id'>[] = [
+  { name: 'João da Silva', department: 'Produção', plate: 'ABC-1234', ramal: '2101', status: 'Ativo', portaria: 'P1' },
+  { name: 'Maria Oliveira', department: 'Logística', plate: 'DEF-5678', ramal: '2102', status: 'Ativo', portaria: 'P2' },
+  { name: 'Pedro Souza', department: 'Administrativo', plate: 'GHI-9012', ramal: 'Inativo', inactiveUntil: null },
 ];
 
 export const getEmployeesFromFirestore = async (): Promise<Employee[]> => {
@@ -38,8 +38,13 @@ export const deleteEmployeeFromFirestore = async (employeeId: string): Promise<v
 
 export const addInitialEmployeesToFirestore = async (): Promise<void> => {
     const batch = writeBatch(db);
-    initialEmployees.forEach((employee) => {
-        const docRef = doc(db, EMPLOYEES_COLLECTION, employee.id);
+    initialEmployees.forEach((employeeData, index) => {
+        const id = (index + 1).toString();
+        const employee: Employee = { id, ...employeeData, status: 'Ativo' };
+        if (employeeData.name === 'Pedro Souza') {
+            employee.status = 'Inativo';
+        }
+        const docRef = doc(db, EMPLOYEES_COLLECTION, id);
         batch.set(docRef, employee);
     });
     await batch.commit();
