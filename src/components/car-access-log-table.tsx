@@ -147,7 +147,7 @@ export function CarAccessLogTable() {
                                     defaultMonth={date?.from}
                                     selected={date}
                                     onSelect={setDate}
-                                    numberOfMonths={2}
+                                    numberOfMonths={1}
                                     locale={ptBR}
                                 />
                             </PopoverContent>
