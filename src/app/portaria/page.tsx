@@ -10,6 +10,9 @@ import { VisitorDashboard } from '@/components/visitor-dashboard';
 import { CarDashboard } from '@/components/car-dashboard';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Users, CarIcon, Shield } from 'lucide-react';
+
 
 export default function PortariaPage() {
   const { user } = useAuth();
@@ -115,28 +118,41 @@ export default function PortariaPage() {
           accessLogs={accessLogs}
           setAccessLogs={setAccessLogs}
         />
-        <EmployeeDashboard 
-          role="portaria"
-          isAddEmployeeDialogOpen={isAddEmployeeDialogOpen} 
-          setIsAddEmployeeDialogOpen={setIsAddEmployeeDialogOpen}
-          accessLogs={accessLogs}
-          setAccessLogs={setAccessLogs}
-        />
-        <VisitorDashboard 
-          role="portaria"
-          visitors={visitors}
-          setVisitors={setVisitors}
-          accessLogs={accessLogs}
-          setAccessLogs={setAccessLogs}
-        />
-        <CarDashboard
-          role="portaria"
-          cars={cars}
-          setCars={setCars}
-          carLogs={carLogs}
-          setCarLogs={setCarLogs}
-          employees={[]}
-        />
+        <Tabs defaultValue="employees" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="employees"><Shield className="mr-2 h-4 w-4" />Funcionários</TabsTrigger>
+            <TabsTrigger value="visitors"><Users className="mr-2 h-4 w-4" />Visitantes</TabsTrigger>
+            <TabsTrigger value="cars"><CarIcon className="mr-2 h-4 w-4" />Frota</TabsTrigger>
+          </TabsList>
+          <TabsContent value="employees">
+            <EmployeeDashboard 
+              role="portaria"
+              isAddEmployeeDialogOpen={isAddEmployeeDialogOpen} 
+              setIsAddEmployeeDialogOpen={setIsAddEmployeeDialogOpen}
+              accessLogs={accessLogs}
+              setAccessLogs={setAccessLogs}
+            />
+          </TabsContent>
+          <TabsContent value="visitors">
+            <VisitorDashboard 
+              role="portaria"
+              visitors={visitors}
+              setVisitors={setVisitors}
+              accessLogs={accessLogs}
+              setAccessLogs={setAccessLogs}
+            />
+          </TabsContent>
+          <TabsContent value="cars">
+            <CarDashboard
+              role="portaria"
+              cars={cars}
+              setCars={setCars}
+              carLogs={carLogs}
+              setCarLogs={setCarLogs}
+              employees={[]}
+            />
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
