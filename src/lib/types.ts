@@ -59,6 +59,8 @@ export interface CarLog {
   endTime: string | null;
   startKm?: string;
   endKm?: string;
+  startRegisteredBy?: 'P1' | 'P2' | 'RH';
+  endRegisteredBy?: 'P1' | 'P2' | 'RH';
 }
 
 export interface User {
@@ -66,4 +68,3 @@ export interface User {
     username: string;
     role: 'rh' | 'portaria';
 }
-

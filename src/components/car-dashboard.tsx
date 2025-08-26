@@ -39,6 +39,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from './ui/badge';
 import type { Car, CarLog, Employee } from '@/lib/types';
 import Link from 'next/link';
+import { useAuth } from '@/context/auth-context';
 
 const emptyCar: Omit<Car, 'id' | 'status' | 'lastDriverName' | 'lastKm'> = {
     fleet: '',
@@ -224,6 +225,7 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, role }: { cars: Car[], s
     const [selectedCar, setSelectedCar] = useState<Car | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const { toast } = useToast();
+    const { user } = useAuth();
 
     const handleEditClick = (car: Car) => {
         setSelectedCar(JSON.parse(JSON.stringify(car)));
@@ -242,13 +244,20 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, role }: { cars: Car[], s
     };
 
     const handleReturn = (carId: string, returnData: CarReturnData) => {
+        if (!user) return;
+        const registeredBy = user.role === 'rh' ? 'RH' : (user.username === 'portaria1' ? 'P1' : 'P2');
+        
         const openLog = carLogs.find(log => log.carId === carId && log.endTime === null);
         if (!openLog) {
             toast({ variant: 'destructive', title: 'Erro', description: 'Não há registro de saída em aberto para este carro.' });
             return;
         }
 
-        const updatedLogs = carLogs.map(log => log.id === openLog.id ? { ...log, endTime: new Date().toLocaleString('pt-BR'), endKm: returnData.endKm, returnDriverName: returnData.driverName } : log);
+        const updatedLogs = carLogs.map(log => 
+            log.id === openLog.id 
+                ? { ...log, endTime: new Date().toLocaleString('pt-BR'), endKm: returnData.endKm, returnDriverName: returnData.driverName, endRegisteredBy: registeredBy } 
+                : log
+        );
         setCarLogs(updatedLogs);
 
         const updatedCars = cars.map(car => car.id === carId ? { ...car, status: 'Disponível', lastKm: returnData.endKm, lastDriverName: returnData.driverName } : car);
@@ -259,7 +268,9 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, role }: { cars: Car[], s
     };
 
     const handleCheckout = (logData: CarCheckoutData) => {
-        if (!selectedCar) return;
+        if (!selectedCar || !user) return;
+        
+        const registeredBy = user.role === 'rh' ? 'RH' : (user.username === 'portaria1' ? 'P1' : 'P2');
 
         const newLog: CarLog = {
             id: `carlog-${Date.now()}`,
@@ -269,6 +280,7 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, role }: { cars: Car[], s
             startTime: new Date().toLocaleString('pt-BR'),
             endTime: null,
             startKm: logData.startKm,
+            startRegisteredBy: registeredBy,
         };
 
         setCarLogs([newLog, ...carLogs]);
