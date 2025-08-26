@@ -225,10 +225,12 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs, role }
                 <CardTitle>Visitantes</CardTitle>
             </div>
             <div className="flex items-center gap-2">
-                <Button onClick={() => setIsAddDialogOpen(true)}>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Cadastrar Visitante
-                </Button>
+                {role === 'portaria' && (
+                    <Button onClick={() => setIsAddDialogOpen(true)}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Cadastrar Visitante
+                    </Button>
+                )}
                 <Link href="/visitors/history">
                     <Button variant="outline">
                       <GanttChartSquare className="mr-2 h-4 w-4" />
@@ -633,3 +635,4 @@ export function VisitorDashboard({
     </div>
   );
 }
+
