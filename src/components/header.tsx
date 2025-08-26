@@ -44,11 +44,6 @@ export function Header() {
                 <KeyRound className="mr-2 h-4 w-4" /> RH
               </Button>
             </Link>
-            <Link href="/portaria">
-              <Button variant="ghost" className={cn("text-sm font-medium", pathname.startsWith('/portaria') ? "text-primary" : "text-muted-foreground", "hover:text-primary")}>
-                <Shield className="mr-2 h-4 w-4" /> Portaria
-              </Button>
-            </Link>
              <Link href="/dashboard">
               <Button variant="ghost" className={cn("text-sm font-medium", pathname.startsWith('/dashboard') ? "text-primary" : "text-muted-foreground", "hover:text-primary")}>
                 <Users className="mr-2 h-4 w-4" /> Visitantes
