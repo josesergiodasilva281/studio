@@ -41,6 +41,7 @@ import type { Employee, AccessLog } from '@/lib/types';
 import { Html5Qrcode } from 'html5-qrcode';
 import Link from 'next/link';
 import { useAuth } from '@/context/auth-context';
+import { getEmployeesFromFirestore, addEmployeeToFirestore, updateEmployeeInFirestore, deleteEmployeeFromFirestore, migrateLocalStorageToFirestore } from '@/lib/firestoreService';
 
 
 const initialEmployees: Employee[] = [
@@ -376,20 +377,41 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         setIsEditDialogOpen(true);
     };
 
-    const handleDeleteClick = (employeeId: string) => {
-        setEmployees(employees.filter(e => e.id !== employeeId));
-    };
-
-    const handleSave = () => {
-        if (selectedEmployee) {
-          setEmployees(employees.map(e => e.id === selectedEmployee.id ? selectedEmployee : e));
+    const handleDeleteClick = async (employeeId: string) => {
+        try {
+            await deleteEmployeeFromFirestore(employeeId);
+            setEmployees(employees.filter(e => e.id !== employeeId));
+            toast({ title: 'Funcionário excluído com sucesso!' });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro ao excluir funcionário' });
+            console.error(error);
         }
-        setIsEditDialogOpen(false);
-        setSelectedEmployee(null);
     };
 
-    const handleAddNewEmployee = (employee: Employee) => {
-        setEmployees([employee, ...employees]);
+    const handleSave = async () => {
+        if (selectedEmployee) {
+            try {
+                await updateEmployeeInFirestore(selectedEmployee);
+                setEmployees(employees.map(e => e.id === selectedEmployee.id ? selectedEmployee : e));
+                setIsEditDialogOpen(false);
+                setSelectedEmployee(null);
+                toast({ title: 'Funcionário atualizado com sucesso!' });
+            } catch (error) {
+                toast({ variant: 'destructive', title: 'Erro ao atualizar funcionário' });
+                console.error(error);
+            }
+        }
+    };
+
+    const handleAddNewEmployee = async (employee: Employee) => {
+        try {
+            await addEmployeeToFirestore(employee);
+            setEmployees([employee, ...employees]);
+            toast({ title: 'Funcionário adicionado com sucesso!' });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro ao adicionar funcionário' });
+            console.error(error);
+        }
     };
 
     const getPresenceStatus = (employeeId: string) => {
@@ -591,46 +613,57 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
 
 export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen, accessLogs, setAccessLogs }: { role: 'rh' | 'portaria', isAddEmployeeDialogOpen: boolean, setIsAddEmployeeDialogOpen: Dispatch<SetStateAction<boolean>>, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>> }) {
     const [employees, setEmployees] = useState<Employee[]>([]);
+    const { toast } = useToast();
+    const [isLoading, setIsLoading] = useState(true);
 
-    // Load employees from localStorage on initial render
     useEffect(() => {
-        try {
-            const storedEmployees = localStorage.getItem('employees');
-            if (storedEmployees) {
-                setEmployees(JSON.parse(storedEmployees));
-            } else {
-                // If nothing in localStorage, initialize with default data
-                setEmployees(initialEmployees);
-            }
-        } catch (error) {
-            console.error("Error reading employees from localStorage", error);
-            setEmployees(initialEmployees); // Fallback to initial data on error
-        }
-    }, []);
+        const runMigrationAndFetch = async () => {
+            try {
+                const migrationFlag = localStorage.getItem('firestoreEmployeeMigrationComplete');
+                if (!migrationFlag) {
+                    const localEmployeesStr = localStorage.getItem('employees');
+                    const localEmployees: Employee[] = localEmployeesStr ? JSON.parse(localEmployeesStr) : initialEmployees;
+                    
+                    if (localEmployees.length > 0) {
+                        toast({ title: "Migrando dados...", description: "Transferindo funcionários para o banco de dados." });
+                        await migrateLocalStorageToFirestore(localEmployees);
+                        localStorage.setItem('firestoreEmployeeMigrationComplete', 'true');
+                        toast({ title: "Migração Concluída!", description: "Os dados agora estão no Firestore." });
+                    }
+                }
+                
+                const firestoreEmployees = await getEmployeesFromFirestore();
+                setEmployees(firestoreEmployees);
 
-    // Save employees to localStorage whenever they change
-    useEffect(() => {
-        try {
-             if (employees.length > 0) { 
-                localStorage.setItem('employees', JSON.stringify(employees));
+            } catch (error) {
+                console.error("Error during migration or fetch:", error);
+                toast({ variant: 'destructive', title: 'Erro de Dados', description: 'Não foi possível carregar os dados dos funcionários.' });
+            } finally {
+                setIsLoading(false);
             }
-        } catch (error) {
-            console.error("Error writing employees to localStorage", error);
-        }
-    }, [employees]);
+        };
+
+        runMigrationAndFetch();
+    }, [toast]);
 
 
   return (
     <div className="container mx-auto">
-        <EmployeeTable 
-            employees={employees} 
-            setEmployees={setEmployees} 
-            isAddEmployeeDialogOpen={isAddEmployeeDialogOpen}
-            setIsAddEmployeeDialogOpen={setIsAddEmployeeDialogOpen}
-            accessLogs={accessLogs}
-            setAccessLogs={setAccessLogs}
-            role={role}
-        />
+        {isLoading ? (
+            <div className="flex justify-center items-center h-64">
+                <p>Carregando funcionários...</p>
+            </div>
+        ) : (
+            <EmployeeTable 
+                employees={employees} 
+                setEmployees={setEmployees} 
+                isAddEmployeeDialogOpen={isAddEmployeeDialogOpen}
+                setIsAddEmployeeDialogOpen={setIsAddEmployeeDialogOpen}
+                accessLogs={accessLogs}
+                setAccessLogs={setAccessLogs}
+                role={role}
+            />
+        )}
     </div>
   );
 }
