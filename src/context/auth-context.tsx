@@ -18,7 +18,7 @@ const MOCK_PASSWORDS: { [key: string]: string } = {
     rh: '250250',
     portaria1: '332030',
     portaria2: '102030',
-    supervisor: 'supervisor',
+    supervisor: '1234',
 };
 
 
