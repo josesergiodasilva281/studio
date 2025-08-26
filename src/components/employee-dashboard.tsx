@@ -41,14 +41,8 @@ import type { Employee, AccessLog } from '@/lib/types';
 import { Html5Qrcode } from 'html5-qrcode';
 import Link from 'next/link';
 import { useAuth } from '@/context/auth-context';
-import { getEmployeesFromFirestore, addEmployeeToFirestore, updateEmployeeInFirestore, deleteEmployeeFromFirestore, migrateLocalStorageToFirestore } from '@/lib/firestoreService';
+import { getEmployeesFromFirestore, addEmployeeToFirestore, updateEmployeeInFirestore, deleteEmployeeFromFirestore, addInitialEmployeesToFirestore } from '@/lib/firestoreService';
 
-
-const initialEmployees: Employee[] = [
-  { id: '1', name: 'João da Silva', department: 'Produção', plate: 'ABC-1234', ramal: '2101', status: 'Ativo', portaria: 'P1' },
-  { id: '2', name: 'Maria Oliveira', department: 'Logística', plate: 'DEF-5678', ramal: '2102', status: 'Ativo', portaria: 'P2' },
-  { id: '3', name: 'Pedro Souza', department: 'Administrativo', plate: 'GHI-9012', ramal: '2103', status: 'Inativo' },
-];
 
 const emptyEmployee: Employee = {
     id: '',
@@ -617,33 +611,27 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const runMigrationAndFetch = async () => {
+        const initializeData = async () => {
             try {
-                const migrationFlag = localStorage.getItem('firestoreEmployeeMigrationComplete');
-                if (!migrationFlag) {
-                    const localEmployeesStr = localStorage.getItem('employees');
-                    const localEmployees: Employee[] = localEmployeesStr ? JSON.parse(localEmployeesStr) : initialEmployees;
-                    
-                    if (localEmployees.length > 0) {
-                        toast({ title: "Migrando dados...", description: "Transferindo funcionários para o banco de dados." });
-                        await migrateLocalStorageToFirestore(localEmployees);
-                        localStorage.setItem('firestoreEmployeeMigrationComplete', 'true');
-                        toast({ title: "Migração Concluída!", description: "Os dados agora estão no Firestore." });
-                    }
+                let firestoreEmployees = await getEmployeesFromFirestore();
+
+                if (firestoreEmployees.length === 0) {
+                    toast({ title: "Configurando...", description: "Adicionando funcionários iniciais ao banco de dados." });
+                    await addInitialEmployeesToFirestore();
+                    firestoreEmployees = await getEmployeesFromFirestore(); // Fetch again after adding
                 }
                 
-                const firestoreEmployees = await getEmployeesFromFirestore();
                 setEmployees(firestoreEmployees);
 
             } catch (error) {
-                console.error("Error during migration or fetch:", error);
+                console.error("Error during data initialization:", error);
                 toast({ variant: 'destructive', title: 'Erro de Dados', description: 'Não foi possível carregar os dados dos funcionários.' });
             } finally {
                 setIsLoading(false);
             }
         };
 
-        runMigrationAndFetch();
+        initializeData();
     }, [toast]);
 
 
