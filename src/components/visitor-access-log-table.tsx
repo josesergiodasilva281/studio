@@ -41,6 +41,7 @@ export function VisitorAccessLogTable() {
     const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [inputValue, setInputValue] = useState('');
+    const [isCalendarOpen, setIsCalendarOpen] = useState(false);
      const [date, setDate] = useState<DateRange | undefined>({
         from: new Date(),
         to: new Date(),
@@ -106,6 +107,14 @@ export function VisitorAccessLogTable() {
             setSearchTerm(inputValue);
         }
     };
+    
+    const handleDateSelect = (selectedDate: DateRange | undefined) => {
+        setDate(selectedDate);
+        if (selectedDate?.from && selectedDate?.to) {
+            setIsCalendarOpen(false);
+        }
+    }
+
 
     return (
         <div className="container mx-auto">
@@ -125,7 +134,7 @@ export function VisitorAccessLogTable() {
                             onKeyDown={handleSearchKeyDown}
                             className="max-w-sm"
                         />
-                         <Popover>
+                         <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                             <PopoverTrigger asChild>
                                 <Button
                                     id="date"
@@ -156,7 +165,7 @@ export function VisitorAccessLogTable() {
                                     mode="range"
                                     defaultMonth={date?.from}
                                     selected={date}
-                                    onSelect={setDate}
+                                    onSelect={handleDateSelect}
                                     numberOfMonths={1}
                                     locale={ptBR}
                                 />
