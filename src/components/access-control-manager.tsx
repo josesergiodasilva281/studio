@@ -18,6 +18,7 @@ import { Button } from './ui/button';
 import { PlusCircle, Camera } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from './ui/dialog';
 import { useAuth } from '@/context/auth-context';
+import { getEmployeesFromFirestore } from '@/lib/firestoreService';
 
 
 function AccessControlUI({ 
@@ -115,17 +116,24 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
     const [barcodeScanInput, setBarcodeScanInput] = useState('');
     const barcodeScanTimer = useRef<NodeJS.Timeout | null>(null);
 
-    // Load employees from localStorage on initial render
+    // Load employees from Firestore
     useEffect(() => {
-        try {
-            const storedEmployees = localStorage.getItem('employees');
-            if (storedEmployees) {
-                setEmployees(JSON.parse(storedEmployees));
+        const fetchEmployees = async () => {
+            try {
+                const firestoreEmployees = await getEmployeesFromFirestore();
+                setEmployees(firestoreEmployees);
+            } catch (error) {
+                console.error("Error fetching employees from Firestore:", error);
+                toast({ variant: 'destructive', title: 'Erro ao carregar funcionários' });
             }
-        } catch (error) {
-            console.error("Error reading employees from localStorage", error);
-        }
-    }, []);
+        };
+
+        fetchEmployees();
+        // This is a simple way to keep it in sync. For a real-time app, you'd use onSnapshot.
+        const interval = setInterval(fetchEmployees, 30000); // Re-fetch every 30 seconds
+        return () => clearInterval(interval);
+    }, [toast]);
+
 
      // Load visitors from localStorage on initial render
     useEffect(() => {
@@ -373,3 +381,5 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
     </div>
   );
 }
+
+    
