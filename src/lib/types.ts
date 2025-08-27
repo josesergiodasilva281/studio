@@ -36,8 +36,8 @@ export interface AccessLog {
   personName: string;
   personId: string;
   personType: 'employee' | 'visitor';
-  entryTimestamp: string;
-  exitTimestamp: string | null;
+  entryTimestamp: string; // ISO 8601 format
+  exitTimestamp: string | null; // ISO 8601 format
   registeredBy: 'P1' | 'P2' | 'RH' | 'Supervisor'; // Which gate/user registered the access
   // For visitors, capture the reason for this specific visit
   reason?: string; 
@@ -56,8 +56,8 @@ export interface CarLog {
   carFleet: string;
   driverName: string;
   returnDriverName?: string;
-  startTime: string;
-  endTime: string | null;
+  startTime: string; // ISO 8601 format
+  endTime: string | null; // ISO 8601 format
   startKm?: string;
   endKm?: string;
   startRegisteredBy?: 'P1' | 'P2' | 'RH' | 'Supervisor';

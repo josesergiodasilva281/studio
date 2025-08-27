@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Badge } from './ui/badge';
-import type { Car, CarLog, Employee } from '@/lib/types';
+import type { Car, CarLog } from '@/lib/types';
 import Link from 'next/link';
 import { useAuth } from '@/context/auth-context';
 
@@ -217,7 +217,25 @@ function CarReturnDialog({ open, onOpenChange, car, onSave }: { open: boolean, o
 }
 
 
-function CarTable({ cars, setCars, carLogs, setCarLogs, role }: { cars: Car[], setCars: Dispatch<SetStateAction<Car[]>>, carLogs: CarLog[], setCarLogs: Dispatch<SetStateAction<CarLog[]>>, role: 'rh' | 'portaria' }) {
+function CarTable({ 
+    cars, 
+    setCars, 
+    carLogs, 
+    setCarLogs, 
+    role, 
+    addOrUpdateCar, 
+    deleteCar, 
+    addOrUpdateCarLog 
+}: { 
+    cars: Car[], 
+    setCars: Dispatch<SetStateAction<Car[]>>, 
+    carLogs: CarLog[], 
+    setCarLogs: Dispatch<SetStateAction<CarLog[]>>, 
+    role: 'rh' | 'portaria',
+    addOrUpdateCar: (car: Car) => Promise<void>,
+    deleteCar: (carId: string) => Promise<void>,
+    addOrUpdateCarLog: (log: CarLog) => Promise<void>
+}) {
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isLogDialogOpen, setIsLogDialogOpen] = useState(false);
@@ -252,7 +270,7 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, role }: { cars: Car[], s
         }
     };
 
-    const handleReturn = (carId: string, returnData: CarReturnData) => {
+    const handleReturn = async (carId: string, returnData: CarReturnData) => {
         const registeredBy = getRegisteredBy();
         
         const openLog = carLogs.find(log => log.carId === carId && log.endTime === null);
@@ -261,21 +279,25 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, role }: { cars: Car[], s
             return;
         }
 
-        const updatedLogs = carLogs.map(log => 
-            log.id === openLog.id 
-                ? { ...log, endTime: new Date().toLocaleString('pt-BR'), endKm: returnData.endKm, returnDriverName: returnData.driverName, endRegisteredBy: registeredBy } 
-                : log
-        );
-        setCarLogs(updatedLogs);
+        const updatedLog = { 
+            ...openLog, 
+            endTime: new Date().toISOString(), 
+            endKm: returnData.endKm, 
+            returnDriverName: returnData.driverName, 
+            endRegisteredBy: registeredBy 
+        };
+        await addOrUpdateCarLog(updatedLog);
+        setCarLogs(carLogs.map(log => log.id === openLog.id ? updatedLog : log));
 
-        const updatedCars = cars.map(car => car.id === carId ? { ...car, status: 'Disponível', lastKm: returnData.endKm, lastDriverName: returnData.driverName } : car);
-        setCars(updatedCars);
+        const updatedCar = { ...cars.find(c => c.id === carId)!, status: 'Disponível' as const, lastKm: returnData.endKm, lastDriverName: returnData.driverName };
+        await addOrUpdateCar(updatedCar);
+        setCars(cars.map(car => car.id === carId ? updatedCar : car));
         
         toast({ title: 'Retorno Registrado', description: `O carro de placa ${carId} está disponível novamente.` });
         setSelectedCar(null);
     };
 
-    const handleCheckout = (logData: CarCheckoutData) => {
+    const handleCheckout = async (logData: CarCheckoutData) => {
         if (!selectedCar) return;
         
         const registeredBy = getRegisteredBy();
@@ -285,39 +307,44 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, role }: { cars: Car[], s
             carId: selectedCar.id,
             carFleet: selectedCar.fleet,
             driverName: logData.driverName,
-            startTime: new Date().toLocaleString('pt-BR'),
+            startTime: new Date().toISOString(),
             endTime: null,
             startKm: logData.startKm,
             startRegisteredBy: registeredBy,
         };
 
+        await addOrUpdateCarLog(newLog);
         setCarLogs([newLog, ...carLogs]);
         
-        const updatedCars = cars.map(c => c.id === selectedCar.id ? { ...c, status: 'Em uso' as const, lastDriverName: logData.driverName, lastKm: logData.startKm } : c);
-        setCars(updatedCars);
+        const updatedCar = { ...selectedCar, status: 'Em uso' as const, lastDriverName: logData.driverName, lastKm: logData.startKm };
+        await addOrUpdateCar(updatedCar);
+        setCars(cars.map(c => c.id === selectedCar.id ? updatedCar : c));
 
         toast({ title: 'Saída Registrada', description: `O carro ${selectedCar.id} está em uso por ${logData.driverName}.` });
         setSelectedCar(null);
     };
 
-    const handleDeleteClick = (carId: string) => {
+    const handleDeleteClick = async (carId: string) => {
         if (carLogs.some(log => log.carId === carId && log.endTime === null)) {
             toast({ variant: 'destructive', title: 'Ação não permitida', description: 'Não é possível excluir um carro que está em uso.' });
             return;
         }
+        await deleteCar(carId);
         setCars(cars.filter(c => c.id !== carId));
         toast({ title: 'Carro Excluído', description: 'O registro do carro foi removido.' });
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (selectedCar) {
+            await addOrUpdateCar(selectedCar);
             setCars(cars.map(c => c.id === selectedCar.id ? selectedCar : c));
         }
         setIsEditDialogOpen(false);
         setSelectedCar(null);
     };
 
-    const handleAddNewCar = (car: Car) => {
+    const handleAddNewCar = async (car: Car) => {
+        await addOrUpdateCar(car);
         setCars([car, ...cars]);
     };
 
@@ -480,19 +507,46 @@ function CarTable({ cars, setCars, carLogs, setCarLogs, role }: { cars: Car[], s
     );
 }
 
-export function CarDashboard({ cars, setCars, carLogs, setCarLogs, employees: initialEmployees, role = 'rh' }: { cars: Car[], setCars: Dispatch<SetStateAction<Car[]>>, carLogs: CarLog[], setCarLogs: Dispatch<SetStateAction<CarLog[]>>, employees: Employee[], role?: 'rh' | 'portaria' }) {
-
-    // This component no longer needs employees, but we keep the prop for now to avoid breaking changes in parent components.
+export function CarDashboard({ 
+    cars, 
+    setCars, 
+    carLogs, 
+    setCarLogs, 
+    isLoading,
+    addOrUpdateCar,
+    deleteCar,
+    addOrUpdateCarLog,
+    role = 'rh' 
+}: { 
+    cars: Car[], 
+    setCars: Dispatch<SetStateAction<Car[]>>, 
+    carLogs: CarLog[], 
+    setCarLogs: Dispatch<SetStateAction<CarLog[]>>,
+    isLoading: boolean,
+    addOrUpdateCar: (car: Car) => Promise<void>,
+    deleteCar: (carId: string) => Promise<void>,
+    addOrUpdateCarLog: (log: CarLog) => Promise<void>,
+    role?: 'rh' | 'portaria' 
+}) {
     
     return (
         <div className="container mx-auto">
-            <CarTable
-                cars={cars}
-                setCars={setCars}
-                carLogs={carLogs}
-                setCarLogs={setCarLogs}
-                role={role}
-            />
+             {isLoading ? (
+                <div className="flex justify-center items-center h-64">
+                    <p>Carregando frota...</p>
+                </div>
+            ) : (
+                <CarTable
+                    cars={cars}
+                    setCars={setCars}
+                    carLogs={carLogs}
+                    setCarLogs={setCarLogs}
+                    role={role}
+                    addOrUpdateCar={addOrUpdateCar}
+                    deleteCar={deleteCar}
+                    addOrUpdateCarLog={addOrUpdateCarLog}
+                />
+            )}
         </div>
     );
 }

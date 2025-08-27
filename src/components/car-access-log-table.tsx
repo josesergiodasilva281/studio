@@ -3,7 +3,7 @@
 "use client";
 
 import { useEffect, useState, KeyboardEvent } from 'react';
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from "react-day-picker";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,59 +24,43 @@ import { Calendar as CalendarIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
+import { getCarLogsFromFirestore } from '@/lib/firestoreService';
 
-// Helper function to parse pt-BR date strings
-const parsePtBrDate = (dateString: string): Date | null => {
-    if (!dateString) return null;
-    const parts = dateString.split(', ');
-    if (parts.length < 2) return null;
-    const dateParts = parts[0].split('/');
-    if (dateParts.length !== 3) return null;
-    return new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}T${parts[1]}`);
-};
 
 export function CarAccessLogTable({ readOnly = false }: { readOnly?: boolean }) {
     const [carLogs, setCarLogs] = useState<CarLog[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [inputValue, setInputValue] = useState('');
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-    const [date, setDate] = useState<DateRange | undefined>({
-        from: new Date(),
-        to: new Date(),
-    });
+    const [date, setDate] = useState<DateRange | undefined>(undefined);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const loadData = () => {
+        const loadData = async () => {
+            setIsLoading(true);
             try {
-                const storedLogs = localStorage.getItem('carLogs');
-                if (storedLogs) {
-                    setCarLogs(JSON.parse(storedLogs));
-                }
+                const storedLogs = await getCarLogsFromFirestore(500);
+                setCarLogs(storedLogs);
             } catch (error) {
-                console.error("Error reading from localStorage", error);
+                console.error("Error reading from Firestore", error);
+            } finally {
+                setIsLoading(false);
             }
         };
         
         loadData();
-
-        const handleStorageChange = () => loadData();
-        window.addEventListener('storage', handleStorageChange);
-        
-        return () => {
-            window.removeEventListener('storage', handleStorageChange);
-        };
     }, []);
     
     const filteredLogs = carLogs.filter(log => {
         // Date filtering
-        const logDate = parsePtBrDate(log.startTime);
-        if (!logDate) return false;
-
-        const fromDate = date?.from ? new Date(date.from.setHours(0, 0, 0, 0)) : null;
-        const toDate = date?.to ? new Date(date.to.setHours(23, 59, 59, 999)) : null;
-
-        if (fromDate && logDate < fromDate) return false;
-        if (toDate && logDate > toDate) return false;
+        if (date?.from && date?.to) {
+            const logDate = parseISO(log.startTime);
+            const fromDate = new Date(date.from.setHours(0, 0, 0, 0));
+            const toDate = new Date(date.to.setHours(23, 59, 59, 999));
+            if (logDate < fromDate || logDate > toDate) {
+                return false;
+            }
+        }
 
         // Search term filtering
         if (!searchTerm) return true;
@@ -184,18 +168,24 @@ export function CarAccessLogTable({ readOnly = false }: { readOnly?: boolean }) 
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredLogs.length > 0 ? (
+                                {isLoading ? (
+                                    <TableRow>
+                                        <TableCell colSpan={11} className="text-center">
+                                            Carregando histórico...
+                                        </TableCell>
+                                    </TableRow>
+                                ) : filteredLogs.length > 0 ? (
                                     filteredLogs.map((log) => (
                                         <TableRow key={log.id}>
                                             <TableCell>{log.carFleet}</TableCell>
                                             <TableCell className="font-medium">{log.carId}</TableCell>
                                             <TableCell>{log.driverName}</TableCell>
                                             <TableCell>{log.startKm || '-'}</TableCell>
-                                            <TableCell>{log.startTime}</TableCell>
+                                            <TableCell>{format(parseISO(log.startTime), 'dd/MM/yyyy HH:mm:ss')}</TableCell>
                                             <TableCell>
                                                 <Badge variant="secondary">{log.startRegisteredBy || '-'}</Badge>
                                             </TableCell>
-                                            <TableCell>{log.endTime || 'Em uso'}</TableCell>
+                                            <TableCell>{log.endTime ? format(parseISO(log.endTime), 'dd/MM/yyyy HH:mm:ss') : 'Em uso'}</TableCell>
                                             <TableCell>{log.returnDriverName || '-'}</TableCell>
                                             <TableCell>{log.endKm || '-'}</TableCell>
                                             <TableCell>
@@ -211,7 +201,7 @@ export function CarAccessLogTable({ readOnly = false }: { readOnly?: boolean }) 
                                 ) : (
                                     <TableRow>
                                         <TableCell colSpan={11} className="text-center">
-                                            Nenhum registro encontrado para o período selecionado.
+                                            Nenhum registro encontrado para os filtros aplicados.
                                         </TableCell>
                                     </TableRow>
                                 )}

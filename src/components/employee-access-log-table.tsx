@@ -3,7 +3,7 @@
 "use client";
 
 import { useEffect, useState, KeyboardEvent } from 'react';
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 import { DateRange } from "react-day-picker";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,21 +24,11 @@ import Link from 'next/link';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { cn } from '@/lib/utils';
+import { getAccessLogsFromFirestore, getEmployeesFromFirestore } from '@/lib/firestoreService';
 
 // Combine Log with Employee details
 type EnrichedAccessLog = AccessLog & Partial<Omit<Employee, 'id' | 'name'>>;
 
-// Helper function to parse pt-BR date strings
-const parsePtBrDate = (dateString: string): Date | null => {
-    if (!dateString) return null;
-    // Format: "26/07/2024, 15:30:00" -> "2024-07-26T15:30:00"
-    const parts = dateString.split(', ');
-    if (parts.length < 2) return null;
-    const dateParts = parts[0].split('/');
-    if (dateParts.length !== 3) return null;
-    // year, month (0-indexed), day
-    return new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}T${parts[1]}`);
-};
 
 export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolean }) {
     const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
@@ -46,42 +36,31 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
     const [searchTerm, setSearchTerm] = useState('');
     const [inputValue, setInputValue] = useState('');
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-    const [date, setDate] = useState<DateRange | undefined>({
-        from: new Date(),
-        to: new Date(),
-    });
+    const [date, setDate] = useState<DateRange | undefined>(undefined);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // Load data from localStorage on initial render
+    // Load data from Firestore on initial render
     useEffect(() => {
-        const loadData = () => {
+        const loadData = async () => {
+            setIsLoading(true);
             try {
-                const storedLogs = localStorage.getItem('accessLogs');
-                if (storedLogs) {
-                    setAccessLogs(JSON.parse(storedLogs));
-                }
-                const storedEmployees = localStorage.getItem('employees');
-                 if (storedEmployees) {
-                    setEmployees(JSON.parse(storedEmployees));
-                }
+                const [logs, emps] = await Promise.all([
+                    getAccessLogsFromFirestore(500), // Fetch more for history
+                    getEmployeesFromFirestore()
+                ]);
+                setAccessLogs(logs.filter(log => log.personType === 'employee'));
+                setEmployees(emps);
             } catch (error) {
-                console.error("Error reading from localStorage", error);
+                console.error("Error reading from Firestore", error);
+            } finally {
+                setIsLoading(false);
             }
         };
         
         loadData();
-
-        // Listen for custom event to reload logs
-        const handleStorageChange = () => loadData();
-        window.addEventListener('storage', handleStorageChange);
-        
-        // Cleanup listener
-        return () => {
-            window.removeEventListener('storage', handleStorageChange);
-        };
     }, []);
     
     const enrichedLogs: EnrichedAccessLog[] = accessLogs
-        .filter(log => log.personType === 'employee')
         .map(log => {
             const employee = employees.find(e => e.id === log.personId);
             return {
@@ -94,14 +73,14 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
         })
         .filter(log => {
             // Date filtering
-            const logDate = parsePtBrDate(log.entryTimestamp);
-            if (!logDate) return false;
-            
-            const fromDate = date?.from ? new Date(date.from.setHours(0, 0, 0, 0)) : null;
-            const toDate = date?.to ? new Date(date.to.setHours(23, 59, 59, 999)) : null;
-
-            if (fromDate && logDate < fromDate) return false;
-            if (toDate && logDate > toDate) return false;
+            if (date?.from && date?.to) {
+                const logDate = parseISO(log.entryTimestamp);
+                const fromDate = new Date(date.from.setHours(0, 0, 0, 0));
+                const toDate = new Date(date.to.setHours(23, 59, 59, 999));
+                if (logDate < fromDate || logDate > toDate) {
+                    return false;
+                }
+            }
 
             // Search term filtering
             if (!searchTerm) return true;
@@ -205,10 +184,16 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {enrichedLogs.length === 0 ? (
+                                {isLoading ? (
+                                     <TableRow>
+                                        <TableCell colSpan={7} className="text-center">
+                                            Carregando histórico...
+                                        </TableCell>
+                                    </TableRow>
+                                ) : enrichedLogs.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={7} className="text-center">
-                                            Nenhum registro de acesso encontrado para o período selecionado.
+                                            Nenhum registro de acesso encontrado para os filtros aplicados.
                                         </TableCell>
                                     </TableRow>
                                 ) : (
@@ -219,8 +204,8 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
                                             <TableCell>{log.personId}</TableCell>
                                             <TableCell>{log.personName}</TableCell>
                                             <TableCell>{log.department || '-'}</TableCell>
-                                            <TableCell>{log.entryTimestamp}</TableCell>
-                                            <TableCell>{log.exitTimestamp || '-'}</TableCell>
+                                            <TableCell>{format(parseISO(log.entryTimestamp), 'dd/MM/yyyy HH:mm:ss')}</TableCell>
+                                            <TableCell>{log.exitTimestamp ? format(parseISO(log.exitTimestamp), 'dd/MM/yyyy HH:mm:ss') : '-'}</TableCell>
                                             <TableCell>
                                                 <Badge variant="secondary">{log.registeredBy}</Badge>
                                             </TableCell>

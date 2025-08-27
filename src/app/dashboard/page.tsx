@@ -7,12 +7,14 @@ import { Header } from '@/components/header';
 import type { AccessLog, Visitor } from '@/lib/types';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
+import { getVisitorsFromFirestore, getAccessLogsFromFirestore, addOrUpdateVisitorInFirestore, addOrUpdateAccessLogInFirestore, deleteVisitorFromFirestore } from '@/lib/firestoreService';
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const router = useRouter();
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (user && user.role !== 'rh') {
@@ -20,57 +22,28 @@ export default function DashboardPage() {
     }
   }, [user, router]);
 
-
-  // Load visitors from localStorage on initial render
-  useEffect(() => {
+  const fetchData = async () => {
+    setIsLoading(true);
     try {
-        const storedVisitors = localStorage.getItem('visitors');
-        if (storedVisitors) {
-            setVisitors(JSON.parse(storedVisitors));
-        }
+        const [visitorsData, logsData] = await Promise.all([
+            getVisitorsFromFirestore(),
+            getAccessLogsFromFirestore(100)
+        ]);
+        setVisitors(visitorsData);
+        setAccessLogs(logsData.filter(log => log.personType === 'visitor'));
     } catch (error) {
-        console.error("Error reading visitors from localStorage", error);
+        console.error("Error fetching data:", error);
+    } finally {
+        setIsLoading(false);
     }
-  }, []);
+  };
 
-  // Save visitors to localStorage whenever they change
   useEffect(() => {
-      try {
-          if (visitors && visitors.length > 0) {
-                localStorage.setItem('visitors', JSON.stringify(visitors));
-          } else if (visitors?.length === 0) {
-                const stored = localStorage.getItem('visitors');
-                if(stored) localStorage.removeItem('visitors');
-          }
-      } catch (error) {
-          console.error("Error writing visitors to localStorage", error);
-      }
-  }, [visitors]);
-
-
-  // Load access logs from localStorage on initial render
-  useEffect(() => {
-    try {
-      const storedLogs = localStorage.getItem('accessLogs');
-      if (storedLogs) {
-        setAccessLogs(JSON.parse(storedLogs));
-      }
-    } catch (error) {
-      console.error("Error reading access logs from localStorage", error);
+    if(user?.role === 'rh') {
+        fetchData();
     }
-  }, []);
+  }, [user]);
 
-  // Save access logs to localStorage whenever they change
-  useEffect(() => {
-    try {
-      if (accessLogs.length > 0) {
-        localStorage.setItem('accessLogs', JSON.stringify(accessLogs));
-        window.dispatchEvent(new Event('storage'));
-      }
-    } catch (error) {
-      console.error("Error writing access logs to localStorage", error);
-    }
-  }, [accessLogs]);
 
   if (!user || user.role !== 'rh') {
     return <div className="flex h-screen items-center justify-center">Carregando...</div>;
@@ -85,6 +58,10 @@ export default function DashboardPage() {
           setVisitors={setVisitors}
           accessLogs={accessLogs}
           setAccessLogs={setAccessLogs}
+          isLoading={isLoading}
+          addOrUpdateVisitor={addOrUpdateVisitorInFirestore}
+          deleteVisitor={deleteVisitorFromFirestore}
+          addOrUpdateLog={addOrUpdateAccessLogInFirestore}
         />
       </main>
     </div>

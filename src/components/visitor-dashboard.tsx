@@ -60,7 +60,25 @@ const emptyVisitor: Visitor = {
 type ReturningVisitorInfo = Pick<Visitor, 'company' | 'plate' | 'responsible' | 'reason'>;
 
 
-function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs, role }: { visitors: Visitor[], setVisitors: Dispatch<SetStateAction<Visitor[]>>, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>>, role: 'rh' | 'portaria' }) {
+function VisitorTable({ 
+    visitors, 
+    setVisitors, 
+    accessLogs, 
+    setAccessLogs, 
+    role,
+    addOrUpdateVisitor,
+    deleteVisitor,
+    addOrUpdateLog
+}: { 
+    visitors: Visitor[], 
+    setVisitors: Dispatch<SetStateAction<Visitor[]>>, 
+    accessLogs: AccessLog[], 
+    setAccessLogs: Dispatch<SetStateAction<AccessLog[]>>, 
+    role: 'rh' | 'portaria' 
+    addOrUpdateVisitor: (visitor: Visitor) => Promise<void>;
+    deleteVisitor: (visitorId: string) => Promise<void>;
+    addOrUpdateLog: (log: AccessLog) => Promise<void>;
+}) {
     const { user } = useAuth();
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -83,13 +101,14 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs, role }
         setIsEditDialogOpen(true);
     };
 
-    const handleNewEntry = (visitor: Visitor, newInfo: ReturningVisitorInfo) => {
+    const handleNewEntry = async (visitor: Visitor, newInfo: ReturningVisitorInfo) => {
         if (!user) return;
         
         const registeredBy = getRegisteredBy();
 
         // If it's a returning visitor with new info, update their details in the main visitors list
         const updatedVisitor = { ...visitor, ...newInfo };
+        await addOrUpdateVisitor(updatedVisitor);
         setVisitors(visitors.map(v => v.id === updatedVisitor.id ? updatedVisitor : v));
         
         const newLog: AccessLog = {
@@ -97,7 +116,7 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs, role }
             personId: updatedVisitor.id,
             personName: updatedVisitor.name,
             personType: 'visitor',
-            entryTimestamp: new Date().toLocaleString('pt-BR'),
+            entryTimestamp: new Date().toISOString(),
             exitTimestamp: null,
             registeredBy,
             reason: newInfo.reason,
@@ -109,11 +128,12 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs, role }
             plate: newInfo.plate,
         };
         
+        await addOrUpdateLog(newLog);
         setAccessLogs([newLog, ...accessLogs]);
 
         toast({
             title: `Acesso Registrado: Entrada`,
-            description: `${updatedVisitor.name} - ${newLog.entryTimestamp}`,
+            description: `${updatedVisitor.name} - ${new Date(newLog.entryTimestamp).toLocaleString('pt-BR')}`,
             variant: 'default'
         });
 
@@ -121,7 +141,7 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs, role }
         setSelectedVisitor(null);
     };
 
-    const handleExit = (visitor: Visitor) => {
+    const handleExit = async (visitor: Visitor) => {
         const registeredBy = getRegisteredBy();
 
         const openLog = accessLogs.find(
@@ -129,12 +149,10 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs, role }
         );
 
         if (openLog) {
-            const updatedLogs = accessLogs.map(log => 
-                log.id === openLog.id 
-                ? { ...log, exitTimestamp: new Date().toLocaleString('pt-BR'), registeredBy }
-                : log
-            );
-            setAccessLogs(updatedLogs);
+            const updatedLog = { ...openLog, exitTimestamp: new Date().toISOString(), registeredBy };
+            await addOrUpdateLog(updatedLog);
+            setAccessLogs(accessLogs.map(log => log.id === openLog.id ? updatedLog : log));
+
             toast({
                 title: "Acesso Registrado: Saída",
                 description: `${visitor.name} - ${new Date().toLocaleString('pt-BR')}`,
@@ -163,7 +181,8 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs, role }
         }
     };
 
-    const handleDeleteClick = (visitorId: string) => {
+    const handleDeleteClick = async (visitorId: string) => {
+        await deleteVisitor(visitorId);
         setVisitors(visitors.filter(v => v.id !== visitorId));
          toast({
             title: "Visitante Excluído",
@@ -172,16 +191,18 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs, role }
         });
     };
 
-    const handleSave = (visitor: Visitor) => {
+    const handleSave = async (visitor: Visitor) => {
+        await addOrUpdateVisitor(visitor);
         setVisitors(visitors.map(v => v.id === visitor.id ? visitor : v));
         setIsEditDialogOpen(false);
         setSelectedVisitor(null);
     };
 
-    const handleAddNewVisitor = (visitor: Visitor) => {
+    const handleAddNewVisitor = async (visitor: Visitor) => {
         const registeredBy = getRegisteredBy();
 
         // Add the new visitor to the list
+        await addOrUpdateVisitor(visitor);
         setVisitors([visitor, ...visitors]);
         setIsAddDialogOpen(false);
 
@@ -191,7 +212,7 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs, role }
             personId: visitor.id,
             personName: visitor.name,
             personType: 'visitor',
-            entryTimestamp: new Date().toLocaleString('pt-BR'),
+            entryTimestamp: new Date().toISOString(),
             exitTimestamp: null,
             registeredBy,
             // Snapshot visitor details
@@ -204,11 +225,12 @@ function VisitorTable({ visitors, setVisitors, accessLogs, setAccessLogs, role }
             plate: visitor.plate,
         };
 
+        await addOrUpdateLog(newLog);
         setAccessLogs(prevLogs => [newLog, ...prevLogs]);
 
         toast({
             title: `Acesso Registrado: Entrada`,
-            description: `${visitor.name} - ${newLog.entryTimestamp}`,
+            description: `${visitor.name} - ${new Date(newLog.entryTimestamp).toLocaleString('pt-BR')}`,
             variant: 'default'
         });
     };
@@ -636,23 +658,40 @@ export function VisitorDashboard({
   setVisitors, 
   accessLogs, 
   setAccessLogs,
+  isLoading,
+  addOrUpdateVisitor,
+  deleteVisitor,
+  addOrUpdateLog,
   role = 'rh'
 }: { 
   visitors: Visitor[], 
   setVisitors: Dispatch<SetStateAction<Visitor[]>>, 
   accessLogs: AccessLog[], 
   setAccessLogs: Dispatch<SetStateAction<AccessLog[]>>,
+  isLoading: boolean,
+  addOrUpdateVisitor: (visitor: Visitor) => Promise<void>;
+  deleteVisitor: (visitorId: string) => Promise<void>;
+  addOrUpdateLog: (log: AccessLog) => Promise<void>;
   role?: 'rh' | 'portaria'
 }) {
   return (
     <div className="container mx-auto">
-        <VisitorTable 
-            visitors={visitors} 
-            setVisitors={setVisitors} 
-            accessLogs={accessLogs}
-            setAccessLogs={setAccessLogs}
-            role={role}
-        />
+        {isLoading ? (
+            <div className="flex justify-center items-center h-64">
+                <p>Carregando visitantes...</p>
+            </div>
+        ) : (
+            <VisitorTable 
+                visitors={visitors} 
+                setVisitors={setVisitors} 
+                accessLogs={accessLogs}
+                setAccessLogs={setAccessLogs}
+                role={role}
+                addOrUpdateVisitor={addOrUpdateVisitor}
+                deleteVisitor={deleteVisitor}
+                addOrUpdateLog={addOrUpdateLog}
+            />
+        )}
     </div>
   );
 }

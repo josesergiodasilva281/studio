@@ -18,7 +18,7 @@ import { Button } from './ui/button';
 import { PlusCircle, Camera } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from './ui/dialog';
 import { useAuth } from '@/context/auth-context';
-import { getEmployeesFromFirestore } from '@/lib/firestoreService';
+import { getEmployeesFromFirestore, getVisitorsFromFirestore } from '@/lib/firestoreService';
 import { isEmployeeEffectivelyActive } from './employee-dashboard';
 
 
@@ -100,7 +100,17 @@ function AccessControlUI({
 }
 
 
-export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccessLogs }: { onAddEmployeeClick: () => void, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>> }) {
+export function AccessControlManager({ 
+    onAddEmployeeClick, 
+    accessLogs, 
+    setAccessLogs,
+    addOrUpdateLog
+}: { 
+    onAddEmployeeClick: () => void, 
+    accessLogs: AccessLog[], 
+    setAccessLogs: Dispatch<SetStateAction<AccessLog[]>>,
+    addOrUpdateLog: (log: AccessLog) => Promise<void>
+}) {
     const { toast } = useToast();
     const { user } = useAuth();
     const [employees, setEmployees] = useState<Employee[]>([]);
@@ -117,42 +127,27 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
     const [barcodeScanInput, setBarcodeScanInput] = useState('');
     const barcodeScanTimer = useRef<NodeJS.Timeout | null>(null);
 
-    // Load employees from Firestore
+    // Fetch all necessary data from Firestore
     useEffect(() => {
-        const fetchEmployees = async () => {
+        const fetchData = async () => {
             try {
-                const firestoreEmployees = await getEmployeesFromFirestore();
+                const [firestoreEmployees, firestoreVisitors] = await Promise.all([
+                    getEmployeesFromFirestore(),
+                    getVisitorsFromFirestore()
+                ]);
                 setEmployees(firestoreEmployees);
+                setVisitors(firestoreVisitors);
             } catch (error) {
-                console.error("Error fetching employees from Firestore:", error);
-                toast({ variant: 'destructive', title: 'Erro ao carregar funcionários' });
+                console.error("Error fetching data from Firestore:", error);
+                toast({ variant: 'destructive', title: 'Erro ao carregar dados' });
             }
         };
 
-        fetchEmployees();
+        fetchData();
         // This is a simple way to keep it in sync. For a real-time app, you'd use onSnapshot.
-        const interval = setInterval(fetchEmployees, 30000); // Re-fetch every 30 seconds
+        const interval = setInterval(fetchData, 30000); // Re-fetch every 30 seconds
         return () => clearInterval(interval);
     }, [toast]);
-
-
-     // Load visitors from localStorage on initial render
-    useEffect(() => {
-        const loadVisitors = () => {
-            try {
-                const storedVisitors = localStorage.getItem('visitors');
-                if (storedVisitors) {
-                    setVisitors(JSON.parse(storedVisitors));
-                }
-            } catch (error) {
-                console.error("Error reading visitors from localStorage", error);
-            }
-        };
-        loadVisitors();
-        // Also listen for changes from other tabs/windows
-        window.addEventListener('storage', loadVisitors);
-        return () => window.removeEventListener('storage', loadVisitors);
-    }, []);
 
     const processScan = (scannedCode: string) => {
         if (!scannedCode) return;
@@ -172,7 +167,7 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
     };
 
 
-     const handleNewLog = (person: Employee | Visitor, personType: 'employee' | 'visitor') => {
+     const handleNewLog = async (person: Employee | Visitor, personType: 'employee' | 'visitor') => {
         if (!user) return;
         
         const getRegisteredBy = (): 'RH' | 'P1' | 'P2' | 'Supervisor' => {
@@ -191,12 +186,9 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
 
         if (openLog) {
             // Registering an exit
-            const updatedLogs = accessLogs.map(log => 
-                log.id === openLog.id 
-                ? { ...log, exitTimestamp: new Date().toLocaleString('pt-BR'), registeredBy }
-                : log
-            );
-            setAccessLogs(updatedLogs);
+            const updatedLog = { ...openLog, exitTimestamp: new Date().toISOString(), registeredBy };
+            await addOrUpdateLog(updatedLog);
+            setAccessLogs(logs => logs.map(l => l.id === updatedLog.id ? updatedLog : l));
             toast({
                 title: "Acesso Registrado: Saída",
                 description: `${person.name} - ${new Date().toLocaleString('pt-BR')}`,
@@ -209,7 +201,7 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
                 personId: person.id,
                 personName: person.name,
                 personType: personType,
-                entryTimestamp: new Date().toLocaleString('pt-BR'),
+                entryTimestamp: new Date().toISOString(),
                 exitTimestamp: null,
                 registeredBy,
                 // Snapshot visitor details if it's a visitor
@@ -223,10 +215,11 @@ export function AccessControlManager({ onAddEmployeeClick, accessLogs, setAccess
                     plate: (person as Visitor).plate,
                 }),
             };
+            await addOrUpdateLog(newLog);
             setAccessLogs(prevLogs => [newLog, ...prevLogs]);
             toast({
                 title: "Acesso Registrado: Entrada",
-                description: `${person.name} - ${newLog.entryTimestamp}`,
+                description: `${person.name} - ${new Date(newLog.entryTimestamp).toLocaleString('pt-BR')}`,
                 variant: 'default'
             });
         }

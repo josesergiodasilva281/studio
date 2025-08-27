@@ -12,16 +12,31 @@ import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Users, CarIcon, Shield } from 'lucide-react';
+import { 
+    getAccessLogsFromFirestore, 
+    addOrUpdateAccessLogInFirestore,
+    getVisitorsFromFirestore,
+    addOrUpdateVisitorInFirestore,
+    deleteVisitorFromFirestore,
+    getCarsFromFirestore,
+    getCarLogsFromFirestore,
+    addOrUpdateCarInFirestore,
+    deleteCarFromFirestore,
+    addOrUpdateCarLogInFirestore
+} from '@/lib/firestoreService';
 
 
 export default function PortariaPage() {
   const { user } = useAuth();
   const router = useRouter();
   const [isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen] = useState(false);
+  
+  // States for all data types
   const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [cars, setCars] = useState<Car[]>([]);
   const [carLogs, setCarLogs] = useState<CarLog[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (user && user.role !== 'portaria') {
@@ -30,80 +45,38 @@ export default function PortariaPage() {
   }, [user, router]);
 
 
-  // Load all data from localStorage on initial render
+  // Load all data from Firestore on initial render
   useEffect(() => {
-    try {
-      const storedLogs = localStorage.getItem('accessLogs');
-      if (storedLogs) setAccessLogs(JSON.parse(storedLogs));
+    const fetchData = async () => {
+        setIsLoading(true);
+        try {
+            const [
+                logsData,
+                visitorsData,
+                carsData,
+                carLogsData
+            ] = await Promise.all([
+                getAccessLogsFromFirestore(200), // Fetch more logs for a complete view
+                getVisitorsFromFirestore(),
+                getCarsFromFirestore(),
+                getCarLogsFromFirestore(100)
+            ]);
 
-      const storedVisitors = localStorage.getItem('visitors');
-      if (storedVisitors) setVisitors(JSON.parse(storedVisitors));
+            setAccessLogs(logsData);
+            setVisitors(visitorsData);
+            setCars(carsData);
+            setCarLogs(carLogsData);
 
-      const storedCars = localStorage.getItem('cars');
-      if (storedCars) setCars(JSON.parse(storedCars));
-
-      const storedCarLogs = localStorage.getItem('carLogs');
-      if (storedCarLogs) setCarLogs(JSON.parse(storedCarLogs));
-
-    } catch (error) {
-      console.error("Error reading from localStorage", error);
+        } catch (error) {
+            console.error("Error reading from Firestore", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    if (user?.role === 'portaria') {
+        fetchData();
     }
-  }, []);
-
-  // Save access logs to localStorage whenever they change
-  useEffect(() => {
-    try {
-      if (accessLogs.length > 0) {
-        localStorage.setItem('accessLogs', JSON.stringify(accessLogs));
-        window.dispatchEvent(new Event('storage'));
-      }
-    } catch (error) {
-      console.error("Error writing access logs to localStorage", error);
-    }
-  }, [accessLogs]);
-
-   // Save visitors to localStorage whenever they change
-  useEffect(() => {
-      try {
-          if (visitors && visitors.length > 0) {
-                localStorage.setItem('visitors', JSON.stringify(visitors));
-          } else if (visitors?.length === 0) {
-                const stored = localStorage.getItem('visitors');
-                if(stored) localStorage.removeItem('visitors');
-          }
-      } catch (error) {
-          console.error("Error writing visitors to localStorage", error);
-      }
-  }, [visitors]);
-
-  // Save cars to localStorage
-  useEffect(() => {
-    try {
-      if (cars.length > 0) {
-        localStorage.setItem('cars', JSON.stringify(cars));
-      } else {
-        const stored = localStorage.getItem('cars');
-        if (stored) localStorage.removeItem('cars');
-      }
-    } catch (error) {
-      console.error("Error writing cars to localStorage", error);
-    }
-  }, [cars]);
-
-  // Save car logs to localStorage
-  useEffect(() => {
-    try {
-      if (carLogs.length > 0) {
-        localStorage.setItem('carLogs', JSON.stringify(carLogs));
-        window.dispatchEvent(new Event('storage'));
-      } else {
-         const stored = localStorage.getItem('carLogs');
-         if (stored) localStorage.removeItem('carLogs');
-      }
-    } catch (error) {
-      console.error("Error writing car logs to localStorage", error);
-    }
-  }, [carLogs]);
+  }, [user]);
 
   if (!user || user.role !== 'portaria') {
     return <div className="flex h-screen items-center justify-center">Carregando...</div>;
@@ -117,6 +90,7 @@ export default function PortariaPage() {
           onAddEmployeeClick={() => alert('Apenas o RH pode cadastrar funcionários.')}
           accessLogs={accessLogs}
           setAccessLogs={setAccessLogs}
+          addOrUpdateLog={addOrUpdateAccessLogInFirestore}
         />
         <Tabs defaultValue="employees" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
@@ -138,8 +112,12 @@ export default function PortariaPage() {
               role="portaria"
               visitors={visitors}
               setVisitors={setVisitors}
-              accessLogs={accessLogs}
+              accessLogs={accessLogs.filter(l => l.personType === 'visitor')}
               setAccessLogs={setAccessLogs}
+              isLoading={isLoading}
+              addOrUpdateVisitor={addOrUpdateVisitorInFirestore}
+              deleteVisitor={deleteVisitorFromFirestore}
+              addOrUpdateLog={addOrUpdateAccessLogInFirestore}
             />
           </TabsContent>
           <TabsContent value="cars">
@@ -149,7 +127,10 @@ export default function PortariaPage() {
               setCars={setCars}
               carLogs={carLogs}
               setCarLogs={setCarLogs}
-              employees={[]}
+              isLoading={isLoading}
+              addOrUpdateCar={addOrUpdateCarInFirestore}
+              deleteCar={deleteCarFromFirestore}
+              addOrUpdateCarLog={addOrUpdateCarLogInFirestore}
             />
           </TabsContent>
         </Tabs>

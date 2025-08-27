@@ -8,12 +8,14 @@ import { EmployeeDashboard } from '@/components/employee-dashboard';
 import type { AccessLog } from '@/lib/types';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
+import { getAccessLogsFromFirestore, addOrUpdateAccessLogInFirestore } from '@/lib/firestoreService';
 
 export default function Home() {
   const { user } = useAuth();
   const router = useRouter();
   const [isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen] = useState(false);
   const [accessLogs, setAccessLogs] = useState<AccessLog[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (user && user.role !== 'rh') {
@@ -21,33 +23,23 @@ export default function Home() {
     }
   }, [user, router]);
 
-
-  // Load access logs from localStorage on initial render
-  useEffect(() => {
+  const fetchAccessLogs = async () => {
     try {
-      const storedLogs = localStorage.getItem('accessLogs');
-      if (storedLogs) {
-        setAccessLogs(JSON.parse(storedLogs));
-      }
+      const logs = await getAccessLogsFromFirestore(100); // Fetch last 100 logs
+      setAccessLogs(logs);
     } catch (error) {
-      console.error("Error reading access logs from localStorage", error);
+      console.error("Error fetching access logs:", error);
+    } finally {
+      setIsLoading(false);
     }
-  }, []);
+  };
 
-  // Save access logs to localStorage whenever they change
   useEffect(() => {
-    try {
-      // Only write to localStorage if accessLogs has been initialized and has items.
-      // This prevents overwriting existing logs with an empty array on initial load.
-      if (accessLogs.length > 0) {
-        localStorage.setItem('accessLogs', JSON.stringify(accessLogs));
-        // Dispatch a custom event to notify other components like the history page
-        window.dispatchEvent(new Event('storage'));
-      }
-    } catch (error) {
-      console.error("Error writing access logs to localStorage", error);
+    if (user?.role === 'rh') {
+        fetchAccessLogs();
     }
-  }, [accessLogs]);
+  }, [user]);
+
 
   if (!user || user.role !== 'rh') {
     return <div className="flex h-screen items-center justify-center">Carregando...</div>;
@@ -61,6 +53,7 @@ export default function Home() {
           onAddEmployeeClick={() => setIsAddEmployeeDialogOpen(true)}
           accessLogs={accessLogs}
           setAccessLogs={setAccessLogs}
+          addOrUpdateLog={addOrUpdateAccessLogInFirestore}
         />
         <EmployeeDashboard 
           role="rh"

@@ -7,12 +7,14 @@ import { Header } from '@/components/header';
 import type { Car, CarLog } from '@/lib/types';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
+import { getCarsFromFirestore, getCarLogsFromFirestore, addOrUpdateCarInFirestore, deleteCarFromFirestore, addOrUpdateCarLogInFirestore } from '@/lib/firestoreService';
 
 export default function CarsPage() {
   const { user } = useAuth();
   const router = useRouter();
   const [cars, setCars] = useState<Car[]>([]);
   const [carLogs, setCarLogs] = useState<CarLog[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (user && user.role !== 'rh') {
@@ -20,58 +22,28 @@ export default function CarsPage() {
     }
   }, [user, router]);
   
-  // Load cars from localStorage
-  useEffect(() => {
+  const fetchData = async () => {
+    setIsLoading(true);
     try {
-      const storedCars = localStorage.getItem('cars');
-      if (storedCars) {
-        setCars(JSON.parse(storedCars));
-      }
+        const [carsData, carLogsData] = await Promise.all([
+            getCarsFromFirestore(),
+            getCarLogsFromFirestore(100)
+        ]);
+        setCars(carsData);
+        setCarLogs(carLogsData);
     } catch (error) {
-      console.error("Error reading cars from localStorage", error);
+        console.error("Error fetching car data:", error);
+    } finally {
+        setIsLoading(false);
     }
-  }, []);
+  };
 
-  // Save cars to localStorage
   useEffect(() => {
-    try {
-      if (cars.length > 0) {
-        localStorage.setItem('cars', JSON.stringify(cars));
-      } else {
-        const stored = localStorage.getItem('cars');
-        if (stored) localStorage.removeItem('cars');
-      }
-    } catch (error) {
-      console.error("Error writing cars to localStorage", error);
+    if(user?.role === 'rh') {
+        fetchData();
     }
-  }, [cars]);
+  }, [user]);
 
-  // Load car logs from localStorage
-  useEffect(() => {
-    try {
-      const storedLogs = localStorage.getItem('carLogs');
-      if (storedLogs) {
-        setCarLogs(JSON.parse(storedLogs));
-      }
-    } catch (error) {
-      console.error("Error reading car logs from localStorage", error);
-    }
-  }, []);
-
-  // Save car logs to localStorage
-  useEffect(() => {
-    try {
-      if (carLogs.length > 0) {
-        localStorage.setItem('carLogs', JSON.stringify(carLogs));
-        window.dispatchEvent(new Event('storage'));
-      } else {
-         const stored = localStorage.getItem('carLogs');
-         if (stored) localStorage.removeItem('carLogs');
-      }
-    } catch (error) {
-      console.error("Error writing car logs to localStorage", error);
-    }
-  }, [carLogs]);
 
   if (!user || user.role !== 'rh') {
     return <div className="flex h-screen items-center justify-center">Carregando...</div>;
@@ -87,7 +59,10 @@ export default function CarsPage() {
           setCars={setCars}
           carLogs={carLogs}
           setCarLogs={setCarLogs}
-          employees={[]}
+          isLoading={isLoading}
+          addOrUpdateCar={addOrUpdateCarInFirestore}
+          deleteCar={deleteCarFromFirestore}
+          addOrUpdateCarLog={addOrUpdateCarLogInFirestore}
         />
       </main>
     </div>
