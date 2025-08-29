@@ -163,6 +163,7 @@ export function VisitorAccessLogTable({ readOnly = false }: { readOnly?: boolean
                                     <TableHead>Foto</TableHead>
                                     <TableHead>Nome</TableHead>
                                     <TableHead>Empresa</TableHead>
+                                    <TableHead>Placa</TableHead>
                                     <TableHead>Responsável</TableHead>
                                     <TableHead>Motivo</TableHead>
                                     <TableHead>Entrada</TableHead>
@@ -174,13 +175,13 @@ export function VisitorAccessLogTable({ readOnly = false }: { readOnly?: boolean
                             <TableBody>
                                 {isLoading ? (
                                      <TableRow>
-                                        <TableCell colSpan={9} className="text-center">
+                                        <TableCell colSpan={10} className="text-center">
                                             Carregando histórico...
                                         </TableCell>
                                     </TableRow>
                                 ) : filteredLogs.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={9} className="text-center">
+                                        <TableCell colSpan={10} className="text-center">
                                             Nenhum registro de acesso encontrado para os filtros aplicados.
                                         </TableCell>
                                     </TableRow>
@@ -207,6 +208,7 @@ export function VisitorAccessLogTable({ readOnly = false }: { readOnly?: boolean
                                             </TableCell>
                                             <TableCell>{log.personName}</TableCell>
                                             <TableCell>{log.company || '-'}</TableCell>
+                                            <TableCell>{log.plate || '-'}</TableCell>
                                             <TableCell>{log.responsible || '-'}</TableCell>
                                             <TableCell>{log.reason || '-'}</TableCell>
                                             <TableCell>{format(parseISO(log.entryTimestamp), 'dd/MM/yyyy HH:mm:ss')}</TableCell>

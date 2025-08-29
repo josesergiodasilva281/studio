@@ -285,7 +285,7 @@ function VisitorTable({
         <CardContent>
            <div className="flex items-center py-4">
             <Input
-                placeholder="Buscar visitante por nome, RG, CPF..."
+                placeholder="Buscar visitante por nome, RG, CPF, Placa..."
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 className="max-w-sm"
@@ -299,6 +299,7 @@ function VisitorTable({
                     <TableHead>Nome</TableHead>
                     <TableHead>RG</TableHead>
                     <TableHead>CPF</TableHead>
+                    <TableHead>Placa</TableHead>
                     <TableHead>Empresa</TableHead>
                     <TableHead>Presença</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
@@ -307,7 +308,7 @@ function VisitorTable({
                 <TableBody>
                  {filteredVisitors.length === 0 ? (
                     <TableRow>
-                        <TableCell colSpan={7} className="text-center">{searchTerm ? 'Nenhum visitante encontrado.' : 'Nenhum visitante presente.'}</TableCell>
+                        <TableCell colSpan={8} className="text-center">{searchTerm ? 'Nenhum visitante encontrado.' : 'Nenhum visitante presente.'}</TableCell>
                     </TableRow>
                  ) : (
                     filteredVisitors.map((visitor) => {
@@ -333,6 +334,7 @@ function VisitorTable({
                         <TableCell>{visitor.name}</TableCell>
                         <TableCell>{visitor.rg}</TableCell>
                         <TableCell>{visitor.cpf}</TableCell>
+                        <TableCell>{visitor.plate || '-'}</TableCell>
                         <TableCell>{visitor.company || '-'}</TableCell>
                          <TableCell>
                              <Badge
@@ -505,8 +507,8 @@ function AddVisitorForm({ onSave, onCancel, initialData }: { onSave: (visitor: V
     const nameInputRef = useRef<HTMLInputElement>(null);
     const rgInputRef = useRef<HTMLInputElement>(null);
     const cpfInputRef = useRef<HTMLInputElement>(null);
-    const companyInputRef = useRef<HTMLInputElement>(null);
     const plateInputRef = useRef<HTMLInputElement>(null);
+    const companyInputRef = useRef<HTMLInputElement>(null);
     const responsibleInputRef = useRef<HTMLInputElement>(null);
     const reasonInputRef = useRef<HTMLInputElement>(null);
     const saveButtonRef = useRef<HTMLButtonElement>(null);
@@ -625,15 +627,15 @@ function AddVisitorForm({ onSave, onCancel, initialData }: { onSave: (visitor: V
                 </div>
                  <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="cpf-visitor" className="text-right">CPF</Label>
-                    <Input ref={cpfInputRef} onKeyDown={(e) => handleKeyDown(e, companyInputRef)} id="cpf-visitor" value={visitor.cpf} onChange={(e) => setVisitor({ ...visitor, cpf: e.target.value })} className="col-span-3" />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="company-visitor" className="text-right">Empresa</Label>
-                    <Input ref={companyInputRef} onKeyDown={(e) => handleKeyDown(e, plateInputRef)} id="company-visitor" value={visitor.company} onChange={(e) => setVisitor({ ...visitor, company: e.target.value })} className="col-span-3" placeholder="Opcional"/>
+                    <Input ref={cpfInputRef} onKeyDown={(e) => handleKeyDown(e, plateInputRef)} id="cpf-visitor" value={visitor.cpf} onChange={(e) => setVisitor({ ...visitor, cpf: e.target.value })} className="col-span-3" />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="plate-visitor" className="text-right">Placa</Label>
-                    <Input ref={plateInputRef} onKeyDown={(e) => handleKeyDown(e, responsibleInputRef)} id="plate-visitor" value={visitor.plate} onChange={(e) => setVisitor({ ...visitor, plate: e.target.value })} className="col-span-3" placeholder="Opcional"/>
+                    <Input ref={plateInputRef} onKeyDown={(e) => handleKeyDown(e, companyInputRef)} id="plate-visitor" value={visitor.plate} onChange={(e) => setVisitor({ ...visitor, plate: e.target.value })} className="col-span-3" placeholder="Opcional"/>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="company-visitor" className="text-right">Empresa</Label>
+                    <Input ref={companyInputRef} onKeyDown={(e) => handleKeyDown(e, responsibleInputRef)} id="company-visitor" value={visitor.company} onChange={(e) => setVisitor({ ...visitor, company: e.target.value })} className="col-span-3" placeholder="Opcional"/>
                 </div>
                  <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="responsible-visitor" className="text-right">Responsável</Label>
