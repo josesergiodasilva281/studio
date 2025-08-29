@@ -246,6 +246,23 @@ function VisitorTable({
         return 'Dentro';
     };
 
+    const getVisitorDetailsForPresence = (visitorId: string) => {
+        const lastLog = accessLogs
+            .filter(log => log.personId === visitorId && log.personType === 'visitor')
+            .sort((a, b) => new Date(b.entryTimestamp).getTime() - new Date(a.entryTimestamp).getTime())[0];
+        
+        if (lastLog && lastLog.exitTimestamp === null) {
+            return {
+                responsible: lastLog.responsible || '-',
+                reason: lastLog.reason || '-',
+            }
+        }
+        return {
+            responsible: '-',
+            reason: '-',
+        }
+    }
+
     const filteredVisitors = searchTerm ? visitors.filter(visitor => {
         const searchTermLower = searchTerm.toLowerCase();
         return (
@@ -297,10 +314,10 @@ function VisitorTable({
                 <TableRow>
                     <TableHead>Foto</TableHead>
                     <TableHead>Nome</TableHead>
-                    <TableHead>RG</TableHead>
-                    <TableHead>CPF</TableHead>
                     <TableHead>Placa</TableHead>
                     <TableHead>Empresa</TableHead>
+                    <TableHead>Responsável</TableHead>
+                    <TableHead>Motivo</TableHead>
                     <TableHead>Presença</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -313,6 +330,7 @@ function VisitorTable({
                  ) : (
                     filteredVisitors.map((visitor) => {
                         const presence = getPresenceStatus(visitor.id);
+                        const details = getVisitorDetailsForPresence(visitor.id);
                         return (
                         <TableRow key={visitor.id}>
                         <TableCell>
@@ -332,10 +350,10 @@ function VisitorTable({
                             </Dialog>
                         </TableCell>
                         <TableCell>{visitor.name}</TableCell>
-                        <TableCell>{visitor.rg}</TableCell>
-                        <TableCell>{visitor.cpf}</TableCell>
                         <TableCell>{visitor.plate || '-'}</TableCell>
                         <TableCell>{visitor.company || '-'}</TableCell>
+                        <TableCell>{details.responsible}</TableCell>
+                        <TableCell>{details.reason}</TableCell>
                          <TableCell>
                              <Badge
                                 variant={presence === 'Dentro' ? 'default' : 'destructive'}
