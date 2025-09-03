@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState, useRef, Dispatch, SetStateAction, KeyboardEvent } from 'react';
@@ -41,7 +42,7 @@ import { Badge } from './ui/badge';
 import type { Employee, AccessLog } from '@/lib/types';
 import Link from 'next/link';
 import { useAuth } from '@/context/auth-context';
-import { getEmployeesFromFirestore, addEmployeeToFirestore, updateEmployeeInFirestore, deleteEmployeeFromFirestore, addInitialEmployeesToFirestore } from '@/lib/firestoreService';
+import { getEmployeesFromFirestore, addEmployeeToFirestore, updateEmployeeInFirestore, deleteEmployeeFromFirestore, addInitialEmployeesToFirestore, addOrUpdateAccessLogInFirestore } from '@/lib/firestoreService';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { format, parseISO } from 'date-fns';
@@ -303,7 +304,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         return 'P1'; // Default, should not happen
     }
 
-    const handleManualEntry = (employee: Employee) => {
+    const handleManualEntry = async (employee: Employee) => {
         if (!user) return;
 
         if (!isEmployeeEffectivelyActive(employee)) {
@@ -319,12 +320,9 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
 
         if (openLog) {
             // Registering an exit
-            const updatedLogs = accessLogs.map(log => 
-                log.id === openLog.id 
-                ? { ...log, exitTimestamp: new Date().toLocaleString('pt-BR'), registeredBy }
-                : log
-            );
-            setAccessLogs(updatedLogs);
+            const updatedLog = { ...openLog, exitTimestamp: new Date().toISOString(), registeredBy };
+            await addOrUpdateAccessLogInFirestore(updatedLog);
+            setAccessLogs(logs => logs.map(l => l.id === updatedLog.id ? updatedLog : l));
             toast({
                 title: "Acesso Registrado: Saída",
                 description: `${employee.name} - ${new Date().toLocaleString('pt-BR')}`,
@@ -337,14 +335,16 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 personId: employee.id,
                 personName: employee.name,
                 personType: 'employee',
-                entryTimestamp: new Date().toLocaleString('pt-BR'),
+                entryTimestamp: new Date().toISOString(),
                 exitTimestamp: null,
                 registeredBy,
+                photoDataUrl: employee.photoDataUrl,
             };
+            await addOrUpdateAccessLogInFirestore(newLog);
             setAccessLogs(prevLogs => [newLog, ...prevLogs]);
             toast({
                 title: "Acesso Registrado: Entrada",
-                description: `${employee.name} - ${newLog.entryTimestamp}`,
+                description: `${employee.name} - ${new Date(newLog.entryTimestamp).toLocaleString('pt-BR')}`,
                 variant: 'default'
             });
         }

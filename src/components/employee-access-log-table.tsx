@@ -18,15 +18,17 @@ import {
 import { Badge } from './ui/badge';
 import type { AccessLog, Employee } from '@/lib/types';
 import { Input } from './ui/input';
-import { Building, Home, User, Calendar as CalendarIcon } from 'lucide-react';
+import { Building, Home, User, Calendar as CalendarIcon, LogOut } from 'lucide-react';
 import { Button } from './ui/button';
 import Link from 'next/link';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { cn } from '@/lib/utils';
-import { getAccessLogsFromFirestore, getEmployeesFromFirestore } from '@/lib/firestoreService';
+import { getAccessLogsFromFirestore, getEmployeesFromFirestore, addOrUpdateAccessLogInFirestore } from '@/lib/firestoreService';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { useAuth } from '@/context/auth-context';
+import { useToast } from '@/hooks/use-toast';
 
 // Combine Log with Employee details
 type EnrichedAccessLog = AccessLog & Partial<Omit<Employee, 'id' | 'name'>>;
@@ -40,27 +42,62 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     const [date, setDate] = useState<DateRange | undefined>(undefined);
     const [isLoading, setIsLoading] = useState(true);
+    const { user } = useAuth();
+    const { toast } = useToast();
+
+    const loadData = async () => {
+        setIsLoading(true);
+        try {
+            const [logs, emps] = await Promise.all([
+                getAccessLogsFromFirestore(500), // Fetch more for history
+                getEmployeesFromFirestore()
+            ]);
+            setAccessLogs(logs.filter(log => log.personType === 'employee'));
+            setEmployees(emps);
+        } catch (error) {
+            console.error("Error reading from Firestore", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     // Load data from Firestore on initial render
     useEffect(() => {
-        const loadData = async () => {
-            setIsLoading(true);
-            try {
-                const [logs, emps] = await Promise.all([
-                    getAccessLogsFromFirestore(500), // Fetch more for history
-                    getEmployeesFromFirestore()
-                ]);
-                setAccessLogs(logs.filter(log => log.personType === 'employee'));
-                setEmployees(emps);
-            } catch (error) {
-                console.error("Error reading from Firestore", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        
         loadData();
     }, []);
+    
+    const getRegisteredBy = (): 'RH' | 'P1' | 'P2' | 'Supervisor' => {
+        if (!user) return 'P1'; // Should not happen
+        if (user.role === 'rh') return 'RH';
+        if (user.role === 'supervisor') return 'Supervisor';
+        if (user.username === 'portaria1') return 'P1';
+        if (user.username === 'portaria2') return 'P2';
+        return 'P1'; // Default, should not happen
+    }
+
+    const handleRegisterExit = async (log: AccessLog) => {
+        if (!log || log.exitTimestamp !== null) {
+            toast({ variant: 'destructive', title: 'Ação Inválida', description: 'Este funcionário já possui um registro de saída.' });
+            return;
+        }
+
+        const registeredBy = getRegisteredBy();
+        const updatedLog = { ...log, exitTimestamp: new Date().toISOString(), registeredBy };
+        
+        try {
+            await addOrUpdateAccessLogInFirestore(updatedLog);
+            // Update local state to reflect the change immediately
+            setAccessLogs(prevLogs => prevLogs.map(l => l.id === updatedLog.id ? updatedLog : l));
+            toast({
+                title: "Acesso Registrado: Saída",
+                description: `${log.personName} - ${new Date().toLocaleString('pt-BR')}`,
+                variant: 'destructive'
+            });
+        } catch (error) {
+            console.error("Error registering exit:", error);
+            toast({ variant: 'destructive', title: 'Erro ao registrar saída.' });
+        }
+    };
     
     const enrichedLogs: EnrichedAccessLog[] = accessLogs
         .map(log => {
@@ -179,20 +216,21 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
                                     <TableHead>Setor</TableHead>
                                     <TableHead>Entrada</TableHead>
                                     <TableHead>Saída</TableHead>
-                                    <TableHead>Portaria do Acesso</TableHead>
+                                    <TableHead>Portaria</TableHead>
                                     <TableHead>Presença</TableHead>
+                                    <TableHead className="text-right">Ação</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {isLoading ? (
                                      <TableRow>
-                                        <TableCell colSpan={8} className="text-center">
+                                        <TableCell colSpan={9} className="text-center">
                                             Carregando histórico...
                                         </TableCell>
                                     </TableRow>
                                 ) : enrichedLogs.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={8} className="text-center">
+                                        <TableCell colSpan={9} className="text-center">
                                             Nenhum registro de acesso encontrado para os filtros aplicados.
                                         </TableCell>
                                     </TableRow>
@@ -238,6 +276,13 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
                                                     {presence === 'Dentro' ? <Building className="mr-1 h-3 w-3" /> : <Home className="mr-1 h-3 w-3" />}
                                                     {presence}
                                                 </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                {presence === 'Dentro' && !readOnly && (
+                                                    <Button variant="ghost" size="icon" onClick={() => handleRegisterExit(log)} title="Registrar Saída">
+                                                        <LogOut className="h-4 w-4" />
+                                                    </Button>
+                                                )}
                                             </TableCell>
                                         </TableRow>
                                     )})
