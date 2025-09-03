@@ -288,6 +288,214 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
     )
 }
 
+function EditEmployeeDialog({ 
+    open, 
+    onOpenChange, 
+    employee, 
+    onSave, 
+    role 
+}: { 
+    open: boolean, 
+    onOpenChange: (open: boolean) => void, 
+    employee: Employee | null, 
+    onSave: (employee: Employee) => void,
+    role: 'rh' | 'portaria' 
+}) {
+    const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(employee);
+    const { toast } = useToast();
+
+    const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+    const [isCameraOpen, setIsCameraOpen] = useState(false);
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+
+    useEffect(() => {
+        setSelectedEmployee(employee);
+        if (!open) {
+            setIsCameraOpen(false);
+            setHasCameraPermission(null);
+        }
+    }, [open, employee]);
+
+    useEffect(() => {
+        if (isCameraOpen) {
+            const getCameraPermission = async () => {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    setHasCameraPermission(true);
+                    if (videoRef.current) {
+                        videoRef.current.srcObject = stream;
+                    }
+                } catch (error) {
+                    console.error('Error accessing camera:', error);
+                    setHasCameraPermission(false);
+                    toast({
+                        variant: 'destructive',
+                        title: 'Acesso à Câmera Negado',
+                        description: 'Por favor, habilite a permissão da câmera.',
+                    });
+                }
+            };
+            getCameraPermission();
+
+            return () => {
+                if (videoRef.current && videoRef.current.srcObject) {
+                    const stream = videoRef.current.srcObject as MediaStream;
+                    stream.getTracks().forEach(track => track.stop());
+                }
+            };
+        }
+    }, [isCameraOpen, toast]);
+
+    const handleTakePhoto = () => {
+        if (videoRef.current && canvasRef.current && selectedEmployee) {
+            const video = videoRef.current;
+            const canvas = canvasRef.current;
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            if (context) {
+                context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+                const dataUrl = canvas.toDataURL('image/jpeg');
+                setSelectedEmployee({ ...selectedEmployee, photoDataUrl: dataUrl });
+                setIsCameraOpen(false);
+            }
+        }
+    };
+
+    const handleSaveClick = () => {
+        if (selectedEmployee) {
+            onSave(selectedEmployee);
+        }
+    };
+    
+    if (!selectedEmployee) return null;
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>Editar Funcionário</DialogTitle>
+                </DialogHeader>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+                    {/* Coluna da Câmera */}
+                    <div className="space-y-4 flex flex-col items-center">
+                        <Label>Foto do Funcionário</Label>
+                        <div className="w-full max-w-xs aspect-square rounded-md border bg-muted flex items-center justify-center overflow-hidden">
+                            {isCameraOpen ? (
+                                <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted />
+                            ) : selectedEmployee.photoDataUrl ? (
+                                <img src={selectedEmployee.photoDataUrl} alt="Foto do Funcionário" className="w-full h-full object-cover" />
+                            ) : (
+                                <User className="h-24 w-24 text-muted-foreground" />
+                            )}
+                        </div>
+                        {hasCameraPermission === false && (
+                            <Alert variant="destructive">
+                                <AlertTitle>Acesso à Câmera Necessário</AlertTitle>
+                                <AlertDescription>
+                                    Por favor, permita o acesso à câmera para tirar a foto.
+                                </AlertDescription>
+                            </Alert>
+                        )}
+                        <div className="flex gap-2">
+                            <Button type="button" onClick={() => setIsCameraOpen(!isCameraOpen)}>
+                                <Camera className="mr-2 h-4 w-4" />
+                                {isCameraOpen ? 'Fechar Câmera' : 'Alterar Foto'}
+                            </Button>
+                            {isCameraOpen && hasCameraPermission && (
+                                <Button type="button" onClick={handleTakePhoto}>Tirar Foto</Button>
+                            )}
+                        </div>
+                        <canvas ref={canvasRef} className="hidden" />
+                    </div>
+
+                    {/* Coluna do Formulário */}
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="id-edit" className="text-right">Matrícula</Label>
+                            <Input id="id-edit" value={selectedEmployee.id} className="col-span-3" disabled />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="name-edit" className="text-right">Nome</Label>
+                            <Input id="name-edit" value={selectedEmployee.name} onChange={(e) => setSelectedEmployee({ ...selectedEmployee, name: e.target.value })} className="col-span-3" />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="department-edit" className="text-right">Setor</Label>
+                            <Input id="department-edit" value={selectedEmployee.department} onChange={(e) => setSelectedEmployee({ ...selectedEmployee, department: e.target.value })} className="col-span-3" />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="plate-edit" className="text-right">Placa</Label>
+                            <Input id="plate-edit" value={selectedEmployee.plate} onChange={(e) => setSelectedEmployee({ ...selectedEmployee, plate: e.target.value })} className="col-span-3" />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="ramal-edit" className="text-right">Ramal</Label>
+                            <Input id="ramal-edit" value={selectedEmployee.ramal} onChange={(e) => setSelectedEmployee({ ...selectedEmployee, ramal: e.target.value })} className="col-span-3" />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="portaria-edit" className="text-right">Portaria</Label>
+                            <Select value={selectedEmployee.portaria} onValueChange={(value: 'Nenhuma' | 'P1' | 'P2') => setSelectedEmployee({ ...selectedEmployee, portaria: value })}>
+                                <SelectTrigger id="portaria-edit" className="col-span-3">
+                                    <SelectValue placeholder="Selecione a portaria" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Nenhuma">Nenhuma</SelectItem>
+                                    <SelectItem value="P1">P1</SelectItem>
+                                    <SelectItem value="P2">P2</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="status-edit" className="text-right">Status</Label>
+                            <Select disabled={role !== 'rh'} value={selectedEmployee.status} onValueChange={(value: 'Ativo' | 'Inativo') => setSelectedEmployee({ ...selectedEmployee, status: value })}>
+                                <SelectTrigger id="status-edit" className="col-span-3">
+                                    <SelectValue placeholder="Selecione o status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Ativo">Ativo</SelectItem>
+                                    <SelectItem value="Inativo">Inativo</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        {selectedEmployee.status === 'Inativo' && (
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="inactiveUntil-edit" className="text-right">Inativo até</Label>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant={"outline"}
+                                            className={cn(
+                                                "col-span-3 justify-start text-left font-normal",
+                                                !selectedEmployee.inactiveUntil && "text-muted-foreground"
+                                            )}
+                                        >
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {selectedEmployee.inactiveUntil ? format(parseISO(selectedEmployee.inactiveUntil), "dd/MM/yyyy") : <span>Selecione a data</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0">
+                                        <Calendar
+                                            mode="single"
+                                            selected={selectedEmployee.inactiveUntil ? parseISO(selectedEmployee.inactiveUntil) : undefined}
+                                            onSelect={(date) => setSelectedEmployee({ ...selectedEmployee, inactiveUntil: date ? format(date, 'yyyy-MM-dd') : null })}
+                                            initialFocus
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                        )}
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+                    <Button type="submit" onClick={handleSaveClick}>Salvar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+
 function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen, accessLogs, setAccessLogs, role }: { employees: Employee[], setEmployees: (employees: Employee[]) => void, isAddEmployeeDialogOpen: boolean, setIsAddEmployeeDialogOpen: Dispatch<SetStateAction<boolean>>, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>>, role: 'rh' | 'portaria' }) {
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
@@ -364,24 +572,21 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         }
     };
 
-    const handleSave = async () => {
-        if (selectedEmployee) {
-            try {
-                // Se o status for Ativo, limpa a data de inatividade
-                const employeeToSave = { ...selectedEmployee };
-                if (employeeToSave.status === 'Ativo') {
-                    employeeToSave.inactiveUntil = null;
-                }
-
-                await updateEmployeeInFirestore(employeeToSave);
-                setEmployees(employees.map(e => e.id === employeeToSave.id ? employeeToSave : e));
-                setIsEditDialogOpen(false);
-                setSelectedEmployee(null);
-                toast({ title: 'Funcionário atualizado com sucesso!' });
-            } catch (error) {
-                toast({ variant: 'destructive', title: 'Erro ao atualizar funcionário' });
-                console.error(error);
+    const handleSave = async (employeeToSave: Employee) => {
+        try {
+            // Se o status for Ativo, limpa a data de inatividade
+            if (employeeToSave.status === 'Ativo') {
+                employeeToSave.inactiveUntil = null;
             }
+
+            await updateEmployeeInFirestore(employeeToSave);
+            setEmployees(employees.map(e => e.id === employeeToSave.id ? employeeToSave : e));
+            setIsEditDialogOpen(false);
+            setSelectedEmployee(null);
+            toast({ title: 'Funcionário atualizado com sucesso!' });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro ao atualizar funcionário' });
+            console.error(error);
         }
     };
 
@@ -568,93 +773,13 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
 
       <AddEmployeeDialog open={isAddEmployeeDialogOpen} onOpenChange={setIsAddEmployeeDialogOpen} onSave={handleAddNewEmployee} />
 
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Editar Funcionário</DialogTitle>
-          </DialogHeader>
-          {selectedEmployee && (
-             <div className="grid gap-4 py-4">
-               <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="id-edit" className="text-right">Matrícula</Label>
-                  <Input id="id-edit" value={selectedEmployee.id} className="col-span-3" disabled />
-               </div>
-               <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="name-edit" className="text-right">Nome</Label>
-                  <Input id="name-edit" value={selectedEmployee.name} onChange={(e) => setSelectedEmployee({...selectedEmployee, name: e.target.value})} className="col-span-3" />
-               </div>
-               <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="department-edit" className="text-right">Setor</Label>
-                  <Input id="department-edit" value={selectedEmployee.department} onChange={(e) => setSelectedEmployee({...selectedEmployee, department: e.target.value})} className="col-span-3" />
-               </div>
-               <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="plate-edit" className="text-right">Placa</Label>
-                  <Input id="plate-edit" value={selectedEmployee.plate} onChange={(e) => setSelectedEmployee({...selectedEmployee, plate: e.target.value})} className="col-span-3" />
-               </div>
-               <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="ramal-edit" className="text-right">Ramal</Label>
-                  <Input id="ramal-edit" value={selectedEmployee.ramal} onChange={(e) => setSelectedEmployee({...selectedEmployee, ramal: e.target.value})} className="col-span-3" />
-               </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="portaria-edit" className="text-right">Portaria</Label>
-                    <Select value={selectedEmployee.portaria} onValueChange={(value: 'Nenhuma' | 'P1' | 'P2') => setSelectedEmployee({...selectedEmployee, portaria: value})}>
-                        <SelectTrigger id="portaria-edit" className="col-span-3">
-                            <SelectValue placeholder="Selecione a portaria" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="Nenhuma">Nenhuma</SelectItem>
-                            <SelectItem value="P1">P1</SelectItem>
-                            <SelectItem value="P2">P2</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="status-edit" className="text-right">Status</Label>
-                    <Select disabled={role !== 'rh'} value={selectedEmployee.status} onValueChange={(value: 'Ativo' | 'Inativo') => setSelectedEmployee({...selectedEmployee, status: value})}>
-                        <SelectTrigger id="status-edit" className="col-span-3">
-                            <SelectValue placeholder="Selecione o status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="Ativo">Ativo</SelectItem>
-                            <SelectItem value="Inativo">Inativo</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                {selectedEmployee.status === 'Inativo' && (
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="inactiveUntil-edit" className="text-right">Inativo até</Label>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button
-                                variant={"outline"}
-                                className={cn(
-                                    "col-span-3 justify-start text-left font-normal",
-                                    !selectedEmployee.inactiveUntil && "text-muted-foreground"
-                                )}
-                                >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {selectedEmployee.inactiveUntil ? format(parseISO(selectedEmployee.inactiveUntil), "dd/MM/yyyy") : <span>Selecione a data</span>}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0">
-                                <Calendar
-                                mode="single"
-                                selected={selectedEmployee.inactiveUntil ? parseISO(selectedEmployee.inactiveUntil) : undefined}
-                                onSelect={(date) => setSelectedEmployee({...selectedEmployee, inactiveUntil: date ? format(date, 'yyyy-MM-dd') : null})}
-                                initialFocus
-                                />
-                            </PopoverContent>
-                        </Popover>
-                    </div>
-                )}
-             </div>
-          )}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancelar</Button>
-            <Button type="submit" onClick={handleSave}>Salvar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <EditEmployeeDialog 
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        employee={selectedEmployee}
+        onSave={handleSave}
+        role={role}
+      />
     </>
   );
 }
