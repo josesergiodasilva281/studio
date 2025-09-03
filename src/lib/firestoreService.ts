@@ -98,24 +98,15 @@ export const addOrUpdateAccessLogInFirestore = async (log: AccessLog): Promise<v
     await setDoc(doc(db, ACCESS_LOGS_COLLECTION, log.id), log);
 };
 
-export const deleteAccessLogInFirestore = async (logId: string): Promise<void> => {
-    await deleteDoc(doc(db, ACCESS_LOGS_COLLECTION, logId));
-};
-
-export const clearCompletedEmployeeAccessLogs = async (): Promise<void> => {
-    const logsRef = collection(db, ACCESS_LOGS_COLLECTION);
-    // Query for logs that are for employees and have an exit timestamp (are not null)
-    const q = query(logsRef, where('personType', '==', 'employee'), where('exitTimestamp', '!=', null));
-    
-    const querySnapshot = await getDocs(q);
-    
-    // Create a batch to delete all documents in a single operation
+export const deleteAccessLogsInFirestore = async (logIds: string[]): Promise<void> => {
+    if (logIds.length === 0) {
+        return;
+    }
     const batch = writeBatch(db);
-    querySnapshot.forEach((doc) => {
-        batch.delete(doc.ref);
+    logIds.forEach(logId => {
+        const docRef = doc(db, ACCESS_LOGS_COLLECTION, logId);
+        batch.delete(docRef);
     });
-
-    // Commit the batch
     await batch.commit();
 };
 

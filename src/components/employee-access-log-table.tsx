@@ -24,12 +24,13 @@ import Link from 'next/link';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { cn } from '@/lib/utils';
-import { getAccessLogsFromFirestore, getEmployeesFromFirestore, deleteAccessLogInFirestore, clearCompletedEmployeeAccessLogs } from '@/lib/firestoreService';
+import { getAccessLogsFromFirestore, getEmployeesFromFirestore, deleteAccessLogsInFirestore } from '@/lib/firestoreService';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
+import { Checkbox } from './ui/checkbox';
 
 // Combine Log with Employee details
 type EnrichedAccessLog = AccessLog & Partial<Omit<Employee, 'id' | 'name'>>;
@@ -43,6 +44,7 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
     const [isCalendarOpen, setIsCalendarOpen] = useState(false);
     const [date, setDate] = useState<DateRange | undefined>(undefined);
     const [isLoading, setIsLoading] = useState(true);
+    const [selectedLogIds, setSelectedLogIds] = useState<string[]>([]);
     const { user } = useAuth();
     const { toast } = useToast();
 
@@ -74,7 +76,8 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
         }
         
         try {
-            await deleteAccessLogInFirestore(log.id);
+            // This is now a delete operation as requested
+            await deleteAccessLogsInFirestore([log.id]);
             // Update local state to reflect the change immediately
             setAccessLogs(prevLogs => prevLogs.filter(l => l.id !== log.id));
             toast({
@@ -143,24 +146,42 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
         }
     }
     
-    const handleClearHistory = async () => {
+    const handleDeleteSelected = async () => {
         try {
-            await clearCompletedEmployeeAccessLogs();
+            await deleteAccessLogsInFirestore(selectedLogIds);
             toast({
-                title: 'Histórico Limpo!',
-                description: 'Todos os registros de acesso finalizados foram removidos.',
+                title: 'Registros Apagados!',
+                description: `${selectedLogIds.length} registro(s) foram removidos do histórico.`,
             });
             // Recarregar os dados para atualizar a tabela
             loadData();
+            setSelectedLogIds([]); // Limpar seleção
         } catch (error) {
-            console.error('Error clearing history:', error);
+            console.error('Error deleting selected logs:', error);
             toast({
                 variant: 'destructive',
-                title: 'Erro ao Limpar Histórico',
-                description: 'Não foi possível remover os registros. Tente novamente.',
+                title: 'Erro ao Apagar Registros',
+                description: 'Não foi possível remover os registros selecionados. Tente novamente.',
             });
         }
     };
+    
+    const handleSelectAll = (checked: boolean | 'indeterminate') => {
+        if (checked === true) {
+            // Seleciona todos os logs visíveis que JÁ TÊM saída registrada
+            const allDeletableIds = enrichedLogs
+                .filter(log => log.exitTimestamp !== null)
+                .map(log => log.id);
+            setSelectedLogIds(allDeletableIds);
+        } else {
+            setSelectedLogIds([]);
+        }
+    };
+
+    // Filtra logs que podem ser deletados (já tem saída)
+    const deletableLogs = enrichedLogs.filter(log => log.exitTimestamp !== null);
+    const numSelected = selectedLogIds.length;
+    const numDeletable = deletableLogs.length;
 
     return (
         <div className="container mx-auto">
@@ -171,21 +192,21 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
                          {user && (user.role === 'rh' || user.role === 'supervisor') && !readOnly && (
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                    <Button variant="destructive">
+                                    <Button variant="destructive" disabled={numSelected === 0}>
                                         <Trash2 className="mr-2 h-4 w-4" />
-                                        Limpar Histórico
+                                        Apagar Selecionados ({numSelected})
                                     </Button>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                            Esta ação removerá permanentemente todos os registros de acesso que já foram finalizados (que possuem data de saída). Isso não pode ser desfeito.
+                                            Esta ação removerá permanentemente os {numSelected} registros de acesso selecionados. Isso não pode ser desfeito.
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction onClick={handleClearHistory}>Sim, limpar histórico</AlertDialogAction>
+                                        <AlertDialogAction onClick={handleDeleteSelected}>Sim, apagar registros</AlertDialogAction>
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>
@@ -248,6 +269,14 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
                         <Table>
                             <TableHeader>
                                 <TableRow>
+                                    <TableHead className="w-[40px]">
+                                        <Checkbox
+                                            checked={numSelected === numDeletable && numDeletable > 0}
+                                            onCheckedChange={handleSelectAll}
+                                            aria-label="Selecionar todos os registros deletáveis"
+                                            disabled={numDeletable === 0}
+                                        />
+                                    </TableHead>
                                     <TableHead>Foto</TableHead>
                                     <TableHead>Matrícula</TableHead>
                                     <TableHead>Nome</TableHead>
@@ -262,21 +291,35 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
                             <TableBody>
                                 {isLoading ? (
                                      <TableRow>
-                                        <TableCell colSpan={9} className="text-center">
+                                        <TableCell colSpan={10} className="text-center">
                                             Carregando histórico...
                                         </TableCell>
                                     </TableRow>
                                 ) : enrichedLogs.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={9} className="text-center">
+                                        <TableCell colSpan={10} className="text-center">
                                             Nenhum registro de acesso encontrado para os filtros aplicados.
                                         </TableCell>
                                     </TableRow>
                                 ) : (
                                     enrichedLogs.map((log) => {
                                         const presence = log.exitTimestamp === null ? 'Dentro' : 'Fora';
+                                        const isSelected = selectedLogIds.includes(log.id);
+                                        const isDeletable = log.exitTimestamp !== null;
                                         return (
-                                        <TableRow key={log.id}>
+                                        <TableRow key={log.id} data-state={isSelected ? "selected" : ""}>
+                                            <TableCell>
+                                                <Checkbox
+                                                    checked={isSelected}
+                                                    onCheckedChange={(checked) => {
+                                                        setSelectedLogIds(prev => 
+                                                            checked ? [...prev, log.id] : prev.filter(id => id !== log.id)
+                                                        );
+                                                    }}
+                                                    aria-label={`Selecionar registro de ${log.personName}`}
+                                                    disabled={!isDeletable || readOnly}
+                                                />
+                                            </TableCell>
                                             <TableCell>
                                                 <Dialog>
                                                     <DialogTrigger asChild>

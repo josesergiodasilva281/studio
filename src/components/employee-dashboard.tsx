@@ -42,7 +42,7 @@ import { Badge } from './ui/badge';
 import type { Employee, AccessLog } from '@/lib/types';
 import Link from 'next/link';
 import { useAuth } from '@/context/auth-context';
-import { getEmployeesFromFirestore, addEmployeeToFirestore, updateEmployeeInFirestore, deleteEmployeeFromFirestore, addInitialEmployeesToFirestore, addOrUpdateAccessLogInFirestore, deleteAccessLogInFirestore } from '@/lib/firestoreService';
+import { getEmployeesFromFirestore, addEmployeeToFirestore, updateEmployeeInFirestore, deleteEmployeeFromFirestore, addInitialEmployeesToFirestore, addOrUpdateAccessLogInFirestore, deleteAccessLogsInFirestore } from '@/lib/firestoreService';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { format, parseISO } from 'date-fns';
@@ -318,7 +318,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
 
         if (openLog) {
             // Registering an exit by DELETING the log
-            await deleteAccessLogInFirestore(openLog.id);
+            await deleteAccessLogsInFirestore([openLog.id]);
             setAccessLogs(logs => logs.filter(l => l.id !== openLog.id));
             toast({
                 title: "Acesso Registrado: Saída",
@@ -709,5 +709,7 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
     </div>
   );
 }
+
+    
 
     
