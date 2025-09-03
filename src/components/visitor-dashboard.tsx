@@ -16,7 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from './ui/button';
-import { Pencil, Trash2, PlusCircle, Home, Building, GanttChartSquare, Camera, User, LogIn } from 'lucide-react';
+import { Pencil, Trash2, PlusCircle, Home, Building, GanttChartSquare, Camera, User, LogIn, Crop } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,6 +43,8 @@ import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { useAuth } from '@/context/auth-context';
+import ReactCrop, { type Crop as CropType, centerCrop, makeAspectCrop } from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 
 
 const emptyVisitor: Visitor = {
@@ -59,6 +61,160 @@ const emptyVisitor: Visitor = {
 
 type ReturningVisitorInfo = Pick<Visitor, 'company' | 'plate' | 'responsible' | 'reason'>;
 
+function getCroppedImg(image: HTMLImageElement, crop: CropType, canvas: HTMLCanvasElement) {
+    const scaleX = image.naturalWidth / image.width;
+    const scaleY = image.naturalHeight / image.height;
+    canvas.width = crop.width;
+    canvas.height = crop.height;
+    const ctx = canvas.getContext('2d');
+
+    if (!ctx) {
+        return null;
+    }
+
+    ctx.drawImage(
+        image,
+        crop.x * scaleX,
+        crop.y * scaleY,
+        crop.width * scaleX,
+        crop.height * scaleY,
+        0,
+        0,
+        crop.width,
+        crop.height
+    );
+    
+    return canvas.toDataURL('image/jpeg');
+}
+
+function PhotoCaptureAndCrop({ photoDataUrl, onPhotoCropped }: { photoDataUrl: string | undefined, onPhotoCropped: (dataUrl: string) => void }) {
+    const { toast } = useToast();
+    const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+    const [isCameraOpen, setIsCameraOpen] = useState(false);
+    const [uncroppedPhoto, setUncroppedPhoto] = useState<string | null>(null);
+    const [crop, setCrop] = useState<CropType>();
+    
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const imgRef = useRef<HTMLImageElement>(null);
+
+    useEffect(() => {
+        if (isCameraOpen) {
+            setUncroppedPhoto(null);
+            const getCameraPermission = async () => {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    setHasCameraPermission(true);
+                    if (videoRef.current) {
+                        videoRef.current.srcObject = stream;
+                    }
+                } catch (error) {
+                    console.error('Error accessing camera:', error);
+                    setHasCameraPermission(false);
+                    toast({
+                        variant: 'destructive',
+                        title: 'Acesso à Câmera Negado',
+                        description: 'Por favor, habilite a permissão da câmera nas configurações do seu navegador.',
+                    });
+                }
+            };
+            getCameraPermission();
+
+            return () => {
+                if (videoRef.current && videoRef.current.srcObject) {
+                    const stream = videoRef.current.srcObject as MediaStream;
+                    stream.getTracks().forEach(track => track.stop());
+                }
+            }
+        }
+    }, [isCameraOpen, toast]);
+
+    const handleTakePhoto = () => {
+        if (videoRef.current && canvasRef.current) {
+            const video = videoRef.current;
+            const canvas = canvasRef.current;
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            if (context) {
+                context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+                const dataUrl = canvas.toDataURL('image/jpeg');
+                setUncroppedPhoto(dataUrl);
+                setIsCameraOpen(false); // Close camera after taking photo
+            }
+        }
+    };
+    
+    const handleCropImage = () => {
+        if (imgRef.current && canvasRef.current && crop) {
+            const croppedDataUrl = getCroppedImg(imgRef.current, crop, canvasRef.current);
+            if(croppedDataUrl) {
+                onPhotoCropped(croppedDataUrl);
+            }
+            setUncroppedPhoto(null);
+        }
+    }
+    
+    const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+        const { width, height } = e.currentTarget;
+        const newCrop = centerCrop(
+            makeAspectCrop({ unit: '%', width: 90 }, 1, width, height),
+            width,
+            height
+        );
+        setCrop(newCrop);
+    };
+
+    return (
+        <div className="space-y-4 flex flex-col items-center">
+            <Label>Foto do Visitante</Label>
+            <div className="w-full max-w-xs aspect-square rounded-md border bg-muted flex items-center justify-center overflow-hidden">
+                {isCameraOpen ? (
+                    <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted />
+                ) : uncroppedPhoto ? (
+                    <ReactCrop
+                        crop={crop}
+                        onChange={c => setCrop(c)}
+                        aspect={1}
+                        className="max-h-[320px]"
+                    >
+                        <img ref={imgRef} src={uncroppedPhoto} onLoad={onImageLoad} alt="Recortar foto" />
+                    </ReactCrop>
+                ) : photoDataUrl ? (
+                    <img src={photoDataUrl} alt="Foto do Visitante" className="w-full h-full object-cover" />
+                ) : (
+                    <User className="h-24 w-24 text-muted-foreground" />
+                )}
+            </div>
+            {hasCameraPermission === false && (
+                <Alert variant="destructive">
+                    <AlertTitle>Acesso à Câmera Necessário</AlertTitle>
+                    <AlertDescription>
+                        Por favor, permita o acesso à câmera para tirar a foto.
+                    </AlertDescription>
+                </Alert>
+            )}
+            <div className="flex gap-2">
+                {!uncroppedPhoto && (
+                     <Button type="button" onClick={() => setIsCameraOpen(!isCameraOpen)}>
+                        <Camera className="mr-2 h-4 w-4" />
+                        {isCameraOpen ? 'Fechar Câmera' : 'Abrir Câmera'}
+                    </Button>
+                )}
+                {isCameraOpen && hasCameraPermission && (
+                    <Button type="button" onClick={handleTakePhoto}>Tirar Foto</Button>
+                )}
+                {uncroppedPhoto && (
+                    <>
+                        <Button type="button" onClick={handleCropImage}><Crop className="mr-2 h-4 w-4"/>Recortar e Salvar Foto</Button>
+                        <Button type="button" variant="outline" onClick={() => setUncroppedPhoto(null)}>Cancelar</Button>
+                    </>
+                )}
+            </div>
+            <canvas ref={canvasRef} className="hidden" />
+        </div>
+    );
+}
 
 function VisitorTable({ 
     visitors, 
@@ -516,12 +672,7 @@ function ReturningVisitorForm({ visitor, onSave, onCancel }: { visitor: Visitor,
 function AddVisitorForm({ onSave, onCancel, initialData }: { onSave: (visitor: Visitor) => void, onCancel: () => void, initialData?: Visitor }) {
     const [visitor, setVisitor] = useState(initialData || { ...emptyVisitor, id: `visit-${Date.now()}` });
     const { toast } = useToast();
-    
-    const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-    const [isCameraOpen, setIsCameraOpen] = useState(false);
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    
+        
     const nameInputRef = useRef<HTMLInputElement>(null);
     const rgInputRef = useRef<HTMLInputElement>(null);
     const cpfInputRef = useRef<HTMLInputElement>(null);
@@ -531,54 +682,6 @@ function AddVisitorForm({ onSave, onCancel, initialData }: { onSave: (visitor: V
     const reasonInputRef = useRef<HTMLInputElement>(null);
     const saveButtonRef = useRef<HTMLButtonElement>(null);
     
-    useEffect(() => {
-        if (isCameraOpen) {
-            const getCameraPermission = async () => {
-              try {
-                const stream = await navigator.mediaDevices.getUserMedia({video: true});
-                setHasCameraPermission(true);
-        
-                if (videoRef.current) {
-                  videoRef.current.srcObject = stream;
-                }
-              } catch (error) {
-                console.error('Error accessing camera:', error);
-                setHasCameraPermission(false);
-                toast({
-                  variant: 'destructive',
-                  title: 'Acesso à Câmera Negado',
-                  description: 'Por favor, habilite a permissão da câmera nas configurações do seu navegador.',
-                });
-              }
-            };
-        
-            getCameraPermission();
-
-            return () => {
-                // Stop camera stream when component unmounts or camera is closed
-                if (videoRef.current && videoRef.current.srcObject) {
-                    const stream = videoRef.current.srcObject as MediaStream;
-                    stream.getTracks().forEach(track => track.stop());
-                }
-            }
-        }
-    }, [isCameraOpen, toast]);
-
-    const handleTakePhoto = () => {
-        if (videoRef.current && canvasRef.current) {
-            const video = videoRef.current;
-            const canvas = canvasRef.current;
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const context = canvas.getContext('2d');
-            if (context) {
-                context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-                const dataUrl = canvas.toDataURL('image/jpeg');
-                setVisitor({ ...visitor, photoDataUrl: dataUrl });
-                setIsCameraOpen(false); // Close camera after taking photo
-            }
-        }
-    }
     
     const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, nextFieldRef: React.RefObject<HTMLElement>) => {
         if (e.key === 'Enter') {
@@ -602,36 +705,10 @@ function AddVisitorForm({ onSave, onCancel, initialData }: { onSave: (visitor: V
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
             {/* Coluna da Câmera */}
-            <div className="space-y-4 flex flex-col items-center">
-                 <Label>Foto do Visitante</Label>
-                 <div className="w-full max-w-xs aspect-square rounded-md border bg-muted flex items-center justify-center overflow-hidden">
-                    {isCameraOpen ? (
-                        <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted />
-                    ) : visitor.photoDataUrl ? (
-                         <img src={visitor.photoDataUrl} alt="Foto do Visitante" className="w-full h-full object-cover" />
-                    ) : (
-                        <User className="h-24 w-24 text-muted-foreground" />
-                    )}
-                 </div>
-                 {hasCameraPermission === false && (
-                    <Alert variant="destructive">
-                        <AlertTitle>Acesso à Câmera Necessário</AlertTitle>
-                        <AlertDescription>
-                        Por favor, permita o acesso à câmera para tirar a foto.
-                        </AlertDescription>
-                    </Alert>
-                 )}
-                 <div className="flex gap-2">
-                    <Button type="button" onClick={() => setIsCameraOpen(!isCameraOpen)}>
-                        <Camera className="mr-2 h-4 w-4" />
-                        {isCameraOpen ? 'Fechar Câmera' : 'Abrir Câmera'}
-                    </Button>
-                    {isCameraOpen && hasCameraPermission && (
-                        <Button type="button" onClick={handleTakePhoto}>Tirar Foto</Button>
-                    )}
-                 </div>
-                 <canvas ref={canvasRef} className="hidden" />
-            </div>
+            <PhotoCaptureAndCrop
+                photoDataUrl={visitor.photoDataUrl}
+                onPhotoCropped={(dataUrl) => setVisitor({ ...visitor, photoDataUrl: dataUrl })}
+            />
 
             {/* Coluna do Formulário */}
             <div className="space-y-4">

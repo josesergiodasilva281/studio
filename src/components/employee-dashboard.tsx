@@ -16,7 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from './ui/button';
-import { Pencil, Trash2, GanttChartSquare, Camera, Home, Building, LogIn, CalendarIcon, User } from 'lucide-react';
+import { Pencil, Trash2, GanttChartSquare, Camera, Home, Building, LogIn, CalendarIcon, User, Crop } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,6 +49,8 @@ import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Alert, AlertTitle, AlertDescription } from './ui/alert';
+import ReactCrop, { type Crop as CropType, centerCrop, makeAspectCrop } from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 
 
 // Helper function to check if an employee should be considered active
@@ -79,62 +81,67 @@ const emptyEmployee: Employee = {
     photoDataUrl: '',
 };
 
-function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, onSave: (employee: Employee) => void }) {
-    const { toast } = useToast();
-    const [newEmployee, setNewEmployee] = useState(emptyEmployee);
+function getCroppedImg(image: HTMLImageElement, crop: CropType, canvas: HTMLCanvasElement) {
+    const scaleX = image.naturalWidth / image.width;
+    const scaleY = image.naturalHeight / image.height;
+    canvas.width = crop.width;
+    canvas.height = crop.height;
+    const ctx = canvas.getContext('2d');
 
+    if (!ctx) {
+        return null;
+    }
+
+    ctx.drawImage(
+        image,
+        crop.x * scaleX,
+        crop.y * scaleY,
+        crop.width * scaleX,
+        crop.height * scaleY,
+        0,
+        0,
+        crop.width,
+        crop.height
+    );
+    
+    return canvas.toDataURL('image/jpeg');
+}
+
+
+function PhotoCaptureAndCrop({ photoDataUrl, onPhotoCropped }: { photoDataUrl: string | undefined, onPhotoCropped: (dataUrl: string) => void }) {
+    const { toast } = useToast();
     const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
     const [isCameraOpen, setIsCameraOpen] = useState(false);
+    const [uncroppedPhoto, setUncroppedPhoto] = useState<string | null>(null);
+    const [crop, setCrop] = useState<CropType>();
+    
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
-
-    const idInputRef = useRef<HTMLInputElement>(null);
-    const nameInputRef = useRef<HTMLInputElement>(null);
-    const departmentInputRef = useRef<HTMLInputElement>(null);
-    const plateInputRef = useRef<HTMLInputElement>(null);
-    const ramalInputRef = useRef<HTMLInputElement>(null);
-    const portariaTriggerRef = useRef<HTMLButtonElement>(null);
-    const statusTriggerRef = useRef<HTMLButtonElement>(null);
-    const saveButtonRef = useRef<HTMLButtonElement>(null);
+    const imgRef = useRef<HTMLImageElement>(null);
 
     useEffect(() => {
-        if (open) {
-             // Reset with a unique ID when dialog opens
-            setNewEmployee({...emptyEmployee, id: `func-${Date.now()}` });
-            // Focus the first input when the dialog opens
-            setTimeout(() => idInputRef.current?.focus(), 100);
-        } else {
-            // Close camera and reset state when dialog closes
-            setIsCameraOpen(false);
-            setHasCameraPermission(null);
-        }
-    }, [open]);
-    
-     useEffect(() => {
         if (isCameraOpen) {
+            setUncroppedPhoto(null);
             const getCameraPermission = async () => {
-              try {
-                const stream = await navigator.mediaDevices.getUserMedia({video: true});
-                setHasCameraPermission(true);
-        
-                if (videoRef.current) {
-                  videoRef.current.srcObject = stream;
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    setHasCameraPermission(true);
+                    if (videoRef.current) {
+                        videoRef.current.srcObject = stream;
+                    }
+                } catch (error) {
+                    console.error('Error accessing camera:', error);
+                    setHasCameraPermission(false);
+                    toast({
+                        variant: 'destructive',
+                        title: 'Acesso à Câmera Negado',
+                        description: 'Por favor, habilite a permissão da câmera nas configurações do seu navegador.',
+                    });
                 }
-              } catch (error) {
-                console.error('Error accessing camera:', error);
-                setHasCameraPermission(false);
-                toast({
-                  variant: 'destructive',
-                  title: 'Acesso à Câmera Negado',
-                  description: 'Por favor, habilite a permissão da câmera nas configurações do seu navegador.',
-                });
-              }
             };
-        
             getCameraPermission();
 
             return () => {
-                // Stop camera stream when component unmounts or camera is closed
                 if (videoRef.current && videoRef.current.srcObject) {
                     const stream = videoRef.current.srcObject as MediaStream;
                     stream.getTracks().forEach(track => track.stop());
@@ -153,12 +160,104 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
             if (context) {
                 context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
                 const dataUrl = canvas.toDataURL('image/jpeg');
-                setNewEmployee({ ...newEmployee, photoDataUrl: dataUrl });
+                setUncroppedPhoto(dataUrl);
                 setIsCameraOpen(false); // Close camera after taking photo
             }
         }
+    };
+    
+    const handleCropImage = () => {
+        if (imgRef.current && canvasRef.current && crop) {
+            const croppedDataUrl = getCroppedImg(imgRef.current, crop, canvasRef.current);
+            if(croppedDataUrl) {
+                onPhotoCropped(croppedDataUrl);
+            }
+            setUncroppedPhoto(null);
+        }
     }
+    
+    const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+        const { width, height } = e.currentTarget;
+        const newCrop = centerCrop(
+            makeAspectCrop({ unit: '%', width: 90 }, 1, width, height),
+            width,
+            height
+        );
+        setCrop(newCrop);
+    };
 
+    return (
+        <div className="space-y-4 flex flex-col items-center">
+            <Label>Foto do Funcionário</Label>
+            <div className="w-full max-w-xs aspect-square rounded-md border bg-muted flex items-center justify-center overflow-hidden">
+                {isCameraOpen ? (
+                    <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted />
+                ) : uncroppedPhoto ? (
+                    <ReactCrop
+                        crop={crop}
+                        onChange={c => setCrop(c)}
+                        aspect={1}
+                        className="max-h-[320px]"
+                    >
+                        <img ref={imgRef} src={uncroppedPhoto} onLoad={onImageLoad} alt="Recortar foto" />
+                    </ReactCrop>
+                ) : photoDataUrl ? (
+                    <img src={photoDataUrl} alt="Foto do Funcionário" className="w-full h-full object-cover" />
+                ) : (
+                    <User className="h-24 w-24 text-muted-foreground" />
+                )}
+            </div>
+            {hasCameraPermission === false && (
+                <Alert variant="destructive">
+                    <AlertTitle>Acesso à Câmera Necessário</AlertTitle>
+                    <AlertDescription>
+                        Por favor, permita o acesso à câmera para tirar a foto.
+                    </AlertDescription>
+                </Alert>
+            )}
+            <div className="flex gap-2">
+                {!uncroppedPhoto && (
+                     <Button type="button" onClick={() => setIsCameraOpen(!isCameraOpen)}>
+                        <Camera className="mr-2 h-4 w-4" />
+                        {isCameraOpen ? 'Fechar Câmera' : 'Abrir Câmera'}
+                    </Button>
+                )}
+                {isCameraOpen && hasCameraPermission && (
+                    <Button type="button" onClick={handleTakePhoto}>Tirar Foto</Button>
+                )}
+                {uncroppedPhoto && (
+                    <>
+                        <Button type="button" onClick={handleCropImage}><Crop className="mr-2 h-4 w-4"/>Recortar e Salvar Foto</Button>
+                        <Button type="button" variant="outline" onClick={() => setUncroppedPhoto(null)}>Cancelar</Button>
+                    </>
+                )}
+            </div>
+            <canvas ref={canvasRef} className="hidden" />
+        </div>
+    );
+}
+
+function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, onSave: (employee: Employee) => void }) {
+    const { toast } = useToast();
+    const [newEmployee, setNewEmployee] = useState(emptyEmployee);
+
+    const idInputRef = useRef<HTMLInputElement>(null);
+    const nameInputRef = useRef<HTMLInputElement>(null);
+    const departmentInputRef = useRef<HTMLInputElement>(null);
+    const plateInputRef = useRef<HTMLInputElement>(null);
+    const ramalInputRef = useRef<HTMLInputElement>(null);
+    const portariaTriggerRef = useRef<HTMLButtonElement>(null);
+    const statusTriggerRef = useRef<HTMLButtonElement>(null);
+    const saveButtonRef = useRef<HTMLButtonElement>(null);
+
+    useEffect(() => {
+        if (open) {
+             // Reset with a unique ID when dialog opens
+            setNewEmployee({...emptyEmployee, id: `func-${Date.now()}` });
+            // Focus the first input when the dialog opens
+            setTimeout(() => idInputRef.current?.focus(), 100);
+        }
+    }, [open]);
 
     const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, nextFieldRef: React.RefObject<HTMLElement>) => {
         if (e.key === 'Enter') {
@@ -199,37 +298,10 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
                     <DialogTitle>Cadastrar Novo Funcionário</DialogTitle>
                 </DialogHeader>
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-                     {/* Coluna da Câmera */}
-                    <div className="space-y-4 flex flex-col items-center">
-                        <Label>Foto do Funcionário</Label>
-                        <div className="w-full max-w-xs aspect-square rounded-md border bg-muted flex items-center justify-center overflow-hidden">
-                            {isCameraOpen ? (
-                                <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted />
-                            ) : newEmployee.photoDataUrl ? (
-                                <img src={newEmployee.photoDataUrl} alt="Foto do Funcionário" className="w-full h-full object-cover" />
-                            ) : (
-                                <User className="h-24 w-24 text-muted-foreground" />
-                            )}
-                        </div>
-                        {hasCameraPermission === false && (
-                            <Alert variant="destructive">
-                                <AlertTitle>Acesso à Câmera Necessário</AlertTitle>
-                                <AlertDescription>
-                                Por favor, permita o acesso à câmera para tirar a foto.
-                                </AlertDescription>
-                            </Alert>
-                        )}
-                        <div className="flex gap-2">
-                            <Button type="button" onClick={() => setIsCameraOpen(!isCameraOpen)}>
-                                <Camera className="mr-2 h-4 w-4" />
-                                {isCameraOpen ? 'Fechar Câmera' : 'Abrir Câmera'}
-                            </Button>
-                            {isCameraOpen && hasCameraPermission && (
-                                <Button type="button" onClick={handleTakePhoto}>Tirar Foto</Button>
-                            )}
-                        </div>
-                        <canvas ref={canvasRef} className="hidden" />
-                    </div>
+                    <PhotoCaptureAndCrop
+                        photoDataUrl={newEmployee.photoDataUrl}
+                        onPhotoCropped={(dataUrl) => setNewEmployee({ ...newEmployee, photoDataUrl: dataUrl })}
+                    />
                     {/* Coluna do Formulário */}
                     <div className="space-y-4">
                         <div className="grid grid-cols-4 items-center gap-4">
@@ -304,64 +376,10 @@ function EditEmployeeDialog({
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(employee);
     const { toast } = useToast();
 
-    const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-    const [isCameraOpen, setIsCameraOpen] = useState(false);
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-
     useEffect(() => {
         setSelectedEmployee(employee);
-        if (!open) {
-            setIsCameraOpen(false);
-            setHasCameraPermission(null);
-        }
     }, [open, employee]);
 
-    useEffect(() => {
-        if (isCameraOpen) {
-            const getCameraPermission = async () => {
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                    setHasCameraPermission(true);
-                    if (videoRef.current) {
-                        videoRef.current.srcObject = stream;
-                    }
-                } catch (error) {
-                    console.error('Error accessing camera:', error);
-                    setHasCameraPermission(false);
-                    toast({
-                        variant: 'destructive',
-                        title: 'Acesso à Câmera Negado',
-                        description: 'Por favor, habilite a permissão da câmera.',
-                    });
-                }
-            };
-            getCameraPermission();
-
-            return () => {
-                if (videoRef.current && videoRef.current.srcObject) {
-                    const stream = videoRef.current.srcObject as MediaStream;
-                    stream.getTracks().forEach(track => track.stop());
-                }
-            };
-        }
-    }, [isCameraOpen, toast]);
-
-    const handleTakePhoto = () => {
-        if (videoRef.current && canvasRef.current && selectedEmployee) {
-            const video = videoRef.current;
-            const canvas = canvasRef.current;
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const context = canvas.getContext('2d');
-            if (context) {
-                context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-                const dataUrl = canvas.toDataURL('image/jpeg');
-                setSelectedEmployee({ ...selectedEmployee, photoDataUrl: dataUrl });
-                setIsCameraOpen(false);
-            }
-        }
-    };
 
     const handleSaveClick = () => {
         if (selectedEmployee) {
@@ -378,38 +396,10 @@ function EditEmployeeDialog({
                     <DialogTitle>Editar Funcionário</DialogTitle>
                 </DialogHeader>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-                    {/* Coluna da Câmera */}
-                    <div className="space-y-4 flex flex-col items-center">
-                        <Label>Foto do Funcionário</Label>
-                        <div className="w-full max-w-xs aspect-square rounded-md border bg-muted flex items-center justify-center overflow-hidden">
-                            {isCameraOpen ? (
-                                <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted />
-                            ) : selectedEmployee.photoDataUrl ? (
-                                <img src={selectedEmployee.photoDataUrl} alt="Foto do Funcionário" className="w-full h-full object-cover" />
-                            ) : (
-                                <User className="h-24 w-24 text-muted-foreground" />
-                            )}
-                        </div>
-                        {hasCameraPermission === false && (
-                            <Alert variant="destructive">
-                                <AlertTitle>Acesso à Câmera Necessário</AlertTitle>
-                                <AlertDescription>
-                                    Por favor, permita o acesso à câmera para tirar a foto.
-                                </AlertDescription>
-                            </Alert>
-                        )}
-                        <div className="flex gap-2">
-                            <Button type="button" onClick={() => setIsCameraOpen(!isCameraOpen)}>
-                                <Camera className="mr-2 h-4 w-4" />
-                                {isCameraOpen ? 'Fechar Câmera' : 'Alterar Foto'}
-                            </Button>
-                            {isCameraOpen && hasCameraPermission && (
-                                <Button type="button" onClick={handleTakePhoto}>Tirar Foto</Button>
-                            )}
-                        </div>
-                        <canvas ref={canvasRef} className="hidden" />
-                    </div>
-
+                    <PhotoCaptureAndCrop
+                        photoDataUrl={selectedEmployee.photoDataUrl}
+                        onPhotoCropped={(dataUrl) => setSelectedEmployee({ ...selectedEmployee, photoDataUrl: dataUrl })}
+                    />
                     {/* Coluna do Formulário */}
                     <div className="space-y-4">
                         <div className="grid grid-cols-4 items-center gap-4">
@@ -838,3 +828,4 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
     
 
     
+
