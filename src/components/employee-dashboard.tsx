@@ -670,7 +670,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                     <TableRow 
                         key={employee.id}
                         className={cn(
-                            presence === 'Dentro' && 'bg-red-500/10 hover:bg-red-500/20'
+                            presence === 'Dentro' && 'bg-red-500/25 hover:bg-red-500/35'
                         )}
                     >
                     <TableCell>
@@ -828,4 +828,5 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
     
 
     
+
 
