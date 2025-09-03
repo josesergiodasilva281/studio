@@ -413,23 +413,21 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     const filteredEmployees = employees.filter(employee => {
         const presenceStatus = getPresenceStatus(employee.id);
         const searchTermLower = searchTerm.toLowerCase();
-        
-        // If there's a search term, filter by it
-        if (searchTermLower) {
-            return (
-                employee.id.toLowerCase().includes(searchTermLower) ||
-                employee.name.toLowerCase().includes(searchTermLower) ||
-                employee.department.toLowerCase().includes(searchTermLower) ||
-                (employee.plate && employee.plate.toLowerCase().includes(searchTermLower)) ||
-                (employee.ramal && employee.ramal.toLowerCase().includes(searchTermLower)) ||
-                (employee.portaria && employee.portaria.toLowerCase().includes(searchTermLower)) ||
-                employee.status.toLowerCase().includes(searchTermLower) ||
-                presenceStatus.toLowerCase().includes(searchTermLower)
-            );
+
+        if (!searchTermLower) {
+            return true; // Show all employees if search is empty
         }
-        
-        // Otherwise, only show employees who are "Dentro"
-        return presenceStatus === 'Dentro';
+
+        return (
+            employee.id.toLowerCase().includes(searchTermLower) ||
+            employee.name.toLowerCase().includes(searchTermLower) ||
+            employee.department.toLowerCase().includes(searchTermLower) ||
+            (employee.plate && employee.plate.toLowerCase().includes(searchTermLower)) ||
+            (employee.ramal && employee.ramal.toLowerCase().includes(searchTermLower)) ||
+            (employee.portaria && employee.portaria.toLowerCase().includes(searchTermLower)) ||
+            employee.status.toLowerCase().includes(searchTermLower) ||
+            presenceStatus.toLowerCase().includes(searchTermLower)
+        );
     });
 
   return (
