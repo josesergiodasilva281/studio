@@ -102,9 +102,13 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
     const enrichedLogs: EnrichedAccessLog[] = accessLogs
         .map(log => {
             const employee = employees.find(e => e.id === log.personId);
+            const employeeDetails = employee ? { ...employee } : {};
+            // Ensure log.id is not overwritten by employee.id
+            delete (employeeDetails as Partial<Employee>).id;
+
             return {
-                ...log,
-                ...employee, // Spread all employee properties
+                ...employeeDetails,
+                ...log, // Spread log last to preserve log.id and other log-specific fields
             };
         })
         .filter(log => {
