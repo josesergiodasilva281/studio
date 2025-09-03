@@ -472,7 +472,12 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                     const displayStatus = isEffectivelyActive ? 'Ativo' : 'Inativo';
                     
                     return (
-                    <TableRow key={employee.id}>
+                    <TableRow 
+                        key={employee.id}
+                        className={cn(
+                            presence === 'Dentro' && 'bg-red-500/10 hover:bg-red-500/20'
+                        )}
+                    >
                     <TableCell>
                         <Dialog>
                             <DialogTrigger asChild>
@@ -495,7 +500,12 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                             </DialogContent>
                         </Dialog>
                     </TableCell>
-                    <TableCell>{employee.id}</TableCell>
+                    <TableCell 
+                        className="cursor-pointer hover:underline"
+                        onClick={() => handleManualEntry(employee)}
+                    >
+                        {employee.id}
+                    </TableCell>
                     <TableCell>{employee.name}</TableCell>
                     <TableCell>{employee.department}</TableCell>
                     <TableCell>{employee.plate}</TableCell>
