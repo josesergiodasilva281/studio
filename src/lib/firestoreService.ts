@@ -12,7 +12,7 @@ const CAR_LOGS_COLLECTION = 'carLogs';
 
 // --- Funcionários ---
 
-const initialEmployees: Omit<Employee, 'id'>[] = [
+const initialEmployees: Omit<Employee, 'id' | 'photoDataUrl'>[] = [
   { name: 'João da Silva', department: 'Produção', plate: 'ABC-1234', ramal: '2101', status: 'Ativo', portaria: 'P1' },
   { name: 'Maria Oliveira', department: 'Logística', plate: 'DEF-5678', ramal: '2102', status: 'Ativo', portaria: 'P2' },
   { name: 'Pedro Souza', department: 'Administrativo', plate: 'GHI-9012', ramal: '2103', status: 'Inativo', inactiveUntil: null },
@@ -42,7 +42,7 @@ export const addInitialEmployeesToFirestore = async (): Promise<void> => {
     const batch = writeBatch(db);
     initialEmployees.forEach((employeeData, index) => {
         const id = (index + 1).toString();
-        const employee: Partial<Employee> = { ...employeeData, status: 'Ativo' };
+        const employee: Partial<Employee> = { ...employeeData, status: 'Ativo', photoDataUrl: '' };
          if (employeeData.name === 'Pedro Souza') {
             employee.status = 'Inativo';
         }

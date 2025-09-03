@@ -8,6 +8,7 @@ export interface Employee {
   status: 'Ativo' | 'Inativo';
   portaria?: 'Nenhuma' | 'P1' | 'P2';
   inactiveUntil?: string | null; // YYYY-MM-DD format
+  photoDataUrl?: string;
 }
 
 export interface Visitor {

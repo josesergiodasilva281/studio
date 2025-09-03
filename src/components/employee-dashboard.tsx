@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from './ui/button';
-import { Pencil, Trash2, GanttChartSquare, Camera, Home, Building, LogIn, CalendarIcon } from 'lucide-react';
+import { Pencil, Trash2, GanttChartSquare, Camera, Home, Building, LogIn, CalendarIcon, User } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,11 +34,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Badge } from './ui/badge';
 import type { Employee, AccessLog } from '@/lib/types';
-import { Html5Qrcode } from 'html5-qrcode';
 import Link from 'next/link';
 import { useAuth } from '@/context/auth-context';
 import { getEmployeesFromFirestore, addEmployeeToFirestore, updateEmployeeInFirestore, deleteEmployeeFromFirestore, addInitialEmployeesToFirestore } from '@/lib/firestoreService';
@@ -46,6 +46,8 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { Alert, AlertTitle, AlertDescription } from './ui/alert';
 
 
 // Helper function to check if an employee should be considered active
@@ -73,140 +75,25 @@ const emptyEmployee: Employee = {
     status: 'Ativo',
     portaria: 'Nenhuma',
     inactiveUntil: null,
+    photoDataUrl: '',
 };
-
-function BarcodeScannerDialog({ open, onOpenChange, onBarcodeScan }: { open: boolean; onOpenChange: (open: boolean) => void; onBarcodeScan: (barcode: string) => void; }) {
-    const { toast } = useToast();
-    const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
-    const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
-    const scannerRef = useRef<Html5Qrcode | null>(null);
-    const readerRef = useRef<HTMLDivElement>(null);
-    const cleanupCalledRef = useRef(false);
-  
-    useEffect(() => {
-      if (open) {
-        cleanupCalledRef.current = false; // Reset on open
-        Html5Qrcode.getCameras().then(availableDevices => {
-          if (availableDevices && availableDevices.length > 0) {
-            setDevices(availableDevices);
-            if(!selectedDeviceId) {
-              setSelectedDeviceId(availableDevices[0].id);
-            }
-          } else {
-              toast({ variant: "destructive", title: "Nenhuma câmera encontrada."})
-          }
-        }).catch(err => {
-          console.error("Error getting cameras:", err);
-          toast({ variant: "destructive", title: "Erro ao acessar câmeras.", description: "Por favor, verifique as permissões."})
-        });
-      }
-    }, [open, toast, selectedDeviceId]);
-  
-  
-    const stopScanner = () => {
-      if (scannerRef.current && scannerRef.current.isScanning) {
-          scannerRef.current.stop().catch(err => {
-              console.warn("Scanner could not be stopped, likely already stopped.", err);
-          });
-      }
-    };
-  
-    useEffect(() => {
-      if (open && selectedDeviceId && readerRef.current) {
-          // Ensure the div is ready.
-          if (!readerRef.current) return;
-  
-          // Initialize scanner if it doesn't exist
-          if (!scannerRef.current) {
-              scannerRef.current = new Html5Qrcode(readerRef.current.id, { verbose: false });
-          }
-          const html5Qrcode = scannerRef.current;
-          
-          const qrCodeSuccessCallback = (decodedText: string) => {
-              onBarcodeScan(decodedText);
-              onOpenChange(false); // Close dialog on successful scan
-          };
-          
-          if (html5Qrcode && !html5Qrcode.isScanning) {
-              html5Qrcode.start(
-                  selectedDeviceId, 
-                  {
-                      fps: 10,
-                      qrbox: { width: 350, height: 150 }
-                  },
-                  qrCodeSuccessCallback,
-                  () => {} // Ignore errors
-              ).catch(err => {
-                  console.error("Unable to start scanning.", err);
-              });
-          }
-      }
-  
-      return () => {
-          if (!cleanupCalledRef.current) {
-               cleanupCalledRef.current = true;
-               stopScanner();
-          }
-      };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, selectedDeviceId]);
-  
-    const handleOpenChange = (isOpen: boolean) => {
-        if (!isOpen) {
-            stopScanner();
-        }
-        onOpenChange(isOpen);
-    };
-  
-    return (
-        <Dialog open={open} onOpenChange={handleOpenChange}>
-            <DialogContent className="sm:max-w-xl">
-                <DialogHeader>
-                    <DialogTitle>Leitor de Código de Barras</DialogTitle>
-                    <DialogDescription>
-                        Selecione a câmera e aponte para o código de barras.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  {devices.length > 1 && (
-                      <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="camera-select" className="text-right">Câmera</Label>
-                          <Select value={selectedDeviceId} onValueChange={setSelectedDeviceId}>
-                              <SelectTrigger id="camera-select" className="col-span-3">
-                                  <SelectValue placeholder="Selecione uma câmera" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                  {devices.map(device => (
-                                      <SelectItem key={device.id} value={device.id}>
-                                          {device.label || `Câmera ${devices.indexOf(device) + 1}`}
-                                      </SelectItem>
-                                  ))}
-                              </SelectContent>
-                          </Select>
-                      </div>
-                   )}
-                  <div id="reader-dialog" ref={readerRef} className="w-full aspect-video rounded-md bg-black" />
-                </div>
-                <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>Cancelar</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    )
-}
 
 function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOpenChange: (open: boolean) => void, onSave: (employee: Employee) => void }) {
     const { toast } = useToast();
     const [newEmployee, setNewEmployee] = useState(emptyEmployee);
-    const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+    const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+    const [isCameraOpen, setIsCameraOpen] = useState(false);
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
 
     const idInputRef = useRef<HTMLInputElement>(null);
     const nameInputRef = useRef<HTMLInputElement>(null);
     const departmentInputRef = useRef<HTMLInputElement>(null);
     const plateInputRef = useRef<HTMLInputElement>(null);
     const ramalInputRef = useRef<HTMLInputElement>(null);
-    const statusTriggerRef = useRef<HTMLButtonElement>(null);
     const portariaTriggerRef = useRef<HTMLButtonElement>(null);
+    const statusTriggerRef = useRef<HTMLButtonElement>(null);
     const saveButtonRef = useRef<HTMLButtonElement>(null);
 
     useEffect(() => {
@@ -215,8 +102,62 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
             setNewEmployee({...emptyEmployee, id: `func-${Date.now()}` });
             // Focus the first input when the dialog opens
             setTimeout(() => idInputRef.current?.focus(), 100);
+        } else {
+            // Close camera and reset state when dialog closes
+            setIsCameraOpen(false);
+            setHasCameraPermission(null);
         }
     }, [open]);
+    
+     useEffect(() => {
+        if (isCameraOpen) {
+            const getCameraPermission = async () => {
+              try {
+                const stream = await navigator.mediaDevices.getUserMedia({video: true});
+                setHasCameraPermission(true);
+        
+                if (videoRef.current) {
+                  videoRef.current.srcObject = stream;
+                }
+              } catch (error) {
+                console.error('Error accessing camera:', error);
+                setHasCameraPermission(false);
+                toast({
+                  variant: 'destructive',
+                  title: 'Acesso à Câmera Negado',
+                  description: 'Por favor, habilite a permissão da câmera nas configurações do seu navegador.',
+                });
+              }
+            };
+        
+            getCameraPermission();
+
+            return () => {
+                // Stop camera stream when component unmounts or camera is closed
+                if (videoRef.current && videoRef.current.srcObject) {
+                    const stream = videoRef.current.srcObject as MediaStream;
+                    stream.getTracks().forEach(track => track.stop());
+                }
+            }
+        }
+    }, [isCameraOpen, toast]);
+
+    const handleTakePhoto = () => {
+        if (videoRef.current && canvasRef.current) {
+            const video = videoRef.current;
+            const canvas = canvasRef.current;
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            if (context) {
+                context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+                const dataUrl = canvas.toDataURL('image/jpeg');
+                setNewEmployee({ ...newEmployee, photoDataUrl: dataUrl });
+                setIsCameraOpen(false); // Close camera after taking photo
+            }
+        }
+    }
+
 
     const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, nextFieldRef: React.RefObject<HTMLElement>) => {
         if (e.key === 'Enter') {
@@ -234,6 +175,10 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
 
 
     const handleSaveClick = () => {
+         if (!newEmployee.photoDataUrl) {
+            toast({ variant: 'destructive', title: 'Campo Obrigatório', description: 'A foto do funcionário é obrigatória.' });
+            return;
+         }
         if (!newEmployee.name || !newEmployee.department) {
              toast({
                 variant: 'destructive',
@@ -247,80 +192,98 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
     }
     
     return (
-        <>
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Cadastrar Novo Funcionário</DialogTitle>
                 </DialogHeader>
-                 <div className="grid gap-4 py-4">
-                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="id" className="text-right">Matrícula</Label>
-                        <div className="col-span-3 flex items-center gap-2">
-                           <Input ref={idInputRef} onKeyDown={(e) => handleKeyDown(e, nameInputRef)} id="id" value={newEmployee.id} onChange={(e) => setNewEmployee({...newEmployee, id: e.target.value})} className="flex-grow" />
-                            <Button type="button" variant="outline" size="icon" onClick={() => setIsScannerOpen(true)}>
-                                <Camera className="h-4 w-4" />
-                                <span className="sr-only">Ler código de barras</span>
-                            </Button>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+                     {/* Coluna da Câmera */}
+                    <div className="space-y-4 flex flex-col items-center">
+                        <Label>Foto do Funcionário</Label>
+                        <div className="w-full max-w-xs aspect-square rounded-md border bg-muted flex items-center justify-center overflow-hidden">
+                            {isCameraOpen ? (
+                                <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted />
+                            ) : newEmployee.photoDataUrl ? (
+                                <img src={newEmployee.photoDataUrl} alt="Foto do Funcionário" className="w-full h-full object-cover" />
+                            ) : (
+                                <User className="h-24 w-24 text-muted-foreground" />
+                            )}
                         </div>
+                        {hasCameraPermission === false && (
+                            <Alert variant="destructive">
+                                <AlertTitle>Acesso à Câmera Necessário</AlertTitle>
+                                <AlertDescription>
+                                Por favor, permita o acesso à câmera para tirar a foto.
+                                </AlertDescription>
+                            </Alert>
+                        )}
+                        <div className="flex gap-2">
+                            <Button type="button" onClick={() => setIsCameraOpen(!isCameraOpen)}>
+                                <Camera className="mr-2 h-4 w-4" />
+                                {isCameraOpen ? 'Fechar Câmera' : 'Abrir Câmera'}
+                            </Button>
+                            {isCameraOpen && hasCameraPermission && (
+                                <Button type="button" onClick={handleTakePhoto}>Tirar Foto</Button>
+                            )}
+                        </div>
+                        <canvas ref={canvasRef} className="hidden" />
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="name" className="text-right">Nome</Label>
-                        <Input ref={nameInputRef} onKeyDown={(e) => handleKeyDown(e, departmentInputRef)} id="name" value={newEmployee.name} onChange={(e) => setNewEmployee({...newEmployee, name: e.target.value})} className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="department" className="text-right">Setor</Label>
-                        <Input ref={departmentInputRef} onKeyDown={(e) => handleKeyDown(e, plateInputRef)} id="department" value={newEmployee.department} onChange={(e) => setNewEmployee({...newEmployee, department: e.target.value})} className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="plate" className="text-right">Placa</Label>
-                        <Input ref={plateInputRef} onKeyDown={(e) => handleKeyDown(e, ramalInputRef)} id="plate" value={newEmployee.plate} onChange={(e) => setNewEmployee({...newEmployee, plate: e.target.value})} className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="ramal" className="text-right">Ramal</Label>
-                        <Input ref={ramalInputRef} onKeyDown={(e) => handleKeyDown(e, portariaTriggerRef as any)} id="ramal" value={newEmployee.ramal} onChange={(e) => setNewEmployee({...newEmployee, ramal: e.target.value})} className="col-span-3" />
-                    </div>
-                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="portaria" className="text-right">Portaria</Label>
-                        <Select value={newEmployee.portaria} onValueChange={(value: 'Nenhuma' | 'P1' | 'P2') => setNewEmployee({...newEmployee, portaria: value})}>
-                            <SelectTrigger ref={portariaTriggerRef} onKeyDown={(e) => handleSelectKeyDown(e, statusTriggerRef as any)} id="portaria" className="col-span-3">
-                                <SelectValue placeholder="Selecione a portaria" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Nenhuma">Nenhuma</SelectItem>
-                                <SelectItem value="P1">P1</SelectItem>
-                                <SelectItem value="P2">P2</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="status" className="text-right">Status</Label>
-                        <Select value={newEmployee.status} onValueChange={(value: 'Ativo' | 'Inativo') => setNewEmployee({...newEmployee, status: value})}>
-                            <SelectTrigger ref={statusTriggerRef} onKeyDown={(e) => handleSelectKeyDown(e, saveButtonRef as any)} id="status" className="col-span-3">
-                                <SelectValue placeholder="Selecione o status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Ativo">Ativo</SelectItem>
-                                <SelectItem value="Inativo">Inativo</SelectItem>
-                            </SelectContent>
-                        </Select>
+                    {/* Coluna do Formulário */}
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="id" className="text-right">Matrícula</Label>
+                            <Input ref={idInputRef} onKeyDown={(e) => handleKeyDown(e, nameInputRef)} id="id" value={newEmployee.id} onChange={(e) => setNewEmployee({...newEmployee, id: e.target.value})} className="col-span-3" />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="name" className="text-right">Nome</Label>
+                            <Input ref={nameInputRef} onKeyDown={(e) => handleKeyDown(e, departmentInputRef)} id="name" value={newEmployee.name} onChange={(e) => setNewEmployee({...newEmployee, name: e.target.value})} className="col-span-3" />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="department" className="text-right">Setor</Label>
+                            <Input ref={departmentInputRef} onKeyDown={(e) => handleKeyDown(e, plateInputRef)} id="department" value={newEmployee.department} onChange={(e) => setNewEmployee({...newEmployee, department: e.target.value})} className="col-span-3" />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="plate" className="text-right">Placa</Label>
+                            <Input ref={plateInputRef} onKeyDown={(e) => handleKeyDown(e, ramalInputRef)} id="plate" value={newEmployee.plate} onChange={(e) => setNewEmployee({...newEmployee, plate: e.target.value})} className="col-span-3" />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="ramal" className="text-right">Ramal</Label>
+                            <Input ref={ramalInputRef} onKeyDown={(e) => handleKeyDown(e, portariaTriggerRef as any)} id="ramal" value={newEmployee.ramal} onChange={(e) => setNewEmployee({...newEmployee, ramal: e.target.value})} className="col-span-3" />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="portaria" className="text-right">Portaria</Label>
+                            <Select value={newEmployee.portaria} onValueChange={(value: 'Nenhuma' | 'P1' | 'P2') => setNewEmployee({...newEmployee, portaria: value})}>
+                                <SelectTrigger ref={portariaTriggerRef} onKeyDown={(e) => handleSelectKeyDown(e, statusTriggerRef as any)} id="portaria" className="col-span-3">
+                                    <SelectValue placeholder="Selecione a portaria" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Nenhuma">Nenhuma</SelectItem>
+                                    <SelectItem value="P1">P1</SelectItem>
+                                    <SelectItem value="P2">P2</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="status" className="text-right">Status</Label>
+                            <Select value={newEmployee.status} onValueChange={(value: 'Ativo' | 'Inativo') => setNewEmployee({...newEmployee, status: value})}>
+                                <SelectTrigger ref={statusTriggerRef} onKeyDown={(e) => handleSelectKeyDown(e, saveButtonRef as any)} id="status" className="col-span-3">
+                                    <SelectValue placeholder="Selecione o status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Ativo">Ativo</SelectItem>
+                                    <SelectItem value="Inativo">Inativo</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                         <DialogFooter className="col-span-1 md:col-span-2 pt-4">
+                            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+                            <Button ref={saveButtonRef} type="submit" onClick={handleSaveClick}>Salvar</Button>
+                        </DialogFooter>
                     </div>
                 </div>
-                <DialogFooter>
-                     <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-                    <Button ref={saveButtonRef} type="submit" onClick={handleSaveClick}>Salvar</Button>
-                </DialogFooter>
             </DialogContent>
         </Dialog>
-        <BarcodeScannerDialog
-             open={isScannerOpen}
-             onOpenChange={setIsScannerOpen}
-             onBarcodeScan={(barcode) => {
-                 setNewEmployee(prev => ({ ...prev, id: barcode }));
-                 toast({ title: "Matrícula preenchida!" });
-             }}
-         />
-        </>
     )
 }
 
@@ -494,6 +457,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             <Table>
                 <TableHeader>
                 <TableRow>
+                    <TableHead>Foto</TableHead>
                     <TableHead>Matrícula</TableHead>
                     <TableHead>Nome</TableHead>
                     <TableHead>Setor</TableHead>
@@ -513,6 +477,28 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                     
                     return (
                     <TableRow key={employee.id}>
+                    <TableCell>
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Avatar className="cursor-pointer">
+                                    <AvatarImage src={employee.photoDataUrl} alt={employee.name} />
+                                    <AvatarFallback><User /></AvatarFallback>
+                                </Avatar>
+                            </DialogTrigger>
+                            <DialogContent className="p-0 max-w-lg">
+                                <DialogHeader>
+                                    <DialogTitle className="sr-only">{`Foto de ${employee.name}`}</DialogTitle>
+                                </DialogHeader>
+                                {employee.photoDataUrl ? (
+                                    <img src={employee.photoDataUrl} alt={`Foto de ${employee.name}`} className="w-full h-auto rounded-md" />
+                                ) : (
+                                    <div className="flex items-center justify-center h-96 bg-muted">
+                                        <User className="h-24 w-24 text-muted-foreground" />
+                                    </div>
+                                )}
+                            </DialogContent>
+                        </Dialog>
+                    </TableCell>
                     <TableCell>{employee.id}</TableCell>
                     <TableCell>{employee.name}</TableCell>
                     <TableCell>{employee.department}</TableCell>
@@ -618,7 +604,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="status-edit" className="text-right">Status</Label>
-                    <Select disabled={role === 'portaria'} value={selectedEmployee.status} onValueChange={(value: 'Ativo' | 'Inativo') => setSelectedEmployee({...selectedEmployee, status: value})}>
+                    <Select disabled={role !== 'rh'} value={selectedEmployee.status} onValueChange={(value: 'Ativo' | 'Inativo') => setSelectedEmployee({...selectedEmployee, status: value})}>
                         <SelectTrigger id="status-edit" className="col-span-3">
                             <SelectValue placeholder="Selecione o status" />
                         </SelectTrigger>
