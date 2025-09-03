@@ -18,13 +18,15 @@ import {
 import { Badge } from './ui/badge';
 import type { AccessLog, Employee } from '@/lib/types';
 import { Input } from './ui/input';
-import { Building, Home, Calendar as CalendarIcon } from 'lucide-react';
+import { Building, Home, User, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from './ui/button';
 import Link from 'next/link';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { cn } from '@/lib/utils';
 import { getAccessLogsFromFirestore, getEmployeesFromFirestore } from '@/lib/firestoreService';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 
 // Combine Log with Employee details
 type EnrichedAccessLog = AccessLog & Partial<Omit<Employee, 'id' | 'name'>>;
@@ -65,10 +67,7 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
             const employee = employees.find(e => e.id === log.personId);
             return {
                 ...log,
-                department: employee?.department,
-                plate: employee?.plate,
-                ramal: employee?.ramal,
-                status: employee?.status,
+                ...employee, // Spread all employee properties
             };
         })
         .filter(log => {
@@ -174,6 +173,7 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
                         <Table>
                             <TableHeader>
                                 <TableRow>
+                                    <TableHead>Foto</TableHead>
                                     <TableHead>Matrícula</TableHead>
                                     <TableHead>Nome</TableHead>
                                     <TableHead>Setor</TableHead>
@@ -186,13 +186,13 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
                             <TableBody>
                                 {isLoading ? (
                                      <TableRow>
-                                        <TableCell colSpan={7} className="text-center">
+                                        <TableCell colSpan={8} className="text-center">
                                             Carregando histórico...
                                         </TableCell>
                                     </TableRow>
                                 ) : enrichedLogs.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="text-center">
+                                        <TableCell colSpan={8} className="text-center">
                                             Nenhum registro de acesso encontrado para os filtros aplicados.
                                         </TableCell>
                                     </TableRow>
@@ -201,6 +201,28 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
                                         const presence = log.exitTimestamp === null ? 'Dentro' : 'Fora';
                                         return (
                                         <TableRow key={log.id}>
+                                            <TableCell>
+                                                <Dialog>
+                                                    <DialogTrigger asChild>
+                                                        <Avatar className="cursor-pointer">
+                                                            <AvatarImage src={log.photoDataUrl} alt={log.personName} />
+                                                            <AvatarFallback><User /></AvatarFallback>
+                                                        </Avatar>
+                                                    </DialogTrigger>
+                                                    <DialogContent className="p-0 max-w-lg">
+                                                        <DialogHeader>
+                                                            <DialogTitle className="sr-only">{`Foto de ${log.personName}`}</DialogTitle>
+                                                        </DialogHeader>
+                                                        {log.photoDataUrl ? (
+                                                          <img src={log.photoDataUrl} alt={`Foto de ${log.personName}`} className="w-full h-auto rounded-md" />
+                                                        ) : (
+                                                            <div className="flex items-center justify-center h-96 bg-muted">
+                                                                <User className="h-24 w-24 text-muted-foreground" />
+                                                            </div>
+                                                        )}
+                                                    </DialogContent>
+                                                </Dialog>
+                                            </TableCell>
                                             <TableCell>{log.personId}</TableCell>
                                             <TableCell>{log.personName}</TableCell>
                                             <TableCell>{log.department || '-'}</TableCell>
