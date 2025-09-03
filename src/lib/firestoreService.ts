@@ -1,7 +1,7 @@
 
 
 import { db } from './firebase';
-import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch, query, orderBy, limit } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch, query, orderBy, limit, where } from 'firebase/firestore';
 import type { Employee, Visitor, Car, AccessLog, CarLog } from './types';
 
 // --- Coleções ---
@@ -101,6 +101,24 @@ export const addOrUpdateAccessLogInFirestore = async (log: AccessLog): Promise<v
 export const deleteAccessLogInFirestore = async (logId: string): Promise<void> => {
     await deleteDoc(doc(db, ACCESS_LOGS_COLLECTION, logId));
 };
+
+export const clearCompletedEmployeeAccessLogs = async (): Promise<void> => {
+    const logsRef = collection(db, ACCESS_LOGS_COLLECTION);
+    // Query for logs that are for employees and have an exit timestamp (are not null)
+    const q = query(logsRef, where('personType', '==', 'employee'), where('exitTimestamp', '!=', null));
+    
+    const querySnapshot = await getDocs(q);
+    
+    // Create a batch to delete all documents in a single operation
+    const batch = writeBatch(db);
+    querySnapshot.forEach((doc) => {
+        batch.delete(doc.ref);
+    });
+
+    // Commit the batch
+    await batch.commit();
+};
+
 
 // --- Logs de Carros ---
 

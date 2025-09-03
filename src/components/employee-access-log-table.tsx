@@ -18,17 +18,18 @@ import {
 import { Badge } from './ui/badge';
 import type { AccessLog, Employee } from '@/lib/types';
 import { Input } from './ui/input';
-import { Building, Home, User, Calendar as CalendarIcon, LogOut } from 'lucide-react';
+import { Building, Home, User, Calendar as CalendarIcon, LogOut, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import Link from 'next/link';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { cn } from '@/lib/utils';
-import { getAccessLogsFromFirestore, getEmployeesFromFirestore, deleteAccessLogInFirestore } from '@/lib/firestoreService';
+import { getAccessLogsFromFirestore, getEmployeesFromFirestore, deleteAccessLogInFirestore, clearCompletedEmployeeAccessLogs } from '@/lib/firestoreService';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 
 // Combine Log with Employee details
 type EnrichedAccessLog = AccessLog & Partial<Omit<Employee, 'id' | 'name'>>;
@@ -92,11 +93,13 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
             const employee = employees.find(e => e.id === log.personId);
             const employeeDetails = employee ? { ...employee } : {};
             // Ensure log.id is not overwritten by employee.id
+            const logId = log.id;
             delete (employeeDetails as Partial<Employee>).id;
 
             return {
                 ...employeeDetails,
                 ...log, // Spread log last to preserve log.id and other log-specific fields
+                id: logId,
             };
         })
         .filter(log => {
@@ -139,17 +142,60 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
             setSearchTerm(inputValue); // Trigger search
         }
     }
+    
+    const handleClearHistory = async () => {
+        try {
+            await clearCompletedEmployeeAccessLogs();
+            toast({
+                title: 'Histórico Limpo!',
+                description: 'Todos os registros de acesso finalizados foram removidos.',
+            });
+            // Recarregar os dados para atualizar a tabela
+            loadData();
+        } catch (error) {
+            console.error('Error clearing history:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Erro ao Limpar Histórico',
+                description: 'Não foi possível remover os registros. Tente novamente.',
+            });
+        }
+    };
 
     return (
         <div className="container mx-auto">
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>Histórico de Acessos de Funcionários</CardTitle>
-                    {!readOnly && (
-                        <Link href="/">
-                            <Button variant="outline">Voltar</Button>
-                        </Link>
-                    )}
+                    <div className="flex gap-2">
+                         {user && (user.role === 'rh' || user.role === 'supervisor') && !readOnly && (
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="destructive">
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Limpar Histórico
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Esta ação removerá permanentemente todos os registros de acesso que já foram finalizados (que possuem data de saída). Isso não pode ser desfeito.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleClearHistory}>Sim, limpar histórico</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                         )}
+                        {!readOnly && (
+                            <Link href="/">
+                                <Button variant="outline">Voltar</Button>
+                            </Link>
+                        )}
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <div className="flex items-center gap-4 py-4">
