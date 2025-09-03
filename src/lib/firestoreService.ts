@@ -1,4 +1,5 @@
 
+
 import { db } from './firebase';
 import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch, query, orderBy, limit } from 'firebase/firestore';
 import type { Employee, Visitor, Car, AccessLog, CarLog } from './types';
@@ -95,6 +96,10 @@ export const getAccessLogsFromFirestore = async (count: number = 50): Promise<Ac
 
 export const addOrUpdateAccessLogInFirestore = async (log: AccessLog): Promise<void> => {
     await setDoc(doc(db, ACCESS_LOGS_COLLECTION, log.id), log);
+};
+
+export const deleteAccessLogInFirestore = async (logId: string): Promise<void> => {
+    await deleteDoc(doc(db, ACCESS_LOGS_COLLECTION, logId));
 };
 
 // --- Logs de Carros ---

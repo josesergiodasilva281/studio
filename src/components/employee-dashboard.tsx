@@ -42,7 +42,7 @@ import { Badge } from './ui/badge';
 import type { Employee, AccessLog } from '@/lib/types';
 import Link from 'next/link';
 import { useAuth } from '@/context/auth-context';
-import { getEmployeesFromFirestore, addEmployeeToFirestore, updateEmployeeInFirestore, deleteEmployeeFromFirestore, addInitialEmployeesToFirestore, addOrUpdateAccessLogInFirestore } from '@/lib/firestoreService';
+import { getEmployeesFromFirestore, addEmployeeToFirestore, updateEmployeeInFirestore, deleteEmployeeFromFirestore, addInitialEmployeesToFirestore, addOrUpdateAccessLogInFirestore, deleteAccessLogInFirestore } from '@/lib/firestoreService';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { format, parseISO } from 'date-fns';
@@ -316,13 +316,10 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             log => log.personId === employee.id && log.exitTimestamp === null
         );
 
-        const registeredBy = getRegisteredBy();
-
         if (openLog) {
-            // Registering an exit
-            const updatedLog = { ...openLog, exitTimestamp: new Date().toISOString(), registeredBy };
-            await addOrUpdateAccessLogInFirestore(updatedLog);
-            setAccessLogs(logs => logs.map(l => l.id === updatedLog.id ? updatedLog : l));
+            // Registering an exit by DELETING the log
+            await deleteAccessLogInFirestore(openLog.id);
+            setAccessLogs(logs => logs.filter(l => l.id !== openLog.id));
             toast({
                 title: "Acesso Registrado: Saída",
                 description: `${employee.name} - ${new Date().toLocaleString('pt-BR')}`,
@@ -330,6 +327,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             });
         } else {
             // Registering an entry
+            const registeredBy = getRegisteredBy();
             const newLog: AccessLog = {
                 id: `log-${Date.now()}`,
                 personId: employee.id,

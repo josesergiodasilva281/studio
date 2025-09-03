@@ -24,7 +24,7 @@ import Link from 'next/link';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { cn } from '@/lib/utils';
-import { getAccessLogsFromFirestore, getEmployeesFromFirestore, addOrUpdateAccessLogInFirestore } from '@/lib/firestoreService';
+import { getAccessLogsFromFirestore, getEmployeesFromFirestore, deleteAccessLogInFirestore } from '@/lib/firestoreService';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { useAuth } from '@/context/auth-context';
@@ -66,28 +66,16 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
         loadData();
     }, []);
     
-    const getRegisteredBy = (): 'RH' | 'P1' | 'P2' | 'Supervisor' => {
-        if (!user) return 'P1'; // Should not happen
-        if (user.role === 'rh') return 'RH';
-        if (user.role === 'supervisor') return 'Supervisor';
-        if (user.username === 'portaria1') return 'P1';
-        if (user.username === 'portaria2') return 'P2';
-        return 'P1'; // Default, should not happen
-    }
-
     const handleRegisterExit = async (log: AccessLog) => {
         if (!log || log.exitTimestamp !== null) {
             toast({ variant: 'destructive', title: 'Ação Inválida', description: 'Este funcionário já possui um registro de saída.' });
             return;
         }
-
-        const registeredBy = getRegisteredBy();
-        const updatedLog = { ...log, exitTimestamp: new Date().toISOString(), registeredBy };
         
         try {
-            await addOrUpdateAccessLogInFirestore(updatedLog);
+            await deleteAccessLogInFirestore(log.id);
             // Update local state to reflect the change immediately
-            setAccessLogs(prevLogs => prevLogs.map(l => l.id === updatedLog.id ? updatedLog : l));
+            setAccessLogs(prevLogs => prevLogs.filter(l => l.id !== log.id));
             toast({
                 title: "Acesso Registrado: Saída",
                 description: `${log.personName} - ${new Date().toLocaleString('pt-BR')}`,
