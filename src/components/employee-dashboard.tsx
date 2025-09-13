@@ -538,6 +538,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     const { user } = useAuth();
     const [isListening, setIsListening] = useState(false);
     const recognitionRef = useRef<any>(null);
+    const recognitionStartedRef = useRef(false);
     const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
     
     // Function to remove accents and convert to lower case
@@ -639,12 +640,37 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     useEffect(() => {
         // @ts-ignore
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (SpeechRecognition) {
+        if (!SpeechRecognition) {
+            toast({ variant: 'destructive', title: 'Navegador não suportado', description: 'O reconhecimento de voz não é suportado por este navegador.' });
+            return;
+        }
+
+        if (!recognitionRef.current) {
             recognitionRef.current = new SpeechRecognition();
-            recognitionRef.current.continuous = true; // Listen continuously
+            recognitionRef.current.continuous = true;
             recognitionRef.current.lang = 'pt-BR';
             recognitionRef.current.interimResults = false;
             recognitionRef.current.maxAlternatives = 1;
+        
+            recognitionRef.current.onstart = () => {
+                setIsListening(true);
+                recognitionStartedRef.current = true;
+            };
+
+            recognitionRef.current.onend = () => {
+                setIsListening(false);
+                recognitionStartedRef.current = false;
+                // Automatically restart listening
+                setTimeout(() => {
+                     try {
+                        if (recognitionRef.current && !recognitionStartedRef.current) {
+                            recognitionRef.current.start();
+                        }
+                    } catch (e) {
+                         console.error("Could not restart recognition on end", e);
+                    }
+                }, 500);
+            };
 
             recognitionRef.current.onresult = (event: any) => {
                 const lastResultIndex = event.results.length - 1;
@@ -694,69 +720,40 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                     }
                 }
             };
-
+            
             recognitionRef.current.onerror = (event: any) => {
                 console.error('Speech recognition error', event.error);
+                recognitionStartedRef.current = false;
                 if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
                     toast({
                         variant: 'destructive',
                         title: 'Permissão do Microfone Negada',
-                        description: 'Por favor, permita o acesso ao microfone nas configurações do seu navegador para usar a pesquisa por voz.',
+                        description: 'Por favor, permita o acesso ao microfone nas configurações do seu navegador.',
                     });
-                     setIsListening(false);
-                } else {
-                    // Other errors might be temporary, don't show a toast unless it's persistent.
                 }
             };
-            
-             recognitionRef.current.onend = () => {
-                 if(isListening){
-                    try {
-                        recognitionRef.current.start();
-                    } catch(e) {
-                         console.error("Could not restart recognition", e);
-                         setIsListening(false);
-                    }
-                 }
-            };
         }
+
+        // Start listening
+        try {
+            if (!recognitionStartedRef.current) {
+                recognitionRef.current.start();
+            }
+        } catch (e) {
+            console.error("Could not start recognition on mount", e);
+        }
+
+        return () => {
+            if (recognitionRef.current) {
+                recognitionRef.current.onend = null; // Prevent restart on unmount
+                recognitionRef.current.stop();
+                recognitionRef.current = null;
+                recognitionStartedRef.current = false;
+            }
+        };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [toast, filteredEmployees]);
     
-    const handleVoiceSearch = () => {
-        if (!recognitionRef.current) {
-            toast({ variant: 'destructive', title: 'Navegador não suportado', description: 'O reconhecimento de voz não é suportado por este navegador.' });
-            return;
-        }
-
-        if (isListening) {
-            recognitionRef.current.stop();
-            setIsListening(false);
-        } else {
-            try {
-                // Check if it's already started by the onend handler
-                // This try-catch will handle the "already started" error gracefully
-                recognitionRef.current.start();
-                setIsListening(true);
-            } catch (error: any) {
-                 console.error("Error starting speech recognition:", error);
-                 if (error.name === 'NotAllowedError') {
-                      toast({
-                        variant: 'destructive',
-                        title: 'Permissão do Microfone Negada',
-                        description: 'Por favor, permita o acesso ao microfone nas configurações do seu navegador.',
-                    });
-                    setIsListening(false);
-                 } else if (error.name !== 'InvalidStateError') { // InvalidStateError is "already started"
-                    toast({
-                        variant: 'destructive',
-                        title: 'Não foi possível iniciar o reconhecimento de voz',
-                    });
-                    setIsListening(false);
-                 }
-            }
-        }
-    };
     
     const getRegisteredBy = (): 'RH' | 'P1' | 'P2' | 'Supervisor' => {
         if (!user) return 'P1'; // Should not happen
@@ -850,9 +847,8 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             <Button 
                 variant="outline" 
                 size="icon" 
-                onClick={handleVoiceSearch}
                 className={cn(isListening && "bg-red-500 hover:bg-red-600 text-white animate-pulse")}
-                title="Ativar/desativar busca por voz"
+                title="Status do reconhecimento de voz"
             >
                 <Mic className="h-4 w-4" />
             </Button>
@@ -1043,6 +1039,7 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
 
 
     
+
 
 
 
