@@ -561,7 +561,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         if (openLog) {
             toast({
                 title: "Acesso já registrado",
-                description: `${employee.name} já possui um registro de entrada. A saída deve ser registrada no histórico.`,
+                description: `${employee.name} já possui um registro de entrada.`,
                 variant: 'default'
             });
         } else {
@@ -848,7 +848,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 variant="outline" 
                 size="icon" 
                 onClick={handleVoiceSearch}
-                className={cn(isListening && "bg-red-500 hover:bg-red-600 text-white")}
+                className={cn(isListening && "bg-red-500 hover:bg-red-600 text-white animate-pulse")}
                 title="Ativar/desativar busca por voz"
             >
                 <Mic className="h-4 w-4" />
@@ -1040,5 +1040,6 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
 
 
     
+
 
 
