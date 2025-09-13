@@ -556,6 +556,9 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 description: `${employee.name} - ${new Date(newLog.entryTimestamp).toLocaleString('pt-BR')}`,
                 variant: 'default'
             });
+            // Clear search after successful registration
+            setSearchTerm('');
+            setFilterType('all');
         }
     };
     
@@ -627,8 +630,10 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 } else {
                     const words = transcript.split(' ');
                     const keyword = words[0];
-                    if (keyword in searchKeywords) {
-                        setFilterType(searchKeywords[keyword]);
+                    const foundKeyword = Object.keys(searchKeywords).find(k => normalizeString(k) === keyword);
+
+                    if (foundKeyword) {
+                        setFilterType(searchKeywords[foundKeyword]);
                         setSearchTerm(words.slice(1).join(' '));
                     } else {
                         setFilterType('all');
@@ -673,7 +678,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 recognitionRef.current.start();
                 setIsListening(true);
             } catch (error) {
-                console.error("Error starting speech recognition:", error);
+                 console.error("Error starting speech recognition:", error);
                  toast({
                     variant: 'destructive',
                     title: 'Não foi possível iniciar o reconhecimento de voz',
@@ -966,3 +971,4 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
     </div>
   );
 }
+
