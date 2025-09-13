@@ -485,11 +485,27 @@ function EditEmployeeDialog({
     )
 }
 
+type FilterType = 'all' | 'id' | 'name' | 'department' | 'plate' | 'ramal' | 'portaria' | 'status' | 'presence';
+
+const searchKeywords: Record<string, FilterType> = {
+    matrícula: 'id',
+    matricula: 'id',
+    nome: 'name',
+    setor: 'department',
+    placa: 'plate',
+    ramal: 'ramal',
+    portaria: 'portaria',
+    status: 'status',
+    presença: 'presence',
+    presenca: 'presence',
+};
+
 
 function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen, accessLogs, setAccessLogs, role }: { employees: Employee[], setEmployees: (employees: Employee[]) => void, isAddEmployeeDialogOpen: boolean, setIsAddEmployeeDialogOpen: Dispatch<SetStateAction<boolean>>, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>>, role: 'rh' | 'portaria' }) {
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [filterType, setFilterType] = useState<FilterType>('all');
     const { toast } = useToast();
     const { user } = useAuth();
     const [isListening, setIsListening] = useState(false);
@@ -544,28 +560,40 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     };
     
     useEffect(() => {
+        const normalizedSearchTerm = normalizeString(searchTerm);
+
         const results = employees.filter(employee => {
+            if (!normalizedSearchTerm) return true;
+
             const presenceStatus = getPresenceStatus(employee.id);
-            const normalizedSearchTerm = normalizeString(searchTerm);
 
-            if (!normalizedSearchTerm) {
-                return true; // Show all employees if search is empty
+            const checkField = (field: keyof Employee | 'presence') => {
+                 if (field === 'presence') {
+                    return normalizeString(presenceStatus).includes(normalizedSearchTerm);
+                }
+                const value = employee[field];
+                return value ? normalizeString(String(value)).includes(normalizedSearchTerm) : false;
+            };
+
+            if (filterType !== 'all') {
+                return checkField(filterType);
             }
-
+            
+            // 'all' fields search
             return (
-                normalizeString(employee.id).includes(normalizedSearchTerm) ||
-                normalizeString(employee.name).includes(normalizedSearchTerm) ||
-                normalizeString(employee.department).includes(normalizedSearchTerm) ||
-                normalizeString(employee.plate).includes(normalizedSearchTerm) ||
-                normalizeString(employee.ramal).includes(normalizedSearchTerm) ||
-                normalizeString(employee.portaria).includes(normalizedSearchTerm) ||
-                normalizeString(employee.status).includes(normalizedSearchTerm) ||
-                normalizeString(presenceStatus).includes(normalizedSearchTerm)
+                checkField('id') ||
+                checkField('name') ||
+                checkField('department') ||
+                checkField('plate') ||
+                checkField('ramal') ||
+                checkField('portaria') ||
+                checkField('status') ||
+                checkField('presence')
             );
         });
         setFilteredEmployees(results);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchTerm, employees, accessLogs]);
+    }, [searchTerm, filterType, employees, accessLogs]);
     
     useEffect(() => {
         // @ts-ignore
@@ -579,6 +607,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
 
             recognitionRef.current.onresult = (event: any) => {
                 const transcript = normalizeString(event.results[0][0].transcript);
+
                  if (transcript === 'registrar') {
                     if (filteredEmployees.length === 1) {
                         handleManualEntry(filteredEmployees[0]);
@@ -596,7 +625,15 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                         });
                     }
                 } else {
-                    setSearchTerm(transcript);
+                    const words = transcript.split(' ');
+                    const keyword = words[0];
+                    if (keyword in searchKeywords) {
+                        setFilterType(searchKeywords[keyword]);
+                        setSearchTerm(words.slice(1).join(' '));
+                    } else {
+                        setFilterType('all');
+                        setSearchTerm(transcript);
+                    }
                 }
                 setIsListening(false);
             };
@@ -728,9 +765,12 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         <CardContent>
            <div className="flex items-center py-4 gap-2">
             <Input
-                placeholder="Filtrar funcionários... ou diga 'registrar'"
+                placeholder="Filtrar por 'nome joão', 'placa abc'..."
                 value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
+                onChange={(event) => {
+                    setSearchTerm(event.target.value)
+                    setFilterType('all')
+                }}
                 className="max-w-full sm:max-w-sm"
             />
             <Button 
