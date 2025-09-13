@@ -650,8 +650,8 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 const lastResultIndex = event.results.length - 1;
                 const transcript = normalizeString(event.results[lastResultIndex][0].transcript.trim());
 
-                if (transcript.startsWith('buscar')) {
-                    const command = transcript.substring('buscar'.length).trim();
+                if (transcript.startsWith('ok')) {
+                    const command = transcript.substring('ok'.length).trim();
 
                     if (command === 'registrar') {
                         if (filteredEmployees.length === 1) {
@@ -836,7 +836,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         <CardContent>
            <div className="flex items-center py-4 gap-2">
             <Input
-                placeholder="Use a voz com 'buscar...' ou digite aqui"
+                placeholder="Use a voz com 'OK...' ou digite aqui"
                 value={searchTerm}
                 onChange={(event) => {
                     setSearchTerm(event.target.value)
@@ -1040,4 +1040,5 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
 
 
     
+
 
