@@ -16,7 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from './ui/button';
-import { Pencil, Trash2, GanttChartSquare, Camera, Home, Building, LogIn, CalendarIcon, User, Crop } from 'lucide-react';
+import { Pencil, Trash2, GanttChartSquare, Camera, Home, Building, LogIn, CalendarIcon, User, Crop, Mic } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -489,9 +489,54 @@ function EditEmployeeDialog({
 function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen, accessLogs, setAccessLogs, role }: { employees: Employee[], setEmployees: (employees: Employee[]) => void, isAddEmployeeDialogOpen: boolean, setIsAddEmployeeDialogOpen: Dispatch<SetStateAction<boolean>>, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>>, role: 'rh' | 'portaria' }) {
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-    const [searchTerm, setInputValue] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
     const { toast } = useToast();
     const { user } = useAuth();
+    const [isListening, setIsListening] = useState(false);
+    const recognitionRef = useRef<any>(null);
+    
+    useEffect(() => {
+        // @ts-ignore
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            recognitionRef.current = new SpeechRecognition();
+            recognitionRef.current.continuous = false;
+            recognitionRef.current.lang = 'pt-BR';
+            recognitionRef.current.interimResults = false;
+            recognitionRef.current.maxAlternatives = 1;
+
+            recognitionRef.current.onresult = (event: any) => {
+                const transcript = event.results[0][0].transcript;
+                setSearchTerm(transcript);
+                setIsListening(false);
+            };
+
+            recognitionRef.current.onerror = (event: any) => {
+                console.error('Speech recognition error', event.error);
+                toast({ variant: 'destructive', title: 'Erro no reconhecimento de voz' });
+                setIsListening(false);
+            };
+            
+            recognitionRef.current.onend = () => {
+                setIsListening(false);
+            };
+
+        }
+    }, [toast]);
+    
+    const handleVoiceSearch = () => {
+        if (!recognitionRef.current) {
+            toast({ variant: 'destructive', title: 'Navegador não suportado', description: 'O reconhecimento de voz não é suportado por este navegador.' });
+            return;
+        }
+
+        if (isListening) {
+            recognitionRef.current.stop();
+        } else {
+            recognitionRef.current.start();
+            setIsListening(true);
+        }
+    };
     
     const getRegisteredBy = (): 'RH' | 'P1' | 'P2' | 'Supervisor' => {
         if (!user) return 'P1'; // Should not happen
@@ -636,13 +681,22 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
           </Link>
         </CardHeader>
         <CardContent>
-           <div className="flex items-center py-4">
+           <div className="flex items-center py-4 gap-2">
             <Input
                 placeholder="Filtrar funcionários..."
                 value={searchTerm}
-                onChange={(event) => setInputValue(event.target.value)}
+                onChange={(event) => setSearchTerm(event.target.value)}
                 className="max-w-full sm:max-w-sm"
             />
+            <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={handleVoiceSearch}
+                className={cn(isListening && "bg-red-500 hover:bg-red-600 text-white")}
+                title="Pesquisar por voz"
+            >
+                <Mic className="h-4 w-4" />
+            </Button>
           </div>
           <div className="rounded-md border">
             <div className="relative w-full overflow-auto">
@@ -718,6 +772,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                         <TableCell>
                              <Badge
                                 variant={presence === 'Dentro' ? 'default' : 'destructive'}
+                                className={cn(presence === 'Dentro' && 'bg-white text-black')}
                              >
                                 {presence === 'Dentro' ? <Building className="mr-1 h-3 w-3" /> : <Home className="mr-1 h-3 w-3" />}
                                 {presence}
@@ -826,11 +881,3 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
     </div>
   );
 }
-
-    
-
-    
-
-
-
-
