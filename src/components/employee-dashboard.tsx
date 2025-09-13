@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useEffect, useState, useRef, Dispatch, SetStateAction, KeyboardEvent } from 'react';
@@ -546,7 +545,6 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 setIsListening(true);
             } catch (error) {
                 console.error("Error starting speech recognition:", error);
-                // This can happen if the user has previously denied permission permanently
                  toast({
                     variant: 'destructive',
                     title: 'Não foi possível iniciar o reconhecimento de voz',
@@ -600,7 +598,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 registeredBy,
                 photoDataUrl: employee.photoDataUrl,
             };
-            await addOrUpdateAccessLogInFirestore(newLog);
+            await addOrUpdateAccessLogInFirestore((newLog));
             setAccessLogs(prevLogs => [newLog, ...prevLogs]);
             toast({
                 title: "Acesso Registrado: Entrada",
