@@ -513,7 +513,15 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
 
             recognitionRef.current.onerror = (event: any) => {
                 console.error('Speech recognition error', event.error);
-                toast({ variant: 'destructive', title: 'Erro no reconhecimento de voz' });
+                if (event.error === 'not-allowed') {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Permissão do Microfone Negada',
+                        description: 'Por favor, permita o acesso ao microfone nas configurações do seu navegador para usar a pesquisa por voz.',
+                    });
+                } else {
+                    toast({ variant: 'destructive', title: 'Erro no reconhecimento de voz' });
+                }
                 setIsListening(false);
             };
             
@@ -533,8 +541,19 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         if (isListening) {
             recognitionRef.current.stop();
         } else {
-            recognitionRef.current.start();
-            setIsListening(true);
+            try {
+                recognitionRef.current.start();
+                setIsListening(true);
+            } catch (error) {
+                console.error("Error starting speech recognition:", error);
+                // This can happen if the user has previously denied permission permanently
+                 toast({
+                    variant: 'destructive',
+                    title: 'Não foi possível iniciar o reconhecimento de voz',
+                    description: 'Verifique se a permissão do microfone não está bloqueada permanentemente para este site.',
+                });
+                setIsListening(false);
+            }
         }
     };
     
