@@ -723,10 +723,10 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             
             recognitionRef.current.onerror = (event: any) => {
                 recognitionStartedRef.current = false;
-                 if (event.error === 'aborted') {
-                    // This error can happen if the browser stops recognition for a moment.
-                    // The onend event will handle restarting it, so we can ignore this error.
-                    console.log('Speech recognition aborted, will restart.');
+                 if (event.error === 'aborted' || event.error === 'no-speech') {
+                    // These errors can happen if the browser stops recognition for a moment.
+                    // The onend event will handle restarting it, so we can ignore this.
+                    console.log(`Speech recognition benign error: ${event.error}, will restart.`);
                     return;
                 }
                 if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
@@ -746,8 +746,10 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             if (!recognitionStartedRef.current) {
                 recognitionRef.current.start();
             }
-        } catch (e) {
-            console.error("Could not start recognition on mount", e);
+        } catch (e: any) {
+             if (e.name !== 'InvalidStateError') { // This error happens if it's already started, which is fine
+                console.error("Could not start recognition on mount", e);
+             }
         }
 
         return () => {
@@ -1046,6 +1048,7 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
 
 
     
+
 
 
 
