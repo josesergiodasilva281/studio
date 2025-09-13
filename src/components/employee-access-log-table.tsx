@@ -184,17 +184,17 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
     const numDeletable = deletableLogs.length;
 
     return (
-        <div className="container mx-auto">
+        <div className="container mx-auto px-0 sm:px-4">
             <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
+                <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                     <CardTitle>Histórico de Acessos de Funcionários</CardTitle>
-                    <div className="flex gap-2">
+                    <div className="flex w-full sm:w-auto gap-2">
                          {user && (user.role === 'rh' || user.role === 'supervisor') && !readOnly && (
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                    <Button variant="destructive" disabled={numSelected === 0}>
+                                    <Button variant="destructive" disabled={numSelected === 0} className="w-full sm:w-auto">
                                         <Trash2 className="mr-2 h-4 w-4" />
-                                        Apagar Selecionados ({numSelected})
+                                        Apagar ({numSelected})
                                     </Button>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
@@ -206,26 +206,26 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction onClick={handleDeleteSelected}>Sim, apagar registros</AlertDialogAction>
+                                        <AlertDialogAction onClick={handleDeleteSelected}>Sim, apagar</AlertDialogAction>
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>
                          )}
                         {!readOnly && (
-                            <Link href="/">
-                                <Button variant="outline">Voltar</Button>
+                            <Link href="/" className="w-full sm:w-auto">
+                                <Button variant="outline" className="w-full">Voltar</Button>
                             </Link>
                         )}
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex items-center gap-4 py-4">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 py-4">
                         <Input
                             placeholder="Filtrar histórico..."
                             value={inputValue}
                             onChange={(event) => setInputValue(event.target.value)}
                             onKeyDown={handleSearchKeyDown}
-                            className="max-w-sm"
+                            className="max-w-full sm:max-w-sm"
                         />
                          <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                             <PopoverTrigger asChild>
@@ -233,7 +233,7 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
                                     id="date"
                                     variant={"outline"}
                                     className={cn(
-                                        "w-[300px] justify-start text-left font-normal",
+                                        "w-full sm:w-[300px] justify-start text-left font-normal",
                                         !date && "text-muted-foreground"
                                     )}
                                 >
@@ -266,110 +266,112 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
                         </Popover>
                     </div>
                     <div className="rounded-md border">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-[40px]">
-                                        <Checkbox
-                                            checked={numSelected === numDeletable && numDeletable > 0}
-                                            onCheckedChange={handleSelectAll}
-                                            aria-label="Selecionar todos os registros deletáveis"
-                                            disabled={numDeletable === 0}
-                                        />
-                                    </TableHead>
-                                    <TableHead>Foto</TableHead>
-                                    <TableHead>Matrícula</TableHead>
-                                    <TableHead>Nome</TableHead>
-                                    <TableHead>Setor</TableHead>
-                                    <TableHead>Entrada</TableHead>
-                                    <TableHead>Saída</TableHead>
-                                    <TableHead>Portaria</TableHead>
-                                    <TableHead>Presença</TableHead>
-                                    <TableHead className="text-right">Ação</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {isLoading ? (
-                                     <TableRow>
-                                        <TableCell colSpan={10} className="text-center">
-                                            Carregando histórico...
-                                        </TableCell>
-                                    </TableRow>
-                                ) : enrichedLogs.length === 0 ? (
+                        <div className="relative w-full overflow-auto">
+                            <Table>
+                                <TableHeader>
                                     <TableRow>
-                                        <TableCell colSpan={10} className="text-center">
-                                            Nenhum registro de acesso encontrado para os filtros aplicados.
-                                        </TableCell>
+                                        <TableHead className="w-[40px] px-2 sm:px-4">
+                                            <Checkbox
+                                                checked={numSelected === numDeletable && numDeletable > 0}
+                                                onCheckedChange={handleSelectAll}
+                                                aria-label="Selecionar todos os registros deletáveis"
+                                                disabled={numDeletable === 0}
+                                            />
+                                        </TableHead>
+                                        <TableHead>Foto</TableHead>
+                                        <TableHead>Matrícula</TableHead>
+                                        <TableHead>Nome</TableHead>
+                                        <TableHead>Setor</TableHead>
+                                        <TableHead>Entrada</TableHead>
+                                        <TableHead>Saída</TableHead>
+                                        <TableHead>Portaria</TableHead>
+                                        <TableHead>Presença</TableHead>
+                                        <TableHead className="text-right">Ação</TableHead>
                                     </TableRow>
-                                ) : (
-                                    enrichedLogs.map((log) => {
-                                        const presence = log.exitTimestamp === null ? 'Dentro' : 'Fora';
-                                        const isSelected = selectedLogIds.includes(log.id);
-                                        const isDeletable = log.exitTimestamp !== null;
-                                        return (
-                                        <TableRow key={log.id} data-state={isSelected ? "selected" : ""}>
-                                            <TableCell>
-                                                <Checkbox
-                                                    checked={isSelected}
-                                                    onCheckedChange={(checked) => {
-                                                        setSelectedLogIds(prev => 
-                                                            checked ? [...prev, log.id] : prev.filter(id => id !== log.id)
-                                                        );
-                                                    }}
-                                                    aria-label={`Selecionar registro de ${log.personName}`}
-                                                    disabled={!isDeletable || readOnly}
-                                                />
-                                            </TableCell>
-                                            <TableCell>
-                                                <Dialog>
-                                                    <DialogTrigger asChild>
-                                                        <Avatar className="cursor-pointer">
-                                                            <AvatarImage src={log.photoDataUrl} alt={log.personName} />
-                                                            <AvatarFallback><User /></AvatarFallback>
-                                                        </Avatar>
-                                                    </DialogTrigger>
-                                                    <DialogContent className="p-0 max-w-lg">
-                                                        <DialogHeader>
-                                                            <DialogTitle className="sr-only">{`Foto de ${log.personName}`}</DialogTitle>
-                                                        </DialogHeader>
-                                                        {log.photoDataUrl ? (
-                                                          <img src={log.photoDataUrl} alt={`Foto de ${log.personName}`} className="w-full h-auto rounded-md" />
-                                                        ) : (
-                                                            <div className="flex items-center justify-center h-96 bg-muted">
-                                                                <User className="h-24 w-24 text-muted-foreground" />
-                                                            </div>
-                                                        )}
-                                                    </DialogContent>
-                                                </Dialog>
-                                            </TableCell>
-                                            <TableCell>{log.personId}</TableCell>
-                                            <TableCell>{log.personName}</TableCell>
-                                            <TableCell>{log.department || '-'}</TableCell>
-                                            <TableCell>{format(parseISO(log.entryTimestamp), 'dd/MM/yyyy HH:mm:ss')}</TableCell>
-                                            <TableCell>{log.exitTimestamp ? format(parseISO(log.exitTimestamp), 'dd/MM/yyyy HH:mm:ss') : '-'}</TableCell>
-                                            <TableCell>
-                                                <Badge variant="secondary">{log.registeredBy}</Badge>
-                                            </TableCell>
-                                             <TableCell>
-                                                 <Badge 
-                                                    variant={presence === 'Dentro' ? 'default' : 'destructive'}
-                                                 >
-                                                    {presence === 'Dentro' ? <Building className="mr-1 h-3 w-3" /> : <Home className="mr-1 h-3 w-3" />}
-                                                    {presence}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                {presence === 'Dentro' && !readOnly && (
-                                                    <Button variant="ghost" size="icon" onClick={() => handleRegisterExit(log)} title="Registrar Saída">
-                                                        <LogOut className="h-4 w-4" />
-                                                    </Button>
-                                                )}
+                                </TableHeader>
+                                <TableBody>
+                                    {isLoading ? (
+                                         <TableRow>
+                                            <TableCell colSpan={10} className="text-center">
+                                                Carregando histórico...
                                             </TableCell>
                                         </TableRow>
-                                    )})
-                                )}
-                            </TableBody>
-                        </Table>
+                                    ) : enrichedLogs.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={10} className="text-center">
+                                                Nenhum registro de acesso encontrado para os filtros aplicados.
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        enrichedLogs.map((log) => {
+                                            const presence = log.exitTimestamp === null ? 'Dentro' : 'Fora';
+                                            const isSelected = selectedLogIds.includes(log.id);
+                                            const isDeletable = log.exitTimestamp !== null;
+                                            return (
+                                            <TableRow key={log.id} data-state={isSelected ? "selected" : ""}>
+                                                <TableCell className="px-2 sm:px-4">
+                                                    <Checkbox
+                                                        checked={isSelected}
+                                                        onCheckedChange={(checked) => {
+                                                            setSelectedLogIds(prev => 
+                                                                checked ? [...prev, log.id] : prev.filter(id => id !== log.id)
+                                                            );
+                                                        }}
+                                                        aria-label={`Selecionar registro de ${log.personName}`}
+                                                        disabled={!isDeletable || readOnly}
+                                                    />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Dialog>
+                                                        <DialogTrigger asChild>
+                                                            <Avatar className="cursor-pointer">
+                                                                <AvatarImage src={log.photoDataUrl} alt={log.personName} />
+                                                                <AvatarFallback><User /></AvatarFallback>
+                                                            </Avatar>
+                                                        </DialogTrigger>
+                                                        <DialogContent className="p-0 max-w-lg">
+                                                            <DialogHeader>
+                                                                <DialogTitle className="sr-only">{`Foto de ${log.personName}`}</DialogTitle>
+                                                            </DialogHeader>
+                                                            {log.photoDataUrl ? (
+                                                              <img src={log.photoDataUrl} alt={`Foto de ${log.personName}`} className="w-full h-auto rounded-md" />
+                                                            ) : (
+                                                                <div className="flex items-center justify-center h-96 bg-muted">
+                                                                    <User className="h-24 w-24 text-muted-foreground" />
+                                                                </div>
+                                                            )}
+                                                        </DialogContent>
+                                                    </Dialog>
+                                                </TableCell>
+                                                <TableCell>{log.personId}</TableCell>
+                                                <TableCell>{log.personName}</TableCell>
+                                                <TableCell>{log.department || '-'}</TableCell>
+                                                <TableCell>{format(parseISO(log.entryTimestamp), 'dd/MM/yyyy HH:mm:ss')}</TableCell>
+                                                <TableCell>{log.exitTimestamp ? format(parseISO(log.exitTimestamp), 'dd/MM/yyyy HH:mm:ss') : '-'}</TableCell>
+                                                <TableCell>
+                                                    <Badge variant="secondary">{log.registeredBy}</Badge>
+                                                </TableCell>
+                                                 <TableCell>
+                                                     <Badge 
+                                                        variant={presence === 'Dentro' ? 'default' : 'destructive'}
+                                                     >
+                                                        {presence === 'Dentro' ? <Building className="mr-1 h-3 w-3" /> : <Home className="mr-1 h-3 w-3" />}
+                                                        {presence}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {presence === 'Dentro' && !readOnly && (
+                                                        <Button variant="ghost" size="icon" onClick={() => handleRegisterExit(log)} title="Registrar Saída">
+                                                            <LogOut className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        )})
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </div>
                 </CardContent>
             </Card>

@@ -85,7 +85,7 @@ export default function PortariaPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <Header />
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-8">
+      <main className="flex-1 p-2 sm:p-4 lg:p-8 space-y-8">
         <AccessControlManager 
           onAddEmployeeClick={() => alert('Apenas o RH pode cadastrar funcionários.')}
           accessLogs={accessLogs}

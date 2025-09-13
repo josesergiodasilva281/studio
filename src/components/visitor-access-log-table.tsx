@@ -99,24 +99,24 @@ export function VisitorAccessLogTable({ readOnly = false }: { readOnly?: boolean
 
 
     return (
-        <div className="container mx-auto">
+        <div className="container mx-auto px-0 sm:px-4">
             <Card>
-                 <CardHeader className="flex flex-row items-center justify-between">
+                 <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                     <CardTitle>Histórico de Acessos de Visitantes</CardTitle>
                     {!readOnly && (
                         <Link href="/dashboard">
-                            <Button variant="outline">Voltar</Button>
+                            <Button variant="outline" className="w-full sm:w-auto">Voltar</Button>
                         </Link>
                     )}
                 </CardHeader>
                 <CardContent>
-                    <div className="flex items-center gap-4 py-4">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 py-4">
                         <Input
                             placeholder="Filtrar histórico..."
                             value={inputValue}
                             onChange={(event) => setInputValue(event.target.value)}
                             onKeyDown={handleSearchKeyDown}
-                            className="max-w-sm"
+                            className="max-w-full sm:max-w-sm"
                         />
                          <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                             <PopoverTrigger asChild>
@@ -124,7 +124,7 @@ export function VisitorAccessLogTable({ readOnly = false }: { readOnly?: boolean
                                     id="date"
                                     variant={"outline"}
                                     className={cn(
-                                        "w-[300px] justify-start text-left font-normal",
+                                        "w-full sm:w-[300px] justify-start text-left font-normal",
                                         !date && "text-muted-foreground"
                                     )}
                                 >
@@ -157,78 +157,80 @@ export function VisitorAccessLogTable({ readOnly = false }: { readOnly?: boolean
                         </Popover>
                     </div>
                     <div className="rounded-md border">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Foto</TableHead>
-                                    <TableHead>Nome</TableHead>
-                                    <TableHead>Empresa</TableHead>
-                                    <TableHead>Placa</TableHead>
-                                    <TableHead>Responsável</TableHead>
-                                    <TableHead>Motivo</TableHead>
-                                    <TableHead>Entrada</TableHead>
-                                    <TableHead>Saída</TableHead>
-                                    <TableHead>Portaria</TableHead>
-                                    <TableHead>Presença</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {isLoading ? (
-                                     <TableRow>
-                                        <TableCell colSpan={10} className="text-center">
-                                            Carregando histórico...
-                                        </TableCell>
-                                    </TableRow>
-                                ) : filteredLogs.length === 0 ? (
+                        <div className="relative w-full overflow-auto">
+                            <Table>
+                                <TableHeader>
                                     <TableRow>
-                                        <TableCell colSpan={10} className="text-center">
-                                            Nenhum registro de acesso encontrado para os filtros aplicados.
-                                        </TableCell>
+                                        <TableHead>Foto</TableHead>
+                                        <TableHead>Nome</TableHead>
+                                        <TableHead>Empresa</TableHead>
+                                        <TableHead>Placa</TableHead>
+                                        <TableHead>Responsável</TableHead>
+                                        <TableHead>Motivo</TableHead>
+                                        <TableHead>Entrada</TableHead>
+                                        <TableHead>Saída</TableHead>
+                                        <TableHead>Portaria</TableHead>
+                                        <TableHead>Presença</TableHead>
                                     </TableRow>
-                                ) : (
-                                    filteredLogs.map((log) => {
-                                        const presence = log.exitTimestamp === null ? 'Dentro' : 'Fora';
-                                        return (
-                                        <TableRow key={log.id}>
-                                            <TableCell>
-                                                <Dialog>
-                                                    <DialogTrigger asChild>
-                                                        <Avatar className="cursor-pointer">
-                                                            <AvatarImage src={log.photoDataUrl} alt={log.personName} />
-                                                            <AvatarFallback><User /></AvatarFallback>
-                                                        </Avatar>
-                                                    </DialogTrigger>
-                                                    <DialogContent className="p-0 max-w-lg">
-                                                        <DialogHeader>
-                                                            <DialogTitle className="sr-only">{`Foto de ${log.personName}`}</DialogTitle>
-                                                        </DialogHeader>
-                                                        <img src={log.photoDataUrl} alt={`Foto de ${log.personName}`} className="w-full h-auto rounded-md" />
-                                                    </DialogContent>
-                                                </Dialog>
-                                            </TableCell>
-                                            <TableCell>{log.personName}</TableCell>
-                                            <TableCell>{log.company || '-'}</TableCell>
-                                            <TableCell>{log.plate || '-'}</TableCell>
-                                            <TableCell>{log.responsible || '-'}</TableCell>
-                                            <TableCell>{log.reason || '-'}</TableCell>
-                                            <TableCell>{format(parseISO(log.entryTimestamp), 'dd/MM/yyyy HH:mm:ss')}</TableCell>
-                                            <TableCell>{log.exitTimestamp ? format(parseISO(log.exitTimestamp), 'dd/MM/yyyy HH:mm:ss') : '-'}</TableCell>
-                                            <TableCell>
-                                                <Badge variant="secondary">{log.registeredBy}</Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                 <Badge 
-                                                    variant={presence === 'Dentro' ? 'default' : 'destructive'}
-                                                 >
-                                                    {presence === 'Dentro' ? <Building className="mr-1 h-3 w-3" /> : <Home className="mr-1 h-3 w-3" />}
-                                                    {presence}
-                                                </Badge>
+                                </TableHeader>
+                                <TableBody>
+                                    {isLoading ? (
+                                         <TableRow>
+                                            <TableCell colSpan={10} className="text-center">
+                                                Carregando histórico...
                                             </TableCell>
                                         </TableRow>
-                                    )})
-                                )}
-                            </TableBody>
-                        </Table>
+                                    ) : filteredLogs.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={10} className="text-center">
+                                                Nenhum registro de acesso encontrado para os filtros aplicados.
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        filteredLogs.map((log) => {
+                                            const presence = log.exitTimestamp === null ? 'Dentro' : 'Fora';
+                                            return (
+                                            <TableRow key={log.id}>
+                                                <TableCell>
+                                                    <Dialog>
+                                                        <DialogTrigger asChild>
+                                                            <Avatar className="cursor-pointer">
+                                                                <AvatarImage src={log.photoDataUrl} alt={log.personName} />
+                                                                <AvatarFallback><User /></AvatarFallback>
+                                                            </Avatar>
+                                                        </DialogTrigger>
+                                                        <DialogContent className="p-0 max-w-lg">
+                                                            <DialogHeader>
+                                                                <DialogTitle className="sr-only">{`Foto de ${log.personName}`}</DialogTitle>
+                                                            </DialogHeader>
+                                                            <img src={log.photoDataUrl} alt={`Foto de ${log.personName}`} className="w-full h-auto rounded-md" />
+                                                        </DialogContent>
+                                                    </Dialog>
+                                                </TableCell>
+                                                <TableCell>{log.personName}</TableCell>
+                                                <TableCell>{log.company || '-'}</TableCell>
+                                                <TableCell>{log.plate || '-'}</TableCell>
+                                                <TableCell>{log.responsible || '-'}</TableCell>
+                                                <TableCell>{log.reason || '-'}</TableCell>
+                                                <TableCell>{format(parseISO(log.entryTimestamp), 'dd/MM/yyyy HH:mm:ss')}</TableCell>
+                                                <TableCell>{log.exitTimestamp ? format(parseISO(log.exitTimestamp), 'dd/MM/yyyy HH:mm:ss') : '-'}</TableCell>
+                                                <TableCell>
+                                                    <Badge variant="secondary">{log.registeredBy}</Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                     <Badge 
+                                                        variant={presence === 'Dentro' ? 'default' : 'destructive'}
+                                                     >
+                                                        {presence === 'Dentro' ? <Building className="mr-1 h-3 w-3" /> : <Home className="mr-1 h-3 w-3" />}
+                                                        {presence}
+                                                    </Badge>
+                                                </TableCell>
+                                            </TableRow>
+                                        )})
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </div>
                 </CardContent>
             </Card>

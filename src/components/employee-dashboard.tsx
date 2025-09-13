@@ -626,10 +626,10 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
           <CardTitle>Funcionários</CardTitle>
           <Link href="/employees/history">
-            <Button variant="outline">
+            <Button variant="outline" className="w-full sm:w-auto">
               <GanttChartSquare className="mr-2 h-4 w-4" />
               Ver Histórico
             </Button>
@@ -641,122 +641,124 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 placeholder="Filtrar funcionários..."
                 value={searchTerm}
                 onChange={(event) => setInputValue(event.target.value)}
-                className="max-w-sm"
+                className="max-w-full sm:max-w-sm"
             />
           </div>
           <div className="rounded-md border">
-            <Table>
-                <TableHeader>
-                <TableRow>
-                    <TableHead>Foto</TableHead>
-                    <TableHead>Matrícula</TableHead>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Setor</TableHead>
-                    <TableHead>Placa</TableHead>
-                    <TableHead>Ramal</TableHead>
-                    <TableHead>Portaria</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Presença</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-                </TableHeader>
-                <TableBody>
-                {filteredEmployees.map((employee) => {
-                    const presence = getPresenceStatus(employee.id);
-                    const isEffectivelyActive = isEmployeeEffectivelyActive(employee);
-                    const displayStatus = isEffectivelyActive ? 'Ativo' : 'Inativo';
-                    
-                    return (
-                    <TableRow 
-                        key={employee.id}
-                        className={cn(
-                            presence === 'Dentro' && 'bg-red-700/75 hover:bg-red-700/85'
-                        )}
-                    >
-                    <TableCell>
-                        <Dialog>
-                            <DialogTrigger asChild>
-                                <Avatar className="cursor-pointer">
-                                    <AvatarImage src={employee.photoDataUrl} alt={employee.name} />
-                                    <AvatarFallback><User /></AvatarFallback>
-                                </Avatar>
-                            </DialogTrigger>
-                            <DialogContent className="p-0 max-w-lg">
-                                <DialogHeader>
-                                    <DialogTitle className="sr-only">{`Foto de ${employee.name}`}</DialogTitle>
-                                </DialogHeader>
-                                {employee.photoDataUrl ? (
-                                    <img src={employee.photoDataUrl} alt={`Foto de ${employee.name}`} className="w-full h-auto rounded-md" />
-                                ) : (
-                                    <div className="flex items-center justify-center h-96 bg-muted">
-                                        <User className="h-24 w-24 text-muted-foreground" />
-                                    </div>
-                                )}
-                            </DialogContent>
-                        </Dialog>
-                    </TableCell>
-                    <TableCell 
-                        className="cursor-pointer hover:underline"
-                        onClick={() => handleManualEntry(employee)}
-                    >
-                        {employee.id}
-                    </TableCell>
-                    <TableCell>{employee.name}</TableCell>
-                    <TableCell>{employee.department}</TableCell>
-                    <TableCell>{employee.plate}</TableCell>
-                    <TableCell>{employee.ramal}</TableCell>
-                    <TableCell>{employee.portaria && employee.portaria !== 'Nenhuma' ? employee.portaria : '-'}</TableCell>
-                    <TableCell>
-                        <Badge variant={displayStatus === 'Ativo' ? 'default' : 'destructive'}>
-                            {displayStatus}
-                            {employee.status === 'Inativo' && !isEffectivelyActive && employee.inactiveUntil && (
-                                <span className="ml-1.5 text-xs"> (até {format(parseISO(employee.inactiveUntil), 'dd/MM/yy')})</span>
-                            )}
-                        </Badge>
-                    </TableCell>
-                    <TableCell>
-                         <Badge
-                            variant={presence === 'Dentro' ? 'default' : 'destructive'}
-                         >
-                            {presence === 'Dentro' ? <Building className="mr-1 h-3 w-3" /> : <Home className="mr-1 h-3 w-3" />}
-                            {presence}
-                        </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handleManualEntry(employee)} title="Registrar Entrada/Saída Manual">
-                            <LogIn className="h-4 w-4" />
-                        </Button>
-                        {role === 'rh' && (
-                            <>
-                                <Button variant="ghost" size="icon" onClick={() => handleEditClick(employee)}>
-                                    <Pencil className="h-4 w-4" />
-                                </Button>
-                                <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="icon">
-                                    <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                    <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        Essa ação não pode ser desfeita. Isso irá apagar permanentemente o funcionário.
-                                    </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeleteClick(employee.id)}>Apagar</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                                </AlertDialog>
-                            </>
-                        )}
-                    </TableCell>
+            <div className="relative w-full overflow-auto">
+                <Table>
+                    <TableHeader>
+                    <TableRow>
+                        <TableHead>Foto</TableHead>
+                        <TableHead>Matrícula</TableHead>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Setor</TableHead>
+                        <TableHead>Placa</TableHead>
+                        <TableHead>Ramal</TableHead>
+                        <TableHead>Portaria</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Presença</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
-                )})}
-                </TableBody>
-            </Table>
+                    </TableHeader>
+                    <TableBody>
+                    {filteredEmployees.map((employee) => {
+                        const presence = getPresenceStatus(employee.id);
+                        const isEffectivelyActive = isEmployeeEffectivelyActive(employee);
+                        const displayStatus = isEffectivelyActive ? 'Ativo' : 'Inativo';
+                        
+                        return (
+                        <TableRow 
+                            key={employee.id}
+                            className={cn(
+                                presence === 'Dentro' && 'bg-red-700 hover:bg-red-800'
+                            )}
+                        >
+                        <TableCell>
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Avatar className="cursor-pointer">
+                                        <AvatarImage src={employee.photoDataUrl} alt={employee.name} />
+                                        <AvatarFallback><User /></AvatarFallback>
+                                    </Avatar>
+                                </DialogTrigger>
+                                <DialogContent className="p-0 max-w-lg">
+                                    <DialogHeader>
+                                        <DialogTitle className="sr-only">{`Foto de ${employee.name}`}</DialogTitle>
+                                    </DialogHeader>
+                                    {employee.photoDataUrl ? (
+                                        <img src={employee.photoDataUrl} alt={`Foto de ${employee.name}`} className="w-full h-auto rounded-md" />
+                                    ) : (
+                                        <div className="flex items-center justify-center h-96 bg-muted">
+                                            <User className="h-24 w-24 text-muted-foreground" />
+                                        </div>
+                                    )}
+                                </DialogContent>
+                            </Dialog>
+                        </TableCell>
+                        <TableCell 
+                            className="cursor-pointer hover:underline"
+                            onClick={() => handleManualEntry(employee)}
+                        >
+                            {employee.id}
+                        </TableCell>
+                        <TableCell>{employee.name}</TableCell>
+                        <TableCell>{employee.department}</TableCell>
+                        <TableCell>{employee.plate}</TableCell>
+                        <TableCell>{employee.ramal}</TableCell>
+                        <TableCell>{employee.portaria && employee.portaria !== 'Nenhuma' ? employee.portaria : '-'}</TableCell>
+                        <TableCell>
+                            <Badge variant={displayStatus === 'Ativo' ? 'default' : 'destructive'}>
+                                {displayStatus}
+                                {employee.status === 'Inativo' && !isEffectivelyActive && employee.inactiveUntil && (
+                                    <span className="ml-1.5 text-xs"> (até {format(parseISO(employee.inactiveUntil), 'dd/MM/yy')})</span>
+                                )}
+                            </Badge>
+                        </TableCell>
+                        <TableCell>
+                             <Badge
+                                variant={presence === 'Dentro' ? 'default' : 'destructive'}
+                             >
+                                {presence === 'Dentro' ? <Building className="mr-1 h-3 w-3" /> : <Home className="mr-1 h-3 w-3" />}
+                                {presence}
+                            </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" onClick={() => handleManualEntry(employee)} title="Registrar Entrada/Saída Manual">
+                                <LogIn className="h-4 w-4" />
+                            </Button>
+                            {role === 'rh' && (
+                                <>
+                                    <Button variant="ghost" size="icon" onClick={() => handleEditClick(employee)}>
+                                        <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon">
+                                        <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                        <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Essa ação não pode ser desfeita. Isso irá apagar permanentemente o funcionário.
+                                        </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteClick(employee.id)}>Apagar</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                    </AlertDialog>
+                                </>
+                            )}
+                        </TableCell>
+                        </TableRow>
+                    )})}
+                    </TableBody>
+                </Table>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -805,7 +807,7 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
 
 
   return (
-    <div className="container mx-auto">
+    <div className="container mx-auto px-0 sm:px-4">
         {isLoading ? (
             <div className="flex justify-center items-center h-64">
                 <p>Carregando funcionários...</p>
@@ -828,6 +830,7 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
     
 
     
+
 
 
 

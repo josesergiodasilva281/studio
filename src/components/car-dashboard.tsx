@@ -374,17 +374,17 @@ function CarTable({
     return (
         <>
             <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
+                <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                     <CardTitle>Frota da Empresa</CardTitle>
-                    <div className="flex gap-2">
-                        <Button onClick={() => setIsAddDialogOpen(true)}>
+                    <div className="flex w-full sm:w-auto gap-2">
+                        <Button onClick={() => setIsAddDialogOpen(true)} className="w-1/2 sm:w-auto">
                             <PlusCircle className="mr-2 h-4 w-4" />
-                            Cadastrar Carro
+                            Cadastrar
                         </Button>
-                        <Link href="/cars/history">
-                          <Button variant="outline">
+                        <Link href="/cars/history" className="w-1/2 sm:w-auto">
+                          <Button variant="outline" className="w-full">
                             <GanttChartSquare className="mr-2 h-4 w-4" />
-                            Ver Histórico
+                            Histórico
                           </Button>
                         </Link>
                     </div>
@@ -395,70 +395,72 @@ function CarTable({
                             placeholder="Filtrar por placa, motorista, frota..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="max-w-sm"
+                            className="max-w-full sm:max-w-sm"
                         />
                     </div>
                     <div className="rounded-md border">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Frota</TableHead>
-                                    <TableHead>Placa</TableHead>
-                                    <TableHead>Motorista</TableHead>
-                                    <TableHead>Último KM</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Ações</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredCars.length > 0 ? filteredCars.map((car) => (
-                                    <TableRow key={car.id}>
-                                        <TableCell>{car.fleet}</TableCell>
-                                        <TableCell className="font-medium">{car.id}</TableCell>
-                                        <TableCell>{getCarDriverName(car)}</TableCell>
-                                        <TableCell>{car.lastKm || '-'}</TableCell>
-                                        <TableCell>
-                                            <Badge variant={
-                                                car.status === 'Disponível' ? 'default' : car.status === 'Em uso' ? 'destructive' : 'secondary'
-                                            }>{car.status}</Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="ghost" size="icon" onClick={() => handleLogClick(car)} title={car.status === 'Em uso' ? 'Registrar Retorno' : 'Registrar Saída'}>
-                                                {car.status === 'Em uso' ? <LogOut/> : <Key />}
-                                            </Button>
-                                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(car)}>
-                                                <Pencil className="h-4 w-4" />
-                                            </Button>
-                                            {role === 'rh' && (
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon">
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                                                            <AlertDialogDescription>
-                                                                Essa ação não pode ser desfeita. Isso irá apagar permanentemente o carro.
-                                                            </AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleDeleteClick(car.id)}>Apagar</AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
-                                )) : (
+                        <div className="relative w-full overflow-auto">
+                            <Table>
+                                <TableHeader>
                                     <TableRow>
-                                        <TableCell colSpan={6} className="text-center">Nenhum carro encontrado.</TableCell>
+                                        <TableHead>Frota</TableHead>
+                                        <TableHead>Placa</TableHead>
+                                        <TableHead>Motorista</TableHead>
+                                        <TableHead>Último KM</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead className="text-right">Ações</TableHead>
                                     </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredCars.length > 0 ? filteredCars.map((car) => (
+                                        <TableRow key={car.id}>
+                                            <TableCell>{car.fleet}</TableCell>
+                                            <TableCell className="font-medium">{car.id}</TableCell>
+                                            <TableCell>{getCarDriverName(car)}</TableCell>
+                                            <TableCell>{car.lastKm || '-'}</TableCell>
+                                            <TableCell>
+                                                <Badge variant={
+                                                    car.status === 'Disponível' ? 'default' : car.status === 'Em uso' ? 'destructive' : 'secondary'
+                                                }>{car.status}</Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <Button variant="ghost" size="icon" onClick={() => handleLogClick(car)} title={car.status === 'Em uso' ? 'Registrar Retorno' : 'Registrar Saída'}>
+                                                    {car.status === 'Em uso' ? <LogOut/> : <Key />}
+                                                </Button>
+                                                <Button variant="ghost" size="icon" onClick={() => handleEditClick(car)}>
+                                                    <Pencil className="h-4 w-4" />
+                                                </Button>
+                                                {role === 'rh' && (
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button variant="ghost" size="icon">
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent>
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                                                                <AlertDialogDescription>
+                                                                    Essa ação não pode ser desfeita. Isso irá apagar permanentemente o carro.
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                                <AlertDialogAction onClick={() => handleDeleteClick(car.id)}>Apagar</AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    )) : (
+                                        <TableRow>
+                                            <TableCell colSpan={6} className="text-center">Nenhum carro encontrado.</TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
@@ -530,7 +532,7 @@ export function CarDashboard({
 }) {
     
     return (
-        <div className="container mx-auto">
+        <div className="container mx-auto px-0 sm:px-4">
              {isLoading ? (
                 <div className="flex justify-center items-center h-64">
                     <p>Carregando frota...</p>

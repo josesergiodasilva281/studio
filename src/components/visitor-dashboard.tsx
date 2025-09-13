@@ -436,21 +436,21 @@ function VisitorTable({
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
             <div>
                 <CardTitle>Visitantes</CardTitle>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex w-full sm:w-auto items-center gap-2">
                 {role === 'portaria' && (
-                    <Button onClick={() => setIsAddDialogOpen(true)}>
+                    <Button onClick={() => setIsAddDialogOpen(true)} className="w-1/2 sm:w-auto">
                         <PlusCircle className="mr-2 h-4 w-4" />
-                        Cadastrar Visitante
+                        Cadastrar
                     </Button>
                 )}
-                <Link href="/visitors/history">
-                    <Button variant="outline">
+                <Link href="/visitors/history" className="w-1/2 sm:w-auto">
+                    <Button variant="outline" className="w-full">
                       <GanttChartSquare className="mr-2 h-4 w-4" />
-                      Ver Histórico
+                      Histórico
                     </Button>
                 </Link>
             </div>
@@ -461,97 +461,99 @@ function VisitorTable({
                 placeholder="Buscar visitante por nome, RG, CPF, Placa..."
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
-                className="max-w-sm"
+                className="max-w-full sm:max-w-sm"
             />
           </div>
           <div className="rounded-md border">
-            <Table>
-                <TableHeader>
-                <TableRow>
-                    <TableHead>Foto</TableHead>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Placa</TableHead>
-                    <TableHead>Empresa</TableHead>
-                    <TableHead>Responsável</TableHead>
-                    <TableHead>Motivo</TableHead>
-                    <TableHead>Presença</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-                </TableHeader>
-                <TableBody>
-                 {filteredVisitors.length === 0 ? (
+             <div className="relative w-full overflow-auto">
+                <Table>
+                    <TableHeader>
                     <TableRow>
-                        <TableCell colSpan={8} className="text-center">{searchTerm ? 'Nenhum visitante encontrado.' : 'Nenhum visitante presente.'}</TableCell>
+                        <TableHead>Foto</TableHead>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Placa</TableHead>
+                        <TableHead>Empresa</TableHead>
+                        <TableHead>Responsável</TableHead>
+                        <TableHead>Motivo</TableHead>
+                        <TableHead>Presença</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
-                 ) : (
-                    filteredVisitors.map((visitor) => {
-                        const presence = getPresenceStatus(visitor.id);
-                        const details = getVisitorDetailsForPresence(visitor.id);
-                        return (
-                        <TableRow key={visitor.id}>
-                        <TableCell>
-                            <Dialog>
-                                <DialogTrigger asChild>
-                                    <Avatar className="cursor-pointer">
-                                        <AvatarImage src={visitor.photoDataUrl} alt={visitor.name} />
-                                        <AvatarFallback><User /></AvatarFallback>
-                                    </Avatar>
-                                </DialogTrigger>
-                                <DialogContent className="p-0 max-w-lg">
-                                    <DialogHeader>
-                                       <DialogTitle className="sr-only">{`Foto de ${visitor.name}`}</DialogTitle>
-                                    </DialogHeader>
-                                    <img src={visitor.photoDataUrl} alt={`Foto de ${visitor.name}`} className="w-full h-auto rounded-md" />
-                                </DialogContent>
-                            </Dialog>
-                        </TableCell>
-                        <TableCell>{visitor.name}</TableCell>
-                        <TableCell>{visitor.plate || '-'}</TableCell>
-                        <TableCell>{visitor.company || '-'}</TableCell>
-                        <TableCell>{details.responsible}</TableCell>
-                        <TableCell>{details.reason}</TableCell>
-                         <TableCell>
-                             <Badge
-                                variant={presence === 'Dentro' ? 'default' : 'destructive'}
-                             >
-                                {presence === 'Dentro' ? <Building className="mr-2 h-3 w-3" /> : <Home className="mr-2 h-3 w-3" />}
-                                {presence}
-                            </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" onClick={() => handleReturningVisitorClick(visitor)} title="Registrar Entrada/Saída">
-                                <LogIn className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(visitor)}>
-                            <Pencil className="h-4 w-4" />
-                            </Button>
-                            {role === 'rh' && (
-                                <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="icon">
-                                    <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                    <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        Essa ação não pode ser desfeita. Isso irá apagar permanentemente o visitante, mas seu histórico de acesso será mantido.
-                                    </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeleteClick(visitor.id)}>Apagar</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                                </AlertDialog>
-                            )}
-                        </TableCell>
+                    </TableHeader>
+                    <TableBody>
+                     {filteredVisitors.length === 0 ? (
+                        <TableRow>
+                            <TableCell colSpan={8} className="text-center">{searchTerm ? 'Nenhum visitante encontrado.' : 'Nenhum visitante presente.'}</TableCell>
                         </TableRow>
-                    )})
-                 )}
-                </TableBody>
-            </Table>
+                     ) : (
+                        filteredVisitors.map((visitor) => {
+                            const presence = getPresenceStatus(visitor.id);
+                            const details = getVisitorDetailsForPresence(visitor.id);
+                            return (
+                            <TableRow key={visitor.id}>
+                            <TableCell>
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <Avatar className="cursor-pointer">
+                                            <AvatarImage src={visitor.photoDataUrl} alt={visitor.name} />
+                                            <AvatarFallback><User /></AvatarFallback>
+                                        </Avatar>
+                                    </DialogTrigger>
+                                    <DialogContent className="p-0 max-w-lg">
+                                        <DialogHeader>
+                                           <DialogTitle className="sr-only">{`Foto de ${visitor.name}`}</DialogTitle>
+                                        </DialogHeader>
+                                        <img src={visitor.photoDataUrl} alt={`Foto de ${visitor.name}`} className="w-full h-auto rounded-md" />
+                                    </DialogContent>
+                                </Dialog>
+                            </TableCell>
+                            <TableCell>{visitor.name}</TableCell>
+                            <TableCell>{visitor.plate || '-'}</TableCell>
+                            <TableCell>{visitor.company || '-'}</TableCell>
+                            <TableCell>{details.responsible}</TableCell>
+                            <TableCell>{details.reason}</TableCell>
+                             <TableCell>
+                                 <Badge
+                                    variant={presence === 'Dentro' ? 'default' : 'destructive'}
+                                 >
+                                    {presence === 'Dentro' ? <Building className="mr-2 h-3 w-3" /> : <Home className="mr-2 h-3 w-3" />}
+                                    {presence}
+                                </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                                <Button variant="ghost" size="icon" onClick={() => handleReturningVisitorClick(visitor)} title="Registrar Entrada/Saída">
+                                    <LogIn className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => handleEditClick(visitor)}>
+                                <Pencil className="h-4 w-4" />
+                                </Button>
+                                {role === 'rh' && (
+                                    <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon">
+                                        <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                        <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Essa ação não pode ser desfeita. Isso irá apagar permanentemente o visitante, mas seu histórico de acesso será mantido.
+                                        </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteClick(visitor.id)}>Apagar</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                    </AlertDialog>
+                                )}
+                            </TableCell>
+                            </TableRow>
+                        )})
+                     )}
+                    </TableBody>
+                </Table>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -772,7 +774,7 @@ export function VisitorDashboard({
   role?: 'rh' | 'portaria'
 }) {
   return (
-    <div className="container mx-auto">
+    <div className="container mx-auto px-0 sm:px-4">
         {isLoading ? (
             <div className="flex justify-center items-center h-64">
                 <p>Carregando visitantes...</p>

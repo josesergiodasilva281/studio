@@ -93,9 +93,9 @@ export function CarAccessLogTable({ readOnly = false }: { readOnly?: boolean }) 
 
 
     return (
-        <div className="container mx-auto">
+        <div className="container mx-auto px-0 sm:px-4">
             <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
+                <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                     <CardTitle>Histórico de Uso dos Carros</CardTitle>
                     {!readOnly && (
                         <Link href="/cars">
@@ -104,13 +104,13 @@ export function CarAccessLogTable({ readOnly = false }: { readOnly?: boolean }) 
                     )}
                 </CardHeader>
                 <CardContent>
-                    <div className="flex items-center gap-4 py-4">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 py-4">
                         <Input
                             placeholder="Filtrar histórico..."
                             value={inputValue}
                             onChange={(event) => setInputValue(event.target.value)}
                             onKeyDown={handleSearchKeyDown}
-                            className="max-w-sm"
+                            className="max-w-full sm:max-w-sm"
                         />
                         <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                             <PopoverTrigger asChild>
@@ -118,7 +118,7 @@ export function CarAccessLogTable({ readOnly = false }: { readOnly?: boolean }) 
                                     id="date"
                                     variant={"outline"}
                                     className={cn(
-                                        "w-[300px] justify-start text-left font-normal",
+                                        "w-full sm:w-[300px] justify-start text-left font-normal",
                                         !date && "text-muted-foreground"
                                     )}
                                 >
@@ -151,62 +151,64 @@ export function CarAccessLogTable({ readOnly = false }: { readOnly?: boolean }) 
                         </Popover>
                     </div>
                     <div className="rounded-md border">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Frota</TableHead>
-                                    <TableHead>Placa</TableHead>
-                                    <TableHead>Motorista Saída</TableHead>
-                                    <TableHead>KM Saída</TableHead>
-                                    <TableHead>Saída</TableHead>
-                                    <TableHead>Portaria Saída</TableHead>
-                                    <TableHead>Retorno</TableHead>
-                                    <TableHead>Quem Retornou</TableHead>
-                                    <TableHead>KM Retorno</TableHead>
-                                    <TableHead>Portaria Retorno</TableHead>
-                                    <TableHead>Status</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {isLoading ? (
+                        <div className="relative w-full overflow-auto">
+                            <Table>
+                                <TableHeader>
                                     <TableRow>
-                                        <TableCell colSpan={11} className="text-center">
-                                            Carregando histórico...
-                                        </TableCell>
+                                        <TableHead>Frota</TableHead>
+                                        <TableHead>Placa</TableHead>
+                                        <TableHead>Motorista Saída</TableHead>
+                                        <TableHead>KM Saída</TableHead>
+                                        <TableHead>Saída</TableHead>
+                                        <TableHead>Portaria Saída</TableHead>
+                                        <TableHead>Retorno</TableHead>
+                                        <TableHead>Quem Retornou</TableHead>
+                                        <TableHead>KM Retorno</TableHead>
+                                        <TableHead>Portaria Retorno</TableHead>
+                                        <TableHead>Status</TableHead>
                                     </TableRow>
-                                ) : filteredLogs.length > 0 ? (
-                                    filteredLogs.map((log) => (
-                                        <TableRow key={log.id}>
-                                            <TableCell>{log.carFleet}</TableCell>
-                                            <TableCell className="font-medium">{log.carId}</TableCell>
-                                            <TableCell>{log.driverName}</TableCell>
-                                            <TableCell>{log.startKm || '-'}</TableCell>
-                                            <TableCell>{format(parseISO(log.startTime), 'dd/MM/yyyy HH:mm:ss')}</TableCell>
-                                            <TableCell>
-                                                <Badge variant="secondary">{log.startRegisteredBy || '-'}</Badge>
-                                            </TableCell>
-                                            <TableCell>{log.endTime ? format(parseISO(log.endTime), 'dd/MM/yyyy HH:mm:ss') : 'Em uso'}</TableCell>
-                                            <TableCell>{log.returnDriverName || '-'}</TableCell>
-                                            <TableCell>{log.endKm || '-'}</TableCell>
-                                            <TableCell>
-                                                <Badge variant="secondary">{log.endRegisteredBy || '-'}</Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge variant={log.endTime ? 'default' : 'destructive'}>
-                                                    {log.endTime ? 'Finalizado' : 'Em uso'}
-                                                </Badge>
+                                </TableHeader>
+                                <TableBody>
+                                    {isLoading ? (
+                                        <TableRow>
+                                            <TableCell colSpan={11} className="text-center">
+                                                Carregando histórico...
                                             </TableCell>
                                         </TableRow>
-                                    ))
-                                ) : (
-                                    <TableRow>
-                                        <TableCell colSpan={11} className="text-center">
-                                            Nenhum registro encontrado para os filtros aplicados.
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                                    ) : filteredLogs.length > 0 ? (
+                                        filteredLogs.map((log) => (
+                                            <TableRow key={log.id}>
+                                                <TableCell>{log.carFleet}</TableCell>
+                                                <TableCell className="font-medium">{log.carId}</TableCell>
+                                                <TableCell>{log.driverName}</TableCell>
+                                                <TableCell>{log.startKm || '-'}</TableCell>
+                                                <TableCell>{format(parseISO(log.startTime), 'dd/MM/yyyy HH:mm:ss')}</TableCell>
+                                                <TableCell>
+                                                    <Badge variant="secondary">{log.startRegisteredBy || '-'}</Badge>
+                                                </TableCell>
+                                                <TableCell>{log.endTime ? format(parseISO(log.endTime), 'dd/MM/yyyy HH:mm:ss') : 'Em uso'}</TableCell>
+                                                <TableCell>{log.returnDriverName || '-'}</TableCell>
+                                                <TableCell>{log.endKm || '-'}</TableCell>
+                                                <TableCell>
+                                                    <Badge variant="secondary">{log.endRegisteredBy || '-'}</Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant={log.endTime ? 'default' : 'destructive'}>
+                                                        {log.endTime ? 'Finalizado' : 'Em uso'}
+                                                    </Badge>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={11} className="text-center">
+                                                Nenhum registro encontrado para os filtros aplicados.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </div>
                 </CardContent>
             </Card>

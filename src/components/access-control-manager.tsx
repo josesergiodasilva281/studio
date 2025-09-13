@@ -44,14 +44,14 @@ function AccessControlUI({
     return (
       <>
         <Card>
-            <CardHeader className="flex flex-row items-center justify-end p-4">
-                 <div className="flex items-center gap-2">
-                    <Button onClick={() => handleDialogOpenChange(true)}>
+            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-end p-4 gap-2">
+                 <div className="flex w-full sm:w-auto items-center gap-2">
+                    <Button onClick={() => handleDialogOpenChange(true)} className="w-full sm:w-auto">
                         <Camera className="mr-2 h-4 w-4" />
                         Abrir Leitor
                     </Button>
                     {role === 'rh' && (
-                        <Button onClick={onAddEmployeeClick} variant="outline">
+                        <Button onClick={onAddEmployeeClick} variant="outline" className="w-full sm:w-auto">
                             <PlusCircle className="mr-2 h-4 w-4" />
                             Cadastrar Funcionário
                         </Button>
@@ -361,7 +361,7 @@ export function AccessControlManager({
 
 
   return (
-    <div className="container mx-auto max-w-xl">
+    <div className="container mx-auto max-w-xl px-0 sm:px-4">
       <AccessControlUI 
         onAddEmployeeClick={onAddEmployeeClick}
         isScannerOpen={isScannerOpen}
