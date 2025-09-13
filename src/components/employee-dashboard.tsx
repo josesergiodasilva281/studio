@@ -369,8 +369,7 @@ function EditEmployeeDialog({
 }: { 
     open: boolean, 
     onOpenChange: (open: boolean) => void, 
-    employee: Employee | null, 
-    onSave: (employee: Employee) => void,
+    employee: Employee | null,     onSave: (employee: Employee) => void,
     role: 'rh' | 'portaria' 
 }) {
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(employee);
@@ -603,16 +602,49 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
             recognitionRef.current = new SpeechRecognition();
-            recognitionRef.current.continuous = false;
+            recognitionRef.current.continuous = true; // Listen continuously
             recognitionRef.current.lang = 'pt-BR';
             recognitionRef.current.interimResults = false;
             recognitionRef.current.maxAlternatives = 1;
 
             recognitionRef.current.onresult = (event: any) => {
-                const transcript = normalizeString(event.results[0][0].transcript);
+                const lastResultIndex = event.results.length - 1;
+                const transcript = normalizeString(event.results[lastResultIndex][0].transcript.trim());
 
-                 if (transcript === 'registrar') {
-                    if (filteredEmployees.length === 1) {
+                if (transcript.startsWith('buscar')) {
+                    const command = transcript.substring('buscar'.length).trim();
+
+                    if (command === 'registrar') {
+                        if (filteredEmployees.length === 1) {
+                            handleManualEntry(filteredEmployees[0]);
+                        } else if (filteredEmployees.length > 1) {
+                             toast({
+                                variant: 'destructive',
+                                title: 'Muitos resultados',
+                                description: 'Refine sua busca para que apenas um funcionário apareça na lista antes de registrar.',
+                            });
+                        } else {
+                             toast({
+                                variant: 'destructive',
+                                title: 'Nenhum resultado',
+                                description: 'Nenhum funcionário encontrado para registrar.',
+                            });
+                        }
+                    } else {
+                        const words = command.split(' ');
+                        const keyword = words[0];
+                        const foundKeyword = Object.keys(searchKeywords).find(k => normalizeString(k) === keyword);
+
+                        if (foundKeyword) {
+                            setFilterType(searchKeywords[foundKeyword]);
+                            setSearchTerm(words.slice(1).join(' '));
+                        } else {
+                            setFilterType('all');
+                            setSearchTerm(command);
+                        }
+                    }
+                } else if (transcript === 'registrar') {
+                     if (filteredEmployees.length === 1) {
                         handleManualEntry(filteredEmployees[0]);
                     } else if (filteredEmployees.length > 1) {
                          toast({
@@ -620,32 +652,13 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                             title: 'Muitos resultados',
                             description: 'Refine sua busca para que apenas um funcionário apareça na lista antes de registrar.',
                         });
-                    } else {
-                         toast({
-                            variant: 'destructive',
-                            title: 'Nenhum resultado',
-                            description: 'Nenhum funcionário encontrado para registrar.',
-                        });
-                    }
-                } else {
-                    const words = transcript.split(' ');
-                    const keyword = words[0];
-                    const foundKeyword = Object.keys(searchKeywords).find(k => normalizeString(k) === keyword);
-
-                    if (foundKeyword) {
-                        setFilterType(searchKeywords[foundKeyword]);
-                        setSearchTerm(words.slice(1).join(' '));
-                    } else {
-                        setFilterType('all');
-                        setSearchTerm(transcript);
                     }
                 }
-                setIsListening(false);
             };
 
             recognitionRef.current.onerror = (event: any) => {
                 console.error('Speech recognition error', event.error);
-                if (event.error === 'not-allowed') {
+                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
                     toast({
                         variant: 'destructive',
                         title: 'Permissão do Microfone Negada',
@@ -657,10 +670,18 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 setIsListening(false);
             };
             
-            recognitionRef.current.onend = () => {
-                setIsListening(false);
+             recognitionRef.current.onend = () => {
+                // It can end unexpectedly, so only set to false if user didn't request to stop.
+                 if(isListening){
+                    try {
+                        recognitionRef.current.start();
+                    } catch(e) {
+                         // Could be that the user navigated away.
+                         console.error("Could not restart recognition", e);
+                         setIsListening(false);
+                    }
+                 }
             };
-
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [toast, filteredEmployees]);
@@ -673,17 +694,25 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
 
         if (isListening) {
             recognitionRef.current.stop();
+            setIsListening(false);
         } else {
             try {
                 recognitionRef.current.start();
                 setIsListening(true);
-            } catch (error) {
+            } catch (error: any) {
                  console.error("Error starting speech recognition:", error);
-                 toast({
-                    variant: 'destructive',
-                    title: 'Não foi possível iniciar o reconhecimento de voz',
-                    description: 'Verifique se a permissão do microfone não está bloqueada permanentemente para este site.',
-                });
+                 if (error.name === 'NotAllowedError') {
+                      toast({
+                        variant: 'destructive',
+                        title: 'Permissão do Microfone Negada',
+                        description: 'Por favor, permita o acesso ao microfone nas configurações do seu navegador.',
+                    });
+                 } else {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Não foi possível iniciar o reconhecimento de voz',
+                    });
+                 }
                 setIsListening(false);
             }
         }
@@ -770,7 +799,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         <CardContent>
            <div className="flex items-center py-4 gap-2">
             <Input
-                placeholder="Filtrar por 'nome joão', 'placa abc'..."
+                placeholder="Use a voz com 'buscar...' ou digite aqui"
                 value={searchTerm}
                 onChange={(event) => {
                     setSearchTerm(event.target.value)
@@ -783,7 +812,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 size="icon" 
                 onClick={handleVoiceSearch}
                 className={cn(isListening && "bg-red-500 hover:bg-red-600 text-white")}
-                title="Pesquisar por voz"
+                title="Ativar/desativar busca por voz"
             >
                 <Mic className="h-4 w-4" />
             </Button>
@@ -972,3 +1001,5 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
   );
 }
 
+
+    
