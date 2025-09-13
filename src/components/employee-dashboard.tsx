@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState, useRef, Dispatch, SetStateAction, KeyboardEvent } from 'react';
@@ -494,6 +495,11 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     const [isListening, setIsListening] = useState(false);
     const recognitionRef = useRef<any>(null);
     
+    // Function to remove accents and convert to lower case
+    const normalizeString = (str: string) => {
+        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    };
+    
     useEffect(() => {
         // @ts-ignore
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -667,21 +673,21 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
 
     const filteredEmployees = employees.filter(employee => {
         const presenceStatus = getPresenceStatus(employee.id);
-        const searchTermLower = searchTerm.toLowerCase();
+        const normalizedSearchTerm = normalizeString(searchTerm);
 
-        if (!searchTermLower) {
+        if (!normalizedSearchTerm) {
             return true; // Show all employees if search is empty
         }
 
         return (
-            employee.id.toLowerCase().includes(searchTermLower) ||
-            employee.name.toLowerCase().includes(searchTermLower) ||
-            employee.department.toLowerCase().includes(searchTermLower) ||
-            (employee.plate && employee.plate.toLowerCase().includes(searchTermLower)) ||
-            (employee.ramal && employee.ramal.toLowerCase().includes(searchTermLower)) ||
-            (employee.portaria && employee.portaria.toLowerCase().includes(searchTermLower)) ||
-            employee.status.toLowerCase().includes(searchTermLower) ||
-            presenceStatus.toLowerCase().includes(searchTermLower)
+            normalizeString(employee.id).includes(normalizedSearchTerm) ||
+            normalizeString(employee.name).includes(normalizedSearchTerm) ||
+            normalizeString(employee.department).includes(normalizedSearchTerm) ||
+            (employee.plate && normalizeString(employee.plate).includes(normalizedSearchTerm)) ||
+            (employee.ramal && normalizeString(employee.ramal).includes(normalizedSearchTerm)) ||
+            (employee.portaria && normalizeString(employee.portaria).includes(normalizedSearchTerm)) ||
+            normalizeString(employee.status).includes(normalizedSearchTerm) ||
+            normalizeString(presenceStatus).includes(normalizedSearchTerm)
         );
     });
 
@@ -742,7 +748,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                         <TableRow 
                             key={employee.id}
                             className={cn(
-                                presence === 'Dentro' && 'bg-red-700 hover:bg-red-800'
+                                presence === 'Dentro' && 'bg-red-900 hover:bg-red-950'
                             )}
                         >
                         <TableCell>
