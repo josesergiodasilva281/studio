@@ -567,14 +567,24 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         const results = employees.filter(employee => {
             if (!normalizedSearchTerm) return true;
 
+            const searchWords = normalizedSearchTerm.split(' ').filter(w => w.length > 0);
             const presenceStatus = getPresenceStatus(employee.id);
 
             const checkField = (field: keyof Employee | 'presence') => {
-                 if (field === 'presence') {
+                if (field === 'presence') {
                     return normalizeString(presenceStatus).includes(normalizedSearchTerm);
                 }
+
                 const value = employee[field];
-                return value ? normalizeString(String(value)).includes(normalizedSearchTerm) : false;
+                const normalizedValue = value ? normalizeString(String(value)) : '';
+                
+                // Special logic for name: check if all search words are in the name
+                if (field === 'name') {
+                    return searchWords.every(word => normalizedValue.includes(word));
+                }
+
+                // Default logic for other fields
+                return normalizedValue.includes(normalizedSearchTerm);
             };
 
             if (filterType !== 'all') {
@@ -664,19 +674,17 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                         title: 'Permissão do Microfone Negada',
                         description: 'Por favor, permita o acesso ao microfone nas configurações do seu navegador para usar a pesquisa por voz.',
                     });
+                     setIsListening(false);
                 } else {
-                    toast({ variant: 'destructive', title: 'Erro no reconhecimento de voz' });
+                    // Other errors might be temporary, don't show a toast unless it's persistent.
                 }
-                setIsListening(false);
             };
             
              recognitionRef.current.onend = () => {
-                // It can end unexpectedly, so only set to false if user didn't request to stop.
                  if(isListening){
                     try {
                         recognitionRef.current.start();
                     } catch(e) {
-                         // Could be that the user navigated away.
                          console.error("Could not restart recognition", e);
                          setIsListening(false);
                     }
