@@ -734,6 +734,8 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             setIsListening(false);
         } else {
             try {
+                // Check if it's already started by the onend handler
+                // This try-catch will handle the "already started" error gracefully
                 recognitionRef.current.start();
                 setIsListening(true);
             } catch (error: any) {
@@ -744,13 +746,14 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                         title: 'Permissão do Microfone Negada',
                         description: 'Por favor, permita o acesso ao microfone nas configurações do seu navegador.',
                     });
-                 } else {
+                    setIsListening(false);
+                 } else if (error.name !== 'InvalidStateError') { // InvalidStateError is "already started"
                     toast({
                         variant: 'destructive',
                         title: 'Não foi possível iniciar o reconhecimento de voz',
                     });
+                    setIsListening(false);
                  }
-                setIsListening(false);
             }
         }
     };
@@ -1040,6 +1043,7 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
 
 
     
+
 
 
 
