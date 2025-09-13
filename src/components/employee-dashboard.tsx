@@ -108,7 +108,7 @@ function getCroppedImg(image: HTMLImageElement, crop: CropType, canvas: HTMLCanv
 }
 
 
-function PhotoCaptureAndCrop({ photoDataUrl, onPhotoCropped }: { photoDataUrl: string | undefined, onPhotoCropped: (dataUrl: string) => void }) {
+function PhotoCaptureAndCrop({ photoDataUrl, onPhotoCropped, isEditing = false }: { photoDataUrl: string | undefined, onPhotoCropped: (dataUrl: string) => void, isEditing?: boolean }) {
     const { toast } = useToast();
     const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
     const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -219,7 +219,7 @@ function PhotoCaptureAndCrop({ photoDataUrl, onPhotoCropped }: { photoDataUrl: s
                 {!uncroppedPhoto && (
                      <Button type="button" onClick={() => setIsCameraOpen(!isCameraOpen)}>
                         <Camera className="mr-2 h-4 w-4" />
-                        {isCameraOpen ? 'Fechar Câmera' : 'Abrir Câmera'}
+                        {isCameraOpen ? 'Fechar Câmera' : (isEditing ? 'Trocar Foto' : 'Abrir Câmera')}
                     </Button>
                 )}
                 {isCameraOpen && hasCameraPermission && (
@@ -374,7 +374,6 @@ function EditEmployeeDialog({
     role: 'rh' | 'portaria' 
 }) {
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(employee);
-    const { toast } = useToast();
 
     useEffect(() => {
         setSelectedEmployee(employee);
@@ -396,9 +395,10 @@ function EditEmployeeDialog({
                     <DialogTitle>Editar Funcionário</DialogTitle>
                 </DialogHeader>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-                    <PhotoCaptureAndCrop
+                     <PhotoCaptureAndCrop
                         photoDataUrl={selectedEmployee.photoDataUrl}
                         onPhotoCropped={(dataUrl) => setSelectedEmployee({ ...selectedEmployee, photoDataUrl: dataUrl })}
+                        isEditing={true}
                     />
                     {/* Coluna do Formulário */}
                     <div className="space-y-4">
@@ -494,81 +494,12 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     const { user } = useAuth();
     const [isListening, setIsListening] = useState(false);
     const recognitionRef = useRef<any>(null);
+    const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
     
     // Function to remove accents and convert to lower case
     const normalizeString = (str: string) => {
         return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     };
-    
-    useEffect(() => {
-        // @ts-ignore
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (SpeechRecognition) {
-            recognitionRef.current = new SpeechRecognition();
-            recognitionRef.current.continuous = false;
-            recognitionRef.current.lang = 'pt-BR';
-            recognitionRef.current.interimResults = false;
-            recognitionRef.current.maxAlternatives = 1;
-
-            recognitionRef.current.onresult = (event: any) => {
-                const transcript = event.results[0][0].transcript;
-                setSearchTerm(transcript);
-                setIsListening(false);
-            };
-
-            recognitionRef.current.onerror = (event: any) => {
-                console.error('Speech recognition error', event.error);
-                if (event.error === 'not-allowed') {
-                    toast({
-                        variant: 'destructive',
-                        title: 'Permissão do Microfone Negada',
-                        description: 'Por favor, permita o acesso ao microfone nas configurações do seu navegador para usar a pesquisa por voz.',
-                    });
-                } else {
-                    toast({ variant: 'destructive', title: 'Erro no reconhecimento de voz' });
-                }
-                setIsListening(false);
-            };
-            
-            recognitionRef.current.onend = () => {
-                setIsListening(false);
-            };
-
-        }
-    }, [toast]);
-    
-    const handleVoiceSearch = () => {
-        if (!recognitionRef.current) {
-            toast({ variant: 'destructive', title: 'Navegador não suportado', description: 'O reconhecimento de voz não é suportado por este navegador.' });
-            return;
-        }
-
-        if (isListening) {
-            recognitionRef.current.stop();
-        } else {
-            try {
-                recognitionRef.current.start();
-                setIsListening(true);
-            } catch (error) {
-                console.error("Error starting speech recognition:", error);
-                 toast({
-                    variant: 'destructive',
-                    title: 'Não foi possível iniciar o reconhecimento de voz',
-                    description: 'Verifique se a permissão do microfone não está bloqueada permanentemente para este site.',
-                });
-                setIsListening(false);
-            }
-        }
-    };
-    
-    const getRegisteredBy = (): 'RH' | 'P1' | 'P2' | 'Supervisor' => {
-        if (!user) return 'P1'; // Should not happen
-        if (user.role === 'rh') return 'RH';
-        if (user.role === 'supervisor') return 'Supervisor';
-        if (user.username === 'portaria1') return 'P1';
-        if (user.username === 'portaria2') return 'P2';
-        return 'P1'; // Default, should not happen
-    }
 
     const handleManualEntry = async (employee: Employee) => {
         if (!user) return;
@@ -613,6 +544,119 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             });
         }
     };
+    
+    useEffect(() => {
+        const results = employees.filter(employee => {
+            const presenceStatus = getPresenceStatus(employee.id);
+            const normalizedSearchTerm = normalizeString(searchTerm);
+
+            if (!normalizedSearchTerm) {
+                return true; // Show all employees if search is empty
+            }
+
+            return (
+                normalizeString(employee.id).includes(normalizedSearchTerm) ||
+                normalizeString(employee.name).includes(normalizedSearchTerm) ||
+                normalizeString(employee.department).includes(normalizedSearchTerm) ||
+                (employee.plate && normalizeString(employee.plate).includes(normalizedSearchTerm)) ||
+                (employee.ramal && normalizeString(employee.ramal).includes(normalizedSearchTerm)) ||
+                (employee.portaria && normalizeString(employee.portaria).includes(normalizedSearchTerm)) ||
+                normalizeString(employee.status).includes(normalizedSearchTerm) ||
+                normalizeString(presenceStatus).includes(normalizedSearchTerm)
+            );
+        });
+        setFilteredEmployees(results);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchTerm, employees, accessLogs]);
+    
+    useEffect(() => {
+        // @ts-ignore
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            recognitionRef.current = new SpeechRecognition();
+            recognitionRef.current.continuous = false;
+            recognitionRef.current.lang = 'pt-BR';
+            recognitionRef.current.interimResults = false;
+            recognitionRef.current.maxAlternatives = 1;
+
+            recognitionRef.current.onresult = (event: any) => {
+                const transcript = normalizeString(event.results[0][0].transcript);
+                 if (transcript === 'registrar') {
+                    if (filteredEmployees.length === 1) {
+                        handleManualEntry(filteredEmployees[0]);
+                    } else if (filteredEmployees.length > 1) {
+                         toast({
+                            variant: 'destructive',
+                            title: 'Muitos resultados',
+                            description: 'Refine sua busca para que apenas um funcionário apareça na lista antes de registrar.',
+                        });
+                    } else {
+                         toast({
+                            variant: 'destructive',
+                            title: 'Nenhum resultado',
+                            description: 'Nenhum funcionário encontrado para registrar.',
+                        });
+                    }
+                } else {
+                    setSearchTerm(transcript);
+                }
+                setIsListening(false);
+            };
+
+            recognitionRef.current.onerror = (event: any) => {
+                console.error('Speech recognition error', event.error);
+                if (event.error === 'not-allowed') {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Permissão do Microfone Negada',
+                        description: 'Por favor, permita o acesso ao microfone nas configurações do seu navegador para usar a pesquisa por voz.',
+                    });
+                } else {
+                    toast({ variant: 'destructive', title: 'Erro no reconhecimento de voz' });
+                }
+                setIsListening(false);
+            };
+            
+            recognitionRef.current.onend = () => {
+                setIsListening(false);
+            };
+
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [toast, filteredEmployees]);
+    
+    const handleVoiceSearch = () => {
+        if (!recognitionRef.current) {
+            toast({ variant: 'destructive', title: 'Navegador não suportado', description: 'O reconhecimento de voz não é suportado por este navegador.' });
+            return;
+        }
+
+        if (isListening) {
+            recognitionRef.current.stop();
+        } else {
+            try {
+                recognitionRef.current.start();
+                setIsListening(true);
+            } catch (error) {
+                console.error("Error starting speech recognition:", error);
+                 toast({
+                    variant: 'destructive',
+                    title: 'Não foi possível iniciar o reconhecimento de voz',
+                    description: 'Verifique se a permissão do microfone não está bloqueada permanentemente para este site.',
+                });
+                setIsListening(false);
+            }
+        }
+    };
+    
+    const getRegisteredBy = (): 'RH' | 'P1' | 'P2' | 'Supervisor' => {
+        if (!user) return 'P1'; // Should not happen
+        if (user.role === 'rh') return 'RH';
+        if (user.role === 'supervisor') return 'Supervisor';
+        if (user.username === 'portaria1') return 'P1';
+        if (user.username === 'portaria2') return 'P2';
+        return 'P1'; // Default, should not happen
+    }
 
     const handleEditClick = (employee: Employee) => {
         setSelectedEmployee(JSON.parse(JSON.stringify(employee))); // Deep copy to avoid mutation
@@ -671,26 +715,6 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     };
 
 
-    const filteredEmployees = employees.filter(employee => {
-        const presenceStatus = getPresenceStatus(employee.id);
-        const normalizedSearchTerm = normalizeString(searchTerm);
-
-        if (!normalizedSearchTerm) {
-            return true; // Show all employees if search is empty
-        }
-
-        return (
-            normalizeString(employee.id).includes(normalizedSearchTerm) ||
-            normalizeString(employee.name).includes(normalizedSearchTerm) ||
-            normalizeString(employee.department).includes(normalizedSearchTerm) ||
-            (employee.plate && normalizeString(employee.plate).includes(normalizedSearchTerm)) ||
-            (employee.ramal && normalizeString(employee.ramal).includes(normalizedSearchTerm)) ||
-            (employee.portaria && normalizeString(employee.portaria).includes(normalizedSearchTerm)) ||
-            normalizeString(employee.status).includes(normalizedSearchTerm) ||
-            normalizeString(presenceStatus).includes(normalizedSearchTerm)
-        );
-    });
-
   return (
     <>
       <Card>
@@ -706,7 +730,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         <CardContent>
            <div className="flex items-center py-4 gap-2">
             <Input
-                placeholder="Filtrar funcionários..."
+                placeholder="Filtrar funcionários... ou diga 'registrar'"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 className="max-w-full sm:max-w-sm"
@@ -748,7 +772,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                         <TableRow 
                             key={employee.id}
                             className={cn(
-                                presence === 'Dentro' && 'bg-red-900 hover:bg-red-950'
+                                presence === 'Dentro' && 'bg-red-900/80 hover:bg-red-900/90'
                             )}
                         >
                         <TableCell>
