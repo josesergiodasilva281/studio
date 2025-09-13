@@ -722,14 +722,21 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             };
             
             recognitionRef.current.onerror = (event: any) => {
-                console.error('Speech recognition error', event.error);
                 recognitionStartedRef.current = false;
+                 if (event.error === 'aborted') {
+                    // This error can happen if the browser stops recognition for a moment.
+                    // The onend event will handle restarting it, so we can ignore this error.
+                    console.log('Speech recognition aborted, will restart.');
+                    return;
+                }
                 if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
                     toast({
                         variant: 'destructive',
                         title: 'Permissão do Microfone Negada',
                         description: 'Por favor, permita o acesso ao microfone nas configurações do seu navegador.',
                     });
+                } else {
+                     console.error('Speech recognition error', event.error);
                 }
             };
         }
@@ -1039,6 +1046,7 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
 
 
     
+
 
 
 
