@@ -42,7 +42,7 @@ import { Badge } from './ui/badge';
 import type { Employee, AccessLog } from '@/lib/types';
 import Link from 'next/link';
 import { useAuth } from '@/context/auth-context';
-import { getEmployeesFromFirestore, addEmployeeToFirestore, updateEmployeeInFirestore, deleteEmployeeFromFirestore, addInitialEmployeesToFirestore, addOrUpdateAccessLogInFirestore, deleteAccessLogsInFirestore } from '@/lib/firestoreService';
+import { getEmployeesFromFirestore, addEmployeeToFirestore, updateEmployeeInFirestore, deleteEmployeeFromFirestore, addInitialEmployeesToFirestore, addOrUpdateAccessLogInFirestore } from '@/lib/firestoreService';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { format, parseISO } from 'date-fns';
@@ -498,6 +498,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     
     // Function to remove accents and convert to lower case
     const normalizeString = (str: string) => {
+        if (!str) return "";
         return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     };
 
@@ -514,13 +515,10 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         );
 
         if (openLog) {
-            // Registering an exit by DELETING the log
-            await deleteAccessLogsInFirestore([openLog.id]);
-            setAccessLogs(logs => logs.filter(l => l.id !== openLog.id));
             toast({
-                title: "Acesso Registrado: Saída",
-                description: `${employee.name} - ${new Date().toLocaleString('pt-BR')}`,
-                variant: 'destructive'
+                title: "Acesso já registrado",
+                description: `${employee.name} já possui um registro de entrada. A saída deve ser registrada no histórico.`,
+                variant: 'default'
             });
         } else {
             // Registering an entry
@@ -558,9 +556,9 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 normalizeString(employee.id).includes(normalizedSearchTerm) ||
                 normalizeString(employee.name).includes(normalizedSearchTerm) ||
                 normalizeString(employee.department).includes(normalizedSearchTerm) ||
-                (employee.plate && normalizeString(employee.plate).includes(normalizedSearchTerm)) ||
-                (employee.ramal && normalizeString(employee.ramal).includes(normalizedSearchTerm)) ||
-                (employee.portaria && normalizeString(employee.portaria).includes(normalizedSearchTerm)) ||
+                normalizeString(employee.plate).includes(normalizedSearchTerm) ||
+                normalizeString(employee.ramal).includes(normalizedSearchTerm) ||
+                normalizeString(employee.portaria).includes(normalizedSearchTerm) ||
                 normalizeString(employee.status).includes(normalizedSearchTerm) ||
                 normalizeString(presenceStatus).includes(normalizedSearchTerm)
             );
@@ -772,7 +770,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                         <TableRow 
                             key={employee.id}
                             className={cn(
-                                presence === 'Dentro' && 'bg-red-900/80 hover:bg-red-900/90'
+                                presence === 'Dentro' && 'bg-red-950 hover:bg-red-900'
                             )}
                         >
                         <TableCell>
@@ -826,7 +824,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                             </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" onClick={() => handleManualEntry(employee)} title="Registrar Entrada/Saída Manual">
+                            <Button variant="ghost" size="icon" onClick={() => handleManualEntry(employee)} title="Registrar Entrada Manual">
                                 <LogIn className="h-4 w-4" />
                             </Button>
                             {role === 'rh' && (

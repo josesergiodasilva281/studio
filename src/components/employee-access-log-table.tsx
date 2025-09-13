@@ -24,7 +24,7 @@ import Link from 'next/link';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { cn } from '@/lib/utils';
-import { getAccessLogsFromFirestore, getEmployeesFromFirestore, deleteAccessLogsInFirestore } from '@/lib/firestoreService';
+import { getAccessLogsFromFirestore, getEmployeesFromFirestore, deleteAccessLogsInFirestore, addOrUpdateAccessLogInFirestore } from '@/lib/firestoreService';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { useAuth } from '@/context/auth-context';
@@ -70,16 +70,29 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
     }, []);
     
     const handleRegisterExit = async (log: AccessLog) => {
-        if (!log || log.exitTimestamp !== null) {
-            toast({ variant: 'destructive', title: 'Ação Inválida', description: 'Este funcionário já possui um registro de saída.' });
+        if (!user || !log || log.exitTimestamp !== null) {
+            toast({ variant: 'destructive', title: 'Ação Inválida', description: 'Este registro de acesso já possui uma saída.' });
             return;
         }
+
+        const getRegisteredBy = (): 'RH' | 'P1' | 'P2' | 'Supervisor' => {
+            if (user.role === 'rh') return 'RH';
+            if (user.role === 'supervisor') return 'Supervisor';
+            if (user.username === 'portaria1') return 'P1';
+            if (user.username === 'portaria2') return 'P2';
+            return 'P1'; // Default
+        }
         
+        const updatedLog: AccessLog = {
+            ...log,
+            exitTimestamp: new Date().toISOString(),
+            registeredBy: getRegisteredBy(),
+        };
+
         try {
-            // This is now a delete operation as requested
-            await deleteAccessLogsInFirestore([log.id]);
+            await addOrUpdateAccessLogInFirestore(updatedLog);
             // Update local state to reflect the change immediately
-            setAccessLogs(prevLogs => prevLogs.filter(l => l.id !== log.id));
+            setAccessLogs(prevLogs => prevLogs.map(l => l.id === updatedLog.id ? updatedLog : l));
             toast({
                 title: "Acesso Registrado: Saída",
                 description: `${log.personName} - ${new Date().toLocaleString('pt-BR')}`,
