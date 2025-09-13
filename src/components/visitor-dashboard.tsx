@@ -16,7 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from './ui/button';
-import { Pencil, Trash2, PlusCircle, Home, Building, GanttChartSquare, Camera, User, LogIn, Crop } from 'lucide-react';
+import { Pencil, Trash2, PlusCircle, Home, Building, GanttChartSquare, Camera, User, LogIn, Crop, Upload } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -97,6 +97,7 @@ function PhotoCaptureAndCrop({ photoDataUrl, onPhotoCropped }: { photoDataUrl: s
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const imgRef = useRef<HTMLImageElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (isCameraOpen) {
@@ -165,6 +166,21 @@ function PhotoCaptureAndCrop({ photoDataUrl, onPhotoCropped }: { photoDataUrl: s
         setCrop(newCrop);
     };
 
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files.length > 0) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.addEventListener('load', () => {
+                setUncroppedPhoto(reader.result as string);
+            });
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleUploadClick = () => {
+        fileInputRef.current?.click();
+    };
+
     return (
         <div className="space-y-4 flex flex-col items-center">
             <Label>Foto do Visitante</Label>
@@ -196,10 +212,23 @@ function PhotoCaptureAndCrop({ photoDataUrl, onPhotoCropped }: { photoDataUrl: s
             )}
             <div className="flex gap-2">
                 {!uncroppedPhoto && (
-                     <Button type="button" onClick={() => setIsCameraOpen(!isCameraOpen)}>
-                        <Camera className="mr-2 h-4 w-4" />
-                        {isCameraOpen ? 'Fechar Câmera' : 'Abrir Câmera'}
-                    </Button>
+                     <>
+                        <Button type="button" onClick={() => setIsCameraOpen(!isCameraOpen)}>
+                            <Camera className="mr-2 h-4 w-4" />
+                            {isCameraOpen ? 'Fechar Câmera' : 'Abrir Câmera'}
+                        </Button>
+                         <Button type="button" variant="outline" onClick={handleUploadClick}>
+                           <Upload className="mr-2 h-4 w-4" />
+                           Carregar Foto
+                        </Button>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileChange}
+                            accept="image/*"
+                            className="hidden"
+                        />
+                     </>
                 )}
                 {isCameraOpen && hasCameraPermission && (
                     <Button type="button" onClick={handleTakePhoto}>Tirar Foto</Button>
