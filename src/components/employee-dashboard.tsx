@@ -16,7 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from './ui/button';
-import { Pencil, Trash2, GanttChartSquare, Camera, Home, Building, LogIn, CalendarIcon, User, Crop, Mic, Upload } from 'lucide-react';
+import { Pencil, Trash2, GanttChartSquare, Camera, Home, Building, LogIn, CalendarIcon, User, Crop, Mic, Upload, Download } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,7 +42,7 @@ import { Badge } from './ui/badge';
 import type { Employee, AccessLog } from '@/lib/types';
 import Link from 'next/link';
 import { useAuth } from '@/context/auth-context';
-import { getEmployeesFromFirestore, addEmployeeToFirestore, updateEmployeeInFirestore, deleteEmployeeFromFirestore, addInitialEmployeesToFirestore, addOrUpdateAccessLogInFirestore } from '@/lib/firestoreService';
+import { getEmployeesFromFirestore, addEmployeeToFirestore, updateEmployeeInFirestore, deleteEmployeeFromFirestore, addInitialEmployeesToFirestore, addOrUpdateAccessLogInFirestore, bulkUpdateEmployeesInFirestore } from '@/lib/firestoreService';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { format, parseISO } from 'date-fns';
@@ -51,6 +51,7 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Alert, AlertTitle, AlertDescription } from './ui/alert';
 import ReactCrop, { type Crop as CropType, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
+import Papa from 'papaparse';
 
 
 // Helper function to check if an employee should be considered active
@@ -306,6 +307,7 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
     const handleSaveClick = () => {
         if (!newEmployee.id.trim()) {
             toast({ variant: 'destructive', title: 'Campo Obrigatório', description: 'A matrícula do funcionário é obrigatória.' });
+            idInputRef.current?.focus();
             return;
         }
         if (!newEmployee.photoDataUrl) {
@@ -517,6 +519,121 @@ function EditEmployeeDialog({
     )
 }
 
+function ImportDialog({ open, onOpenChange, onImport }: { open: boolean, onOpenChange: (open: boolean) => void, onImport: (data: Employee[]) => void }) {
+    const [file, setFile] = useState<File | null>(null);
+    const [parsedData, setParsedData] = useState<Employee[]>([]);
+    const [error, setError] = useState('');
+    const { toast } = useToast();
+
+    useEffect(() => {
+        if (open) {
+            setFile(null);
+            setParsedData([]);
+            setError('');
+        }
+    }, [open]);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const selectedFile = e.target.files?.[0];
+        if (selectedFile) {
+            if (selectedFile.type !== 'text/csv') {
+                setError('Por favor, selecione um arquivo .csv');
+                return;
+            }
+            setFile(selectedFile);
+            setError('');
+
+            Papa.parse<any>(selectedFile, {
+                header: true,
+                skipEmptyLines: true,
+                complete: (results) => {
+                    const requiredFields = ['id', 'name', 'department', 'plate', 'ramal'];
+                    const fileHeaders = results.meta.fields || [];
+                    
+                    if (!requiredFields.every(field => fileHeaders.includes(field))) {
+                         setError(`O arquivo CSV deve conter as colunas: ${requiredFields.join(', ')}.`);
+                         setParsedData([]);
+                         return;
+                    }
+
+                    const data = results.data.map(row => ({
+                        id: row.id || `func-${Date.now()}-${Math.random()}`,
+                        name: row.name || '',
+                        department: row.department || '',
+                        plate: row.plate || '',
+                        ramal: row.ramal || '',
+                        status: 'Ativo',
+                    })) as Employee[];
+                    setParsedData(data);
+                },
+                error: (err: any) => {
+                    setError(`Erro ao ler o arquivo: ${err.message}`);
+                    setParsedData([]);
+                }
+            });
+        }
+    };
+    
+    const handleImport = () => {
+        if(parsedData.length === 0) {
+            toast({ variant: 'destructive', title: 'Nenhum dado para importar.' });
+            return;
+        }
+        onImport(parsedData);
+        onOpenChange(false);
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-4xl">
+                <DialogHeader>
+                    <DialogTitle>Importar Funcionários de CSV</DialogTitle>
+                    <DialogDescription>
+                        Selecione um arquivo CSV com as colunas: id, name, department, plate, ramal. A coluna 'id' será usada para atualizar funcionários existentes.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <Input type="file" accept=".csv" onChange={handleFileChange} />
+                    {error && <p className="text-sm text-destructive">{error}</p>}
+                    {parsedData.length > 0 && (
+                        <div className="rounded-md border h-64 overflow-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Matrícula (id)</TableHead>
+                                        <TableHead>Nome</TableHead>
+                                        <TableHead>Setor</TableHead>
+                                        <TableHead>Placa</TableHead>
+                                        <TableHead>Ramal</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {parsedData.map((employee, index) => (
+                                        <TableRow key={index}>
+                                            <TableCell>{employee.id}</TableCell>
+                                            <TableCell>{employee.name}</TableCell>
+                                            <TableCell>{employee.department}</TableCell>
+                                            <TableCell>{employee.plate}</TableCell>
+                                            <TableCell>{employee.ramal}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    )}
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+                    <Button onClick={handleImport} disabled={parsedData.length === 0 || !!error}>
+                        Importar {parsedData.length > 0 ? `(${parsedData.length})` : ''}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+
 type FilterType = 'all' | 'id' | 'name' | 'department' | 'plate' | 'ramal' | 'portaria' | 'status' | 'presence';
 
 const searchKeywords: Record<string, FilterType> = {
@@ -535,6 +652,7 @@ const searchKeywords: Record<string, FilterType> = {
 
 function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen, accessLogs, setAccessLogs, role }: { employees: Employee[], setEmployees: (employees: Employee[]) => void, isAddEmployeeDialogOpen: boolean, setIsAddEmployeeDialogOpen: Dispatch<SetStateAction<boolean>>, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>>, role: 'rh' | 'portaria' }) {
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState<FilterType>('all');
@@ -645,7 +763,8 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         // @ts-ignore
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
-            toast({ variant: 'destructive', title: 'Navegador não suportado', description: 'O reconhecimento de voz não é suportado por este navegador.' });
+            // Do not toast here, just disable the feature silently.
+            console.warn('Speech recognition not supported in this browser.');
             return;
         }
 
@@ -664,14 +783,15 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             recognitionRef.current.onend = () => {
                 setIsListening(false);
                 recognitionStartedRef.current = false;
-                // Automatically restart listening
+                // Automatically restart listening, but with a small delay and a check
                 setTimeout(() => {
-                     try {
+                    try {
                         if (recognitionRef.current && !recognitionStartedRef.current) {
                             recognitionRef.current.start();
                         }
                     } catch (e) {
-                         console.error("Could not restart recognition on end", e);
+                         // This can happen if the component unmounts, it's safe to ignore.
+                         console.info("Could not restart recognition on end, likely component unmounted.", e);
                     }
                 }, 500);
             };
@@ -728,9 +848,8 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             recognitionRef.current.onerror = (event: any) => {
                 recognitionStartedRef.current = false;
                  if (event.error === 'aborted' || event.error === 'no-speech') {
-                    // These errors can happen if the browser stops recognition for a moment.
-                    // The onend event will handle restarting it, so we can ignore this.
-                    console.log(`Speech recognition benign error: ${event.error}, will restart.`);
+                    // These errors are benign in a continuous listening setup.
+                    // The onend event will handle restarting, so we can ignore logging them as errors.
                     return;
                 }
                 if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
@@ -747,7 +866,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
 
         // Start listening
         try {
-            if (!recognitionStartedRef.current) {
+            if (recognitionRef.current && !recognitionStartedRef.current) {
                 recognitionRef.current.start();
             }
         } catch (e: any) {
@@ -822,6 +941,31 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         }
     };
 
+    const handleExport = () => {
+        const dataToExport = employees.map(({ id, name, department, plate, ramal }) => ({ id, name, department, plate, ramal }));
+        const csv = Papa.unparse(dataToExport);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.setAttribute('download', 'funcionarios.csv');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+    
+    const handleImport = async (importedData: Employee[]) => {
+        try {
+            await bulkUpdateEmployeesInFirestore(importedData);
+            // Refresh local data after import
+            const firestoreEmployees = await getEmployeesFromFirestore();
+            setEmployees(firestoreEmployees);
+            toast({ title: 'Importação Concluída', description: `${importedData.length} funcionários foram importados/atualizados.` });
+        } catch (error) {
+            console.error('Error during bulk update:', error);
+            toast({ variant: 'destructive', title: 'Erro na Importação', description: 'Ocorreu um erro ao salvar os dados.' });
+        }
+    };
+
     const getPresenceStatus = (employeeId: string) => {
         const lastLog = accessLogs
             .filter(log => log.personId === employeeId && log.personType === 'employee')
@@ -837,14 +981,24 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <CardTitle>Funcionários</CardTitle>
-          <Link href="/employees/history">
-            <Button variant="outline" className="w-full sm:w-auto">
-              <GanttChartSquare className="mr-2 h-4 w-4" />
-              Ver Histórico
+          <div className="flex w-full sm:w-auto flex-col sm:flex-row gap-2">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={handleExport}>
+                <Download className="mr-2 h-4 w-4" />
+                Exportar
             </Button>
-          </Link>
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsImportDialogOpen(true)}>
+                <Upload className="mr-2 h-4 w-4" />
+                Importar
+            </Button>
+            <Link href="/employees/history" className="w-full sm:w-auto">
+                <Button variant="outline" className="w-full">
+                <GanttChartSquare className="mr-2 h-4 w-4" />
+                Ver Histórico
+                </Button>
+            </Link>
+          </div>
         </CardHeader>
         <CardContent>
            <div className="flex items-center py-4 gap-2">
@@ -995,6 +1149,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         onSave={handleSave}
         role={role}
       />
+      <ImportDialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen} onImport={handleImport} />
     </>
   );
 }
@@ -1052,6 +1207,7 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
 
 
     
+
 
 
 

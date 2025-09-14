@@ -53,6 +53,29 @@ export const addInitialEmployeesToFirestore = async (): Promise<void> => {
     await batch.commit();
 };
 
+export const bulkUpdateEmployeesInFirestore = async (employees: Employee[]): Promise<void> => {
+    const batch = writeBatch(db);
+    employees.forEach((employee) => {
+        // Ensure id is a string and not empty
+        const docId = String(employee.id).trim();
+        if (!docId) {
+            console.warn('Skipping employee with empty ID:', employee);
+            return; // Skip if id is invalid
+        }
+        const docRef = doc(db, EMPLOYEES_COLLECTION, docId);
+        // We use merge: true to avoid overwriting existing fields like photos or status
+        // when they are not present in the CSV.
+        batch.set(docRef, {
+            id: docId, // Ensure the id is part of the document data
+            name: employee.name,
+            department: employee.department,
+            plate: employee.plate,
+            ramal: employee.ramal,
+        }, { merge: true });
+    });
+    await batch.commit();
+};
+
 
 // --- Visitantes ---
 
