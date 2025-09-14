@@ -304,10 +304,14 @@ function AddEmployeeDialog({ open, onOpenChange, onSave }: { open: boolean, onOp
 
 
     const handleSaveClick = () => {
-         if (!newEmployee.photoDataUrl) {
+        if (!newEmployee.id.trim()) {
+            toast({ variant: 'destructive', title: 'Campo Obrigatório', description: 'A matrícula do funcionário é obrigatória.' });
+            return;
+        }
+        if (!newEmployee.photoDataUrl) {
             toast({ variant: 'destructive', title: 'Campo Obrigatório', description: 'A foto do funcionário é obrigatória.' });
             return;
-         }
+        }
         if (!newEmployee.name || !newEmployee.department) {
              toast({
                 variant: 'destructive',
@@ -1048,6 +1052,7 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
 
 
     
+
 
 
 
