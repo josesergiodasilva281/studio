@@ -538,32 +538,41 @@ function ImportDialog({ open, onOpenChange, onImport }: { open: boolean, onOpenC
         if (selectedFile) {
             if (selectedFile.type !== 'text/csv') {
                 setError('Por favor, selecione um arquivo .csv');
+                setParsedData([]);
                 return;
             }
             setFile(selectedFile);
             setError('');
 
-            Papa.parse<any>(selectedFile, {
-                header: true,
+            Papa.parse<any[]>(selectedFile, {
+                header: false, // Read data as arrays, not objects
                 skipEmptyLines: true,
                 complete: (results) => {
-                    const requiredFields = ['id', 'name', 'department', 'plate', 'ramal'];
-                    const fileHeaders = results.meta.fields || [];
+                    // Check if there are at least 5 columns
+                    if (results.data.length > 0 && results.data[0].length < 5) {
+                        setError('O arquivo CSV deve conter pelo menos 5 colunas: id, name, department, plate, ramal.');
+                        setParsedData([]);
+                        return;
+                    }
                     
-                    if (!requiredFields.every(field => fileHeaders.includes(field))) {
-                         setError(`O arquivo CSV deve conter as colunas: ${requiredFields.join(', ')}.`);
-                         setParsedData([]);
-                         return;
+                    // Check if the first row looks like a header, and if so, skip it.
+                    const dataRows = results.data;
+                    const firstRow = dataRows[0];
+                    const isHeader = ['id', 'name', 'matrícula', 'nome'].some(h => String(firstRow[0]).toLowerCase().includes(h) || String(firstRow[1]).toLowerCase().includes(h));
+
+                    if (isHeader) {
+                        dataRows.shift();
                     }
 
-                    const data = results.data.map(row => ({
-                        id: row.id || `func-${Date.now()}-${Math.random()}`,
-                        name: row.name || '',
-                        department: row.department || '',
-                        plate: row.plate || '',
-                        ramal: row.ramal || '',
-                        status: 'Ativo',
+                    const data = dataRows.map(row => ({
+                        id: row[0] || `func-${Date.now()}-${Math.random()}`,
+                        name: row[1] || '',
+                        department: row[2] || '',
+                        plate: row[3] || '',
+                        ramal: row[4] || '',
+                        status: 'Ativo', // Default status for imported employees
                     })) as Employee[];
+
                     setParsedData(data);
                 },
                 error: (err: any) => {
@@ -589,7 +598,7 @@ function ImportDialog({ open, onOpenChange, onImport }: { open: boolean, onOpenC
                 <DialogHeader>
                     <DialogTitle>Importar Funcionários de CSV</DialogTitle>
                     <DialogDescription>
-                        Selecione um arquivo CSV com as colunas: id, name, department, plate, ramal. A coluna 'id' (matrícula) será usada para atualizar funcionários existentes.
+                        Selecione um arquivo CSV com as colunas na seguinte ordem: Matrícula(id), Nome, Setor, Placa, Ramal. A primeira linha (cabeçalho) será ignorada.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
@@ -1207,6 +1216,7 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
 
 
     
+
 
 
 
