@@ -545,32 +545,35 @@ function ImportDialog({ open, onOpenChange, onImport }: { open: boolean, onOpenC
             setError('');
 
             Papa.parse<any[]>(selectedFile, {
-                header: false, // Read data as arrays, not objects
+                header: false,
                 skipEmptyLines: true,
                 complete: (results) => {
-                    // Check if there are at least 5 columns
-                    if (results.data.length > 0 && results.data[0].length < 5) {
-                        setError('O arquivo CSV deve conter pelo menos 5 colunas: id, name, department, plate, ramal.');
+                    if (results.data.length > 0 && results.data[0].length < 4) {
+                        setError('O arquivo CSV deve conter pelo menos 4 colunas: Nome, Setor, Placa, Ramal.');
                         setParsedData([]);
                         return;
                     }
-                    
-                    // Check if the first row looks like a header, and if so, skip it.
+
                     const dataRows = results.data;
-                    const firstRow = dataRows[0];
-                    const isHeader = ['id', 'name', 'matrícula', 'nome'].some(h => String(firstRow[0]).toLowerCase().includes(h) || String(firstRow[1]).toLowerCase().includes(h));
+                    const firstRow = dataRows[0] || [];
+                    const isHeader = ['nome', 'setor', 'placa', 'ramal'].some(h => 
+                        String(firstRow[0]).toLowerCase().includes(h) ||
+                        String(firstRow[1]).toLowerCase().includes(h) ||
+                        String(firstRow[2]).toLowerCase().includes(h) ||
+                        String(firstRow[3]).toLowerCase().includes(h)
+                    );
 
                     if (isHeader) {
                         dataRows.shift();
                     }
 
-                    const data = dataRows.map(row => ({
-                        id: row[0] || `func-${Date.now()}-${Math.random()}`,
-                        name: row[1] || '',
-                        department: row[2] || '',
-                        plate: row[3] || '',
-                        ramal: row[4] || '',
-                        status: 'Ativo', // Default status for imported employees
+                    const data = dataRows.map((row, index) => ({
+                        id: ``, // ID will be generated in firestoreService
+                        name: row[0] || '',
+                        department: row[1] || '',
+                        plate: row[2] || '',
+                        ramal: row[3] || '',
+                        status: 'Ativo',
                     })) as Employee[];
 
                     setParsedData(data);
@@ -596,9 +599,9 @@ function ImportDialog({ open, onOpenChange, onImport }: { open: boolean, onOpenC
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-4xl">
                 <DialogHeader>
-                    <DialogTitle>Importar Funcionários de CSV</DialogTitle>
+                    <DialogTitle>Importar Novos Funcionários via CSV</DialogTitle>
                     <DialogDescription>
-                        Selecione um arquivo CSV com as colunas na seguinte ordem: Matrícula(id), Nome, Setor, Placa, Ramal. A primeira linha (cabeçalho) será ignorada.
+                        Selecione um arquivo CSV com as colunas na seguinte ordem: Nome, Setor, Placa, Ramal. A primeira linha (cabeçalho) será ignorada. Uma matrícula será gerada para cada novo funcionário.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
@@ -609,7 +612,6 @@ function ImportDialog({ open, onOpenChange, onImport }: { open: boolean, onOpenC
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Matrícula (id)</TableHead>
                                         <TableHead>Nome</TableHead>
                                         <TableHead>Setor</TableHead>
                                         <TableHead>Placa</TableHead>
@@ -619,7 +621,6 @@ function ImportDialog({ open, onOpenChange, onImport }: { open: boolean, onOpenC
                                 <TableBody>
                                     {parsedData.map((employee, index) => (
                                         <TableRow key={index}>
-                                            <TableCell>{employee.id}</TableCell>
                                             <TableCell>{employee.name}</TableCell>
                                             <TableCell>{employee.department}</TableCell>
                                             <TableCell>{employee.plate}</TableCell>
@@ -1216,6 +1217,7 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
 
 
     
+
 
 
 
