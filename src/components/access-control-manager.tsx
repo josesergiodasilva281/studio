@@ -204,11 +204,11 @@ export function AccessControlManager({
                 entryTimestamp: new Date().toISOString(),
                 exitTimestamp: null,
                 registeredBy,
+                photoDataUrl: person.photoDataUrl || '',
                 // Snapshot visitor details if it's a visitor
                 ...(personType === 'visitor' && {
                     reason: (person as Visitor).reason,
                     responsible: (person as Visitor).responsible,
-                    photoDataUrl: (person as Visitor).photoDataUrl,
                     rg: (person as Visitor).rg,
                     cpf: (person as Visitor).cpf,
                     company: (person as Visitor).company,

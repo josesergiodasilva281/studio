@@ -16,7 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from './ui/button';
-import { Pencil, Trash2, GanttChartSquare, Camera, Home, Building, LogIn, CalendarIcon, User, Crop, Mic, Upload, Download } from 'lucide-react';
+import { Pencil, Trash2, GanttChartSquare, Camera, Home, Building, LogIn, CalendarIcon, User, Crop, Mic, Upload } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -519,131 +519,6 @@ function EditEmployeeDialog({
     )
 }
 
-function ImportDialog({ open, onOpenChange, onImport }: { open: boolean, onOpenChange: (open: boolean) => void, onImport: (data: Employee[]) => void }) {
-    const [file, setFile] = useState<File | null>(null);
-    const [parsedData, setParsedData] = useState<Employee[]>([]);
-    const [error, setError] = useState('');
-    const { toast } = useToast();
-
-    useEffect(() => {
-        if (open) {
-            setFile(null);
-            setParsedData([]);
-            setError('');
-        }
-    }, [open]);
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const selectedFile = e.target.files?.[0];
-        if (selectedFile) {
-            if (selectedFile.type !== 'text/csv') {
-                setError('Por favor, selecione um arquivo .csv');
-                setParsedData([]);
-                return;
-            }
-            setFile(selectedFile);
-            setError('');
-
-            Papa.parse<any[]>(selectedFile, {
-                header: false,
-                skipEmptyLines: true,
-                complete: (results) => {
-                    if (results.data.length > 0 && results.data[0].length < 4) {
-                        setError('O arquivo CSV deve conter pelo menos 4 colunas: Nome, Setor, Placa, Ramal.');
-                        setParsedData([]);
-                        return;
-                    }
-
-                    const dataRows = results.data;
-                    const firstRow = dataRows[0] || [];
-                    const isHeader = ['nome', 'setor', 'placa', 'ramal'].some(h => 
-                        String(firstRow[0]).toLowerCase().includes(h) ||
-                        String(firstRow[1]).toLowerCase().includes(h) ||
-                        String(firstRow[2]).toLowerCase().includes(h) ||
-                        String(firstRow[3]).toLowerCase().includes(h)
-                    );
-
-                    if (isHeader) {
-                        dataRows.shift();
-                    }
-
-                    const data = dataRows.map((row, index) => ({
-                        id: ``, // ID will be generated in firestoreService
-                        name: row[0] || '',
-                        department: row[1] || '',
-                        plate: row[2] || '',
-                        ramal: row[3] || '',
-                        status: 'Ativo',
-                    })) as Employee[];
-
-                    setParsedData(data);
-                },
-                error: (err: any) => {
-                    setError(`Erro ao ler o arquivo: ${err.message}`);
-                    setParsedData([]);
-                }
-            });
-        }
-    };
-    
-    const handleImport = () => {
-        if(parsedData.length === 0) {
-            toast({ variant: 'destructive', title: 'Nenhum dado para importar.' });
-            return;
-        }
-        onImport(parsedData);
-        onOpenChange(false);
-    }
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-4xl">
-                <DialogHeader>
-                    <DialogTitle>Importar Novos Funcionários via CSV</DialogTitle>
-                    <DialogDescription>
-                        Selecione um arquivo CSV com as colunas na seguinte ordem: Nome, Setor, Placa, Ramal. A primeira linha (cabeçalho) será ignorada. Uma matrícula será gerada para cada novo funcionário.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                    <Input type="file" accept=".csv" onChange={handleFileChange} />
-                    {error && <p className="text-sm text-destructive">{error}</p>}
-                    {parsedData.length > 0 && (
-                        <div className="rounded-md border h-64 overflow-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Nome</TableHead>
-                                        <TableHead>Setor</TableHead>
-                                        <TableHead>Placa</TableHead>
-                                        <TableHead>Ramal</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {parsedData.map((employee, index) => (
-                                        <TableRow key={index}>
-                                            <TableCell>{employee.name}</TableCell>
-                                            <TableCell>{employee.department}</TableCell>
-                                            <TableCell>{employee.plate}</TableCell>
-                                            <TableCell>{employee.ramal}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    )}
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-                    <Button onClick={handleImport} disabled={parsedData.length === 0 || !!error}>
-                        Importar {parsedData.length > 0 ? `(${parsedData.length})` : ''}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-
 type FilterType = 'all' | 'id' | 'name' | 'department' | 'plate' | 'ramal' | 'portaria' | 'status' | 'presence';
 
 const searchKeywords: Record<string, FilterType> = {
@@ -662,7 +537,6 @@ const searchKeywords: Record<string, FilterType> = {
 
 function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen, accessLogs, setAccessLogs, role }: { employees: Employee[], setEmployees: (employees: Employee[]) => void, isAddEmployeeDialogOpen: boolean, setIsAddEmployeeDialogOpen: Dispatch<SetStateAction<boolean>>, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>>, role: 'rh' | 'portaria' }) {
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-    const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState<FilterType>('all');
@@ -708,7 +582,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 entryTimestamp: new Date().toISOString(),
                 exitTimestamp: null,
                 registeredBy,
-                photoDataUrl: employee.photoDataUrl,
+                photoDataUrl: employee.photoDataUrl || '',
             };
             await addOrUpdateAccessLogInFirestore((newLog));
             setAccessLogs(prevLogs => [newLog, ...prevLogs]);
@@ -951,31 +825,6 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         }
     };
 
-    const handleExport = () => {
-        const dataToExport = employees.map(({ id, name, department, plate, ramal }) => ({ id, name, department, plate, ramal }));
-        const csv = Papa.unparse(dataToExport);
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.setAttribute('download', 'funcionarios.csv');
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
-    
-    const handleImport = async (importedData: Employee[]) => {
-        try {
-            await bulkUpdateEmployeesInFirestore(importedData);
-            // Refresh local data after import
-            const firestoreEmployees = await getEmployeesFromFirestore();
-            setEmployees(firestoreEmployees);
-            toast({ title: 'Importação Concluída', description: `${importedData.length} funcionários foram importados/atualizados.` });
-        } catch (error) {
-            console.error('Error during bulk update:', error);
-            toast({ variant: 'destructive', title: 'Erro na Importação', description: 'Ocorreu um erro ao salvar os dados.' });
-        }
-    };
-
     const getPresenceStatus = (employeeId: string) => {
         const lastLog = accessLogs
             .filter(log => log.personId === employeeId && log.personType === 'employee')
@@ -1151,7 +1000,6 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         onSave={handleSave}
         role={role}
       />
-      <ImportDialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen} onImport={handleImport} />
     </>
   );
 }
@@ -1209,6 +1057,7 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
 
 
     
+
 
 
 
