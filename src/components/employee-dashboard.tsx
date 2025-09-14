@@ -994,14 +994,6 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <CardTitle>Funcionários</CardTitle>
           <div className="flex w-full sm:w-auto flex-col sm:flex-row gap-2">
-            <Button variant="outline" className="w-full sm:w-auto" onClick={handleExport}>
-                <Download className="mr-2 h-4 w-4" />
-                Exportar
-            </Button>
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsImportDialogOpen(true)}>
-                <Upload className="mr-2 h-4 w-4" />
-                Importar
-            </Button>
             <Link href="/employees/history" className="w-full sm:w-auto">
                 <Button variant="outline" className="w-full">
                 <GanttChartSquare className="mr-2 h-4 w-4" />
@@ -1217,6 +1209,7 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
 
 
     
+
 
 
 
