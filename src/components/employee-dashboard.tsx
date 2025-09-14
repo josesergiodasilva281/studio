@@ -589,7 +589,7 @@ function ImportDialog({ open, onOpenChange, onImport }: { open: boolean, onOpenC
                 <DialogHeader>
                     <DialogTitle>Importar Funcionários de CSV</DialogTitle>
                     <DialogDescription>
-                        Selecione um arquivo CSV com as colunas: id, name, department, plate, ramal. A coluna 'id' será usada para atualizar funcionários existentes.
+                        Selecione um arquivo CSV com as colunas: id, name, department, plate, ramal. A coluna 'id' (matrícula) será usada para atualizar funcionários existentes.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
@@ -1207,6 +1207,7 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
 
 
     
+
 
 
 
