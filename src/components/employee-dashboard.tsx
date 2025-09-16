@@ -16,7 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from './ui/button';
-import { Pencil, Trash2, GanttChartSquare, Camera, Home, Building, LogIn, CalendarIcon, User, Crop, Mic, Upload } from 'lucide-react';
+import { Pencil, Trash2, GanttChartSquare, Camera, Home, Building, LogIn, CalendarIcon, User, Crop, Mic } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -239,7 +239,7 @@ function PhotoCaptureAndCrop({ photoDataUrl, onPhotoCropped, isEditing = false }
                             {isCameraOpen ? 'Fechar Câmera' : (isEditing ? 'Trocar Foto' : 'Abrir Câmera')}
                         </Button>
                         <Button type="button" variant="outline" onClick={handleUploadClick}>
-                           <Upload className="mr-2 h-4 w-4" />
+                           <User className="mr-2 h-4 w-4" />
                            Carregar Foto
                         </Button>
                         <input
@@ -803,19 +803,19 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
 
     const handleSave = async (employeeToSave: Employee, oldId: string) => {
         try {
-            // Se o status for Ativo, limpa a data de inatividade
+            // If status is Active, clear the inactivity date
             if (employeeToSave.status === 'Ativo') {
                 employeeToSave.inactiveUntil = null;
             }
 
             if (oldId !== employeeToSave.id) {
-                // ID foi alterado, precisamos fazer a migração
+                // ID has changed, we need to migrate
                 await updateEmployeeIdInFirestore(oldId, employeeToSave.id);
-                // Atualiza o estado local
-                 setEmployees(employees.map(e => (e.id === oldId ? employeeToSave : e)));
+                // Update local state by replacing the old employee with the new one
+                setEmployees(employees.map(e => (e.id === oldId ? employeeToSave : e)));
 
             } else {
-                 // ID não mudou, apenas atualiza
+                 // ID has not changed, just update
                 await updateEmployeeInFirestore(employeeToSave);
                 setEmployees(employees.map(e => e.id === employeeToSave.id ? employeeToSave : e));
             }
@@ -1072,6 +1072,7 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
 
 
     
+
 
 
 
