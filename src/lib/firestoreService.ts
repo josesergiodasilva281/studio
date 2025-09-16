@@ -1,7 +1,7 @@
 
 
 import { db } from './firebase';
-import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch, query, orderBy, limit, where } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch, query, orderBy, limit, where, getDoc } from 'firebase/firestore';
 import type { Employee, Visitor, Car, AccessLog, CarLog } from './types';
 
 // --- Coleções ---
@@ -34,6 +34,39 @@ export const updateEmployeeInFirestore = async (employee: Employee): Promise<voi
     const employeeDocRef = doc(db, EMPLOYEES_COLLECTION, employee.id);
     await setDoc(employeeDocRef, employee, { merge: true });
 };
+
+export const updateEmployeeIdInFirestore = async (oldId: string, newId: string): Promise<void> => {
+    const oldDocRef = doc(db, EMPLOYEES_COLLECTION, oldId);
+    const oldDocSnap = await getDoc(oldDocRef);
+
+    if (!oldDocSnap.exists()) {
+        throw new Error("Funcionário original não encontrado.");
+    }
+
+    const employeeData = oldDocSnap.data() as Employee;
+    
+    // 1. Crie o novo documento do funcionário
+    const newEmployeeData = { ...employeeData, id: newId };
+    const newDocRef = doc(db, EMPLOYEES_COLLECTION, newId);
+    await setDoc(newDocRef, newEmployeeData);
+
+    // 2. Encontre e atualize todos os logs de acesso
+    const logsQuery = query(collection(db, ACCESS_LOGS_COLLECTION), where("personId", "==", oldId));
+    const logsSnapshot = await getDocs(logsQuery);
+
+    const batch = writeBatch(db);
+    logsSnapshot.forEach(logDoc => {
+        const logRef = doc(db, ACCESS_LOGS_COLLECTION, logDoc.id);
+        batch.update(logRef, { personId: newId });
+    });
+    
+    // 3. Exclua o documento antigo do funcionário
+    batch.delete(oldDocRef);
+    
+    // 4. Commit todas as alterações
+    await batch.commit();
+}
+
 
 export const deleteEmployeeFromFirestore = async (employeeId: string): Promise<void> => {
     await deleteDoc(doc(db, EMPLOYEES_COLLECTION, employeeId));

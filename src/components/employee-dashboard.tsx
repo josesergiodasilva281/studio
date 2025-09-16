@@ -42,7 +42,7 @@ import { Badge } from './ui/badge';
 import type { Employee, AccessLog } from '@/lib/types';
 import Link from 'next/link';
 import { useAuth } from '@/context/auth-context';
-import { getEmployeesFromFirestore, addEmployeeToFirestore, updateEmployeeInFirestore, deleteEmployeeFromFirestore, addInitialEmployeesToFirestore, addOrUpdateAccessLogInFirestore } from '@/lib/firestoreService';
+import { getEmployeesFromFirestore, addEmployeeToFirestore, updateEmployeeInFirestore, deleteEmployeeFromFirestore, addInitialEmployeesToFirestore, addOrUpdateAccessLogInFirestore, updateEmployeeIdInFirestore } from '@/lib/firestoreService';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { format, parseISO } from 'date-fns';
@@ -403,19 +403,25 @@ function EditEmployeeDialog({
 }: { 
     open: boolean, 
     onOpenChange: (open: boolean) => void, 
-    employee: Employee | null,     onSave: (employee: Employee) => void,
+    employee: Employee | null,     
+    onSave: (employee: Employee, oldId: string) => void,
     role: 'rh' | 'portaria' 
 }) {
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(employee);
+    const [originalId, setOriginalId] = useState<string | null>(null);
+
 
     useEffect(() => {
         setSelectedEmployee(employee);
+        if (employee) {
+            setOriginalId(employee.id);
+        }
     }, [open, employee]);
 
 
     const handleSaveClick = () => {
-        if (selectedEmployee) {
-            onSave(selectedEmployee);
+        if (selectedEmployee && originalId) {
+            onSave(selectedEmployee, originalId);
         }
     };
     
@@ -795,15 +801,25 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         }
     };
 
-    const handleSave = async (employeeToSave: Employee) => {
+    const handleSave = async (employeeToSave: Employee, oldId: string) => {
         try {
             // Se o status for Ativo, limpa a data de inatividade
             if (employeeToSave.status === 'Ativo') {
                 employeeToSave.inactiveUntil = null;
             }
 
-            await updateEmployeeInFirestore(employeeToSave);
-            setEmployees(employees.map(e => e.id === employeeToSave.id ? employeeToSave : e));
+            if (oldId !== employeeToSave.id) {
+                // ID foi alterado, precisamos fazer a migração
+                await updateEmployeeIdInFirestore(oldId, employeeToSave.id);
+                // Atualiza o estado local
+                 setEmployees(employees.map(e => (e.id === oldId ? employeeToSave : e)));
+
+            } else {
+                 // ID não mudou, apenas atualiza
+                await updateEmployeeInFirestore(employeeToSave);
+                setEmployees(employees.map(e => e.id === employeeToSave.id ? employeeToSave : e));
+            }
+            
             setIsEditDialogOpen(false);
             setSelectedEmployee(null);
             toast({ title: 'Funcionário atualizado com sucesso!' });
@@ -1056,6 +1072,7 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
 
 
     
+
 
 
 
