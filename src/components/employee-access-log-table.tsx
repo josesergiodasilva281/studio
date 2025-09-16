@@ -83,7 +83,6 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
             return 'P1'; // Default
         }
         
-        // Find the employee to get the photoDataUrl
         const employee = employees.find(e => e.id === log.personId);
         
         const updatedLog: AccessLog = {
