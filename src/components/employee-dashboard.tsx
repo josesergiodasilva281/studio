@@ -438,7 +438,7 @@ function EditEmployeeDialog({
                     <div className="space-y-4">
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="id-edit" className="text-right">Matrícula</Label>
-                            <Input id="id-edit" value={selectedEmployee.id} className="col-span-3" disabled />
+                            <Input id="id-edit" value={selectedEmployee.id} onChange={(e) => setSelectedEmployee({ ...selectedEmployee, id: e.target.value })} className="col-span-3" />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="name-edit" className="text-right">Nome</Label>
@@ -582,7 +582,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 entryTimestamp: new Date().toISOString(),
                 exitTimestamp: null,
                 registeredBy,
-                photoDataUrl: employee.photoDataUrl || '',
+                photoDataUrl: employee.photoDataUrl,
             };
             await addOrUpdateAccessLogInFirestore((newLog));
             setAccessLogs(prevLogs => [newLog, ...prevLogs]);
@@ -1057,6 +1057,7 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
 
 
     
+
 
 
 
