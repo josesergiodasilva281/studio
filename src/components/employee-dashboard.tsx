@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState, useRef, Dispatch, SetStateAction, KeyboardEvent } from 'react';
@@ -701,38 +702,55 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 const lastResultIndex = event.results.length - 1;
                 const transcript = normalizeString(event.results[lastResultIndex][0].transcript.trim());
 
-                if (transcript.startsWith('ok')) {
-                    const command = transcript.substring('ok'.length).trim();
+                const processCommand = (command: string) => {
+                    if (command.startsWith('registrar')) {
+                        const target = command.substring('registrar'.length).trim();
+                        let employeeToRegister: Employee | undefined;
 
-                    if (command === 'registrar') {
-                        if (filteredEmployees.length === 1) {
-                            handleManualEntry(filteredEmployees[0]);
-                        } else if (filteredEmployees.length > 1) {
-                             toast({
-                                variant: 'destructive',
-                                title: 'Muitos resultados',
-                                description: 'Refine sua busca para que apenas um funcionário apareça na lista antes de registrar.',
-                            });
+                        if (target) {
+                            // Direct registration: "ok, registrar josé"
+                            const normalizedTarget = normalizeString(target);
+                            const potentialMatches = employees.filter(emp => 
+                                normalizeString(emp.name).includes(normalizedTarget) ||
+                                normalizeString(emp.id).includes(normalizedTarget)
+                            );
+                            if (potentialMatches.length === 1) {
+                                employeeToRegister = potentialMatches[0];
+                            } else if (potentialMatches.length > 1) {
+                                toast({
+                                    variant: 'destructive',
+                                    title: 'Múltiplos funcionários encontrados',
+                                    description: `Seja mais específico. Encontrados: ${potentialMatches.map(p => p.name).join(', ')}.`,
+                                });
+                                return;
+                            }
+                        } else if (filteredEmployees.length === 1) {
+                            // Contextual registration: "ok, registrar" (after a search)
+                            employeeToRegister = filteredEmployees[0];
+                        }
+
+                        if (employeeToRegister) {
+                            handleManualEntry(employeeToRegister);
                         } else {
-                             toast({
+                            toast({
                                 variant: 'destructive',
-                                title: 'Nenhum resultado',
-                                description: 'Nenhum funcionário encontrado para registrar.',
+                                title: 'Funcionário não encontrado',
+                                description: target ? `Nenhum funcionário correspondente a "${target}" foi encontrado.` : 'Busque por um funcionário antes de usar o comando "registrar".',
                             });
                         }
+                    } else if (command === 'limpar') {
+                        setSearchTerm('');
                     } else {
+                        // Default to search
                         setSearchTerm(command);
                     }
-                } else if (transcript === 'registrar') {
-                     if (filteredEmployees.length === 1) {
-                        handleManualEntry(filteredEmployees[0]);
-                    } else if (filteredEmployees.length > 1) {
-                         toast({
-                            variant: 'destructive',
-                            title: 'Muitos resultados',
-                            description: 'Refine sua busca para que apenas um funcionário apareça na lista antes de registrar.',
-                        });
-                    }
+                };
+
+                if (transcript.startsWith('ok ')) {
+                    const command = transcript.substring('ok '.length);
+                    processCommand(command);
+                } else if (transcript === 'registrar' || transcript.startsWith('registrar ') || transcript === 'limpar') {
+                     processCommand(transcript);
                 }
             };
             
@@ -776,7 +794,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             }
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [toast, filteredEmployees]);
+    }, [toast, filteredEmployees, employees]); // Added employees to dependency array for direct registration search
     
     
     const getRegisteredBy = (): 'RH' | 'P1' | 'P2' | 'Supervisor' => {
@@ -813,7 +831,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
 
             if (oldId !== employeeToSave.id) {
                 // ID has changed, we need to migrate
-                await updateEmployeeIdInFirestore(oldId, employeeToSave.id);
+                await updateEmployeeIdInFirestore(oldId, employeeToSave);
                 // Update local state by replacing the old employee with the new one
                 setEmployees(employees.map(e => (e.id === oldId ? employeeToSave : e)));
 
@@ -872,7 +890,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         <CardContent>
            <div className="flex items-center py-4 gap-2">
             <Input
-                placeholder="Busca por voz: 'ok, nome josé' ou 'ok, registrar'"
+                placeholder="Busca por voz: 'ok, [busca]' ou 'ok, registrar [nome]'"
                 value={searchTerm}
                 onChange={(event) => {
                     setSearchTerm(event.target.value)
@@ -895,7 +913,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                         {isMicPermissionDenied 
                             ? <p>Permissão do microfone negada. Clique no cadeado na barra de endereço.</p>
                             : isListening 
-                            ? <p>Ouvindo... Diga "ok, [busca]" ou "ok, registrar".</p>
+                            ? <p>Ouvindo... Diga "ok, [busca]", "ok, registrar [nome/matrícula]", ou "ok, limpar".</p>
                             : <p>Reconhecimento de voz inativo.</p>
                         }
                     </TooltipContent>
@@ -1087,6 +1105,8 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
   );
 }
 
+
+    
 
     
 

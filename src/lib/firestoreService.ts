@@ -35,19 +35,16 @@ export const updateEmployeeInFirestore = async (employee: Employee): Promise<voi
     await setDoc(employeeDocRef, employee, { merge: true });
 };
 
-export const updateEmployeeIdInFirestore = async (oldId: string, newId: string): Promise<void> => {
+export const updateEmployeeIdInFirestore = async (oldId: string, newEmployeeData: Employee): Promise<void> => {
     const oldDocRef = doc(db, EMPLOYEES_COLLECTION, oldId);
     const oldDocSnap = await getDoc(oldDocRef);
 
     if (!oldDocSnap.exists()) {
         throw new Error("Funcionário original não encontrado.");
     }
-
-    const employeeData = oldDocSnap.data() as Employee;
     
     // 1. Crie o novo documento do funcionário
-    const newEmployeeData = { ...employeeData, id: newId };
-    const newDocRef = doc(db, EMPLOYEES_COLLECTION, newId);
+    const newDocRef = doc(db, EMPLOYEES_COLLECTION, newEmployeeData.id);
     await setDoc(newDocRef, newEmployeeData);
 
     // 2. Encontre e atualize todos os logs de acesso
@@ -57,7 +54,7 @@ export const updateEmployeeIdInFirestore = async (oldId: string, newId: string):
     const batch = writeBatch(db);
     logsSnapshot.forEach(logDoc => {
         const logRef = doc(db, ACCESS_LOGS_COLLECTION, logDoc.id);
-        batch.update(logRef, { personId: newId });
+        batch.update(logRef, { personId: newEmployeeData.id });
     });
     
     // 3. Exclua o documento antigo do funcionário
@@ -169,3 +166,6 @@ export const getCarLogsFromFirestore = async (count: number = 50): Promise<CarLo
 export const addOrUpdateCarLogInFirestore = async (log: CarLog): Promise<void> => {
     await setDoc(doc(db, CAR_LOGS_COLLECTION, log.id), log);
 };
+
+
+    
