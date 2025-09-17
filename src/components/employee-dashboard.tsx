@@ -605,34 +605,46 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     useEffect(() => {
         const normalizedSearchTerm = normalizeString(searchTerm);
 
-        const results = employees.filter(employee => {
-            if (!normalizedSearchTerm) return true;
+        let currentFilter: FilterType = 'all';
+        let currentSearchValue = normalizedSearchTerm;
 
-            const searchWords = normalizedSearchTerm.split(' ').filter(w => w.length > 0);
+        // Check for column-specific search syntax (e.g., "placa abc-1234")
+        const firstWord = normalizedSearchTerm.split(' ')[0];
+        if (searchKeywords[firstWord]) {
+            currentFilter = searchKeywords[firstWord];
+            currentSearchValue = normalizedSearchTerm.substring(firstWord.length).trim();
+        }
+
+        const results = employees.filter(employee => {
+            if (!currentSearchValue) return true;
+
+            const searchWords = currentSearchValue.split(' ').filter(w => w.length > 0);
             const presenceStatus = getPresenceStatus(employee.id);
 
             const checkField = (field: keyof Employee | 'presence') => {
+                const valueToSearch = currentSearchValue;
+
                 if (field === 'presence') {
-                    return normalizeString(presenceStatus).includes(normalizedSearchTerm);
+                    return normalizeString(presenceStatus).includes(valueToSearch);
                 }
 
                 const value = employee[field];
                 const normalizedValue = value ? normalizeString(String(value)) : '';
                 
-                // Special logic for name: check if all search words are in the name
                 if (field === 'name') {
+                     // For name, check if all search words are present
                     return searchWords.every(word => normalizedValue.includes(word));
                 }
 
                 // Default logic for other fields
-                return normalizedValue.includes(normalizedSearchTerm);
+                return normalizedValue.includes(valueToSearch);
             };
 
-            if (filterType !== 'all') {
-                return checkField(filterType);
+            if (currentFilter !== 'all') {
+                return checkField(currentFilter);
             }
             
-            // 'all' fields search
+            // 'all' fields search (global search)
             return (
                 checkField('id') ||
                 checkField('name') ||
@@ -646,7 +658,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         });
         setFilteredEmployees(results);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchTerm, filterType, employees, accessLogs]);
+    }, [searchTerm, employees, accessLogs]);
     
     useEffect(() => {
         // @ts-ignore
@@ -709,17 +721,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                             });
                         }
                     } else {
-                        const words = command.split(' ');
-                        const keyword = words[0];
-                        const foundKeyword = Object.keys(searchKeywords).find(k => normalizeString(k) === keyword);
-
-                        if (foundKeyword) {
-                            setFilterType(searchKeywords[foundKeyword]);
-                            setSearchTerm(words.slice(1).join(' '));
-                        } else {
-                            setFilterType('all');
-                            setSearchTerm(command);
-                        }
+                        setSearchTerm(command);
                     }
                 } else if (transcript === 'registrar') {
                      if (filteredEmployees.length === 1) {
@@ -869,11 +871,10 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         <CardContent>
            <div className="flex items-center py-4 gap-2">
             <Input
-                placeholder="Use a voz com 'OK...' ou digite aqui"
+                placeholder="Busca: 'nome josé' ou 'placa xyz'..."
                 value={searchTerm}
                 onChange={(event) => {
                     setSearchTerm(event.target.value)
-                    setFilterType('all')
                 }}
                 className="max-w-full sm:max-w-sm"
             />
@@ -1072,6 +1073,7 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
 
 
     
+
 
 
 
