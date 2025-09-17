@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useEffect, useState, useRef, Dispatch, SetStateAction, KeyboardEvent } from 'react';
@@ -16,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from './ui/button';
-import { Pencil, Trash2, GanttChartSquare, Camera, Home, Building, LogIn, CalendarIcon, User, Crop, Mic } from 'lucide-react';
+import { Pencil, Trash2, GanttChartSquare, Camera, Home, Building, LogIn, CalendarIcon, User, Crop, Mic, MicOff } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,6 +50,7 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Alert, AlertTitle, AlertDescription } from './ui/alert';
 import ReactCrop, { type Crop as CropType, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 
 // Helper function to check if an employee should be considered active
@@ -544,10 +544,10 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [filterType, setFilterType] = useState<FilterType>('all');
     const { toast } = useToast();
     const { user } = useAuth();
     const [isListening, setIsListening] = useState(false);
+    const [isMicPermissionDenied, setIsMicPermissionDenied] = useState(false);
     const recognitionRef = useRef<any>(null);
     const recognitionStartedRef = useRef(false);
     const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
@@ -587,7 +587,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 entryTimestamp: new Date().toISOString(),
                 exitTimestamp: null,
                 registeredBy,
-                photoDataUrl: employee.photoDataUrl,
+                photoDataUrl: employee.photoDataUrl || '',
             };
             await addOrUpdateAccessLogInFirestore((newLog));
             setAccessLogs(prevLogs => [newLog, ...prevLogs]);
@@ -598,7 +598,6 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             });
             // Clear search after successful registration
             setSearchTerm('');
-            setFilterType('all');
         }
     };
     
@@ -679,6 +678,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             recognitionRef.current.onstart = () => {
                 setIsListening(true);
                 recognitionStartedRef.current = true;
+                setIsMicPermissionDenied(false);
             };
 
             recognitionRef.current.onend = () => {
@@ -744,6 +744,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                     return;
                 }
                 if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                    setIsMicPermissionDenied(true);
                     toast({
                         variant: 'destructive',
                         title: 'Permissão do Microfone Negada',
@@ -871,21 +872,36 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         <CardContent>
            <div className="flex items-center py-4 gap-2">
             <Input
-                placeholder="Busca: 'nome josé' ou 'placa xyz'..."
+                placeholder="Busca por voz: 'ok, nome josé' ou 'ok, registrar'"
                 value={searchTerm}
                 onChange={(event) => {
                     setSearchTerm(event.target.value)
                 }}
                 className="max-w-full sm:max-w-sm"
             />
-            <Button 
-                variant="outline" 
-                size="icon" 
-                className={cn(isListening && "bg-red-500 hover:bg-red-600 text-white animate-pulse")}
-                title="Status do reconhecimento de voz"
-            >
-                <Mic className="h-4 w-4" />
-            </Button>
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                         <Button 
+                            variant="outline" 
+                            size="icon" 
+                            className={cn(isListening && "bg-red-500 hover:bg-red-600 text-white animate-pulse", isMicPermissionDenied && "bg-yellow-500 hover:bg-yellow-600 text-black")}
+                            title="Status do reconhecimento de voz"
+                        >
+                            {isMicPermissionDenied ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        {isMicPermissionDenied 
+                            ? <p>Permissão do microfone negada. Clique no cadeado na barra de endereço.</p>
+                            : isListening 
+                            ? <p>Ouvindo... Diga "ok, [busca]" ou "ok, registrar".</p>
+                            : <p>Reconhecimento de voz inativo.</p>
+                        }
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+
           </div>
           <div className="rounded-md border">
             <div className="relative w-full overflow-auto">
@@ -1074,21 +1090,4 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
 
     
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    
