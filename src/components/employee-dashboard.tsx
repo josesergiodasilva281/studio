@@ -612,7 +612,14 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         const firstWord = normalizedSearchTerm.split(' ')[0];
         if (searchKeywords[firstWord]) {
             currentFilter = searchKeywords[firstWord];
-            currentSearchValue = normalizedSearchTerm.substring(firstWord.length).trim();
+            let searchValue = normalizedSearchTerm.substring(firstWord.length).trim();
+            
+            // Smart correction for voice-transcribed acronyms (e.g., "d i m" -> "dim")
+            if (searchValue.split(' ').every(part => part.length === 1)) {
+                searchValue = searchValue.replace(/\s/g, '');
+            }
+
+            currentSearchValue = searchValue;
         }
 
         const results = employees.filter(employee => {
@@ -738,19 +745,25 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                                 description: target ? `Nenhum funcionário correspondente a "${target}" foi encontrado.` : 'Busque por um funcionário antes de usar o comando "registrar".',
                             });
                         }
-                    } else if (command === 'limpar') {
+                    } else if (command.startsWith('limpar')) {
                         setSearchTerm('');
                     } else {
                         // Default to search
-                        setSearchTerm(command);
+                        setSearchTerm(event.results[lastResultIndex][0].transcript.trim());
                     }
                 };
 
-                if (transcript.startsWith('ok ')) {
-                    const command = transcript.substring('ok '.length);
+                const commandPrefixes = ['ok ', 'okay ', 'registrar', 'limpar'];
+                const matchedPrefix = commandPrefixes.find(p => transcript.startsWith(p));
+
+                if(matchedPrefix) {
+                    let command;
+                    if (matchedPrefix === 'ok ' || matchedPrefix === 'okay ') {
+                        command = transcript.substring(matchedPrefix.length);
+                    } else {
+                        command = transcript;
+                    }
                     processCommand(command);
-                } else if (transcript === 'registrar' || transcript.startsWith('registrar ') || transcript === 'limpar') {
-                     processCommand(transcript);
                 }
             };
             
@@ -890,7 +903,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         <CardContent>
            <div className="flex items-center py-4 gap-2">
             <Input
-                placeholder="Busca por voz: 'ok, [busca]' ou 'ok, registrar [nome]'"
+                placeholder="Use 'ok, [busca]' ou 'placa [placa]', 'nome [nome]'"
                 value={searchTerm}
                 onChange={(event) => {
                     setSearchTerm(event.target.value)
@@ -911,9 +924,9 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                     </TooltipTrigger>
                     <TooltipContent>
                         {isMicPermissionDenied 
-                            ? <p>Permissão do microfone negada. Clique no cadeado na barra de endereço.</p>
+                            ? <p>Permissão negada. Clique no cadeado na barra de endereço.</p>
                             : isListening 
-                            ? <p>Ouvindo... Diga "ok, [busca]", "ok, registrar [nome/matrícula]", ou "ok, limpar".</p>
+                            ? <p>Ouvindo... Diga "ok, [comando]".</p>
                             : <p>Reconhecimento de voz inativo.</p>
                         }
                     </TooltipContent>
@@ -1105,6 +1118,8 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
   );
 }
 
+
+    
 
     
 
