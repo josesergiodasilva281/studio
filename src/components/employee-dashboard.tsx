@@ -547,9 +547,15 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     };
 
     const filteredEmployees = employees.filter(employee => {
-        const normalizedSearchTerm = removeAccents(searchTerm.toLowerCase());
+        let normalizedSearchTerm = removeAccents(searchTerm.toLowerCase());
         const presenceStatus = getPresenceStatus(employee.id);
         
+        // If search term is made of single chars separated by space, join them
+        // e.g. "e h x" becomes "ehx"
+        if (normalizedSearchTerm.match(/^(?:\w\s+)+\w$/)) {
+           normalizedSearchTerm = normalizedSearchTerm.replace(/\s/g, '');
+        }
+
         // Column-specific search
         const searchParts = normalizedSearchTerm.split(' ');
         const columnName = searchParts[0];
@@ -815,9 +821,13 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                                 {isMicPermissionDenied ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                             </Button>
                         </TooltipTrigger>
-                        {isMicPermissionDenied && (
-                            <TooltipContent>
+                        {isMicPermissionDenied ? (
+                             <TooltipContent>
                                 <p>Permissão do microfone negada. Clique no ícone de cadeado na barra de endereço para permitir.</p>
+                            </TooltipContent>
+                        ) : (
+                             <TooltipContent>
+                                <p>{isListening ? 'Parar de ouvir' : 'Buscar por voz'}</p>
                             </TooltipContent>
                         )}
                     </Tooltip>
@@ -1010,4 +1020,5 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
     
 
     
+
 
