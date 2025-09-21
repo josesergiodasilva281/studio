@@ -612,14 +612,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         const firstWord = normalizedSearchTerm.split(' ')[0];
         if (searchKeywords[firstWord]) {
             currentFilter = searchKeywords[firstWord];
-            let searchValue = normalizedSearchTerm.substring(firstWord.length).trim();
-            
-            // Smart correction for voice-transcribed acronyms (e.g., "d i m" -> "dim")
-            if (searchValue.split(' ').every(part => part.length === 1)) {
-                searchValue = searchValue.replace(/\s/g, '');
-            }
-
-            currentSearchValue = searchValue;
+            currentSearchValue = normalizedSearchTerm.substring(firstWord.length).trim();
         }
 
         const results = employees.filter(employee => {
@@ -628,22 +621,27 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             const searchWords = currentSearchValue.split(' ').filter(w => w.length > 0);
             const presenceStatus = getPresenceStatus(employee.id);
 
+            // A helper to check a field. It now normalizes both the field value and the search value
+            // by removing spaces, which helps with voice transcriptions like "D I M".
             const checkField = (field: keyof Employee | 'presence') => {
-                const valueToSearch = currentSearchValue;
-
+                const valueToSearch = currentSearchValue.replace(/\s/g, ''); // Remove spaces from search term
+                
                 if (field === 'presence') {
-                    return normalizeString(presenceStatus).includes(valueToSearch);
+                     // Normalize and remove spaces
+                    const normalizedPresence = normalizeString(presenceStatus).replace(/\s/g, '');
+                    return normalizedPresence.includes(valueToSearch);
                 }
 
                 const value = employee[field];
-                const normalizedValue = value ? normalizeString(String(value)) : '';
+                // Normalize and remove spaces from the employee data field
+                const normalizedValue = value ? normalizeString(String(value)).replace(/\s/g, '') : '';
                 
                 if (field === 'name') {
-                     // For name, check if all search words are present
-                    return searchWords.every(word => normalizedValue.includes(word));
+                     // For name, check if all search words are present, after normalizing them
+                    const normalizedFullName = normalizeString(String(employee.name));
+                    return searchWords.every(word => normalizedFullName.includes(word));
                 }
 
-                // Default logic for other fields
                 return normalizedValue.includes(valueToSearch);
             };
 
