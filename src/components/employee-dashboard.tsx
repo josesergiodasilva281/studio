@@ -42,7 +42,7 @@ import { Badge } from './ui/badge';
 import type { Employee, AccessLog } from '@/lib/types';
 import Link from 'next/link';
 import { useAuth } from '@/context/auth-context';
-import { addEmployeeToFirestore, updateEmployeeInFirestore, deleteEmployeeFromFirestore, addOrUpdateAccessLogInFirestore, updateEmployeeIdInFirestore, listenToEmployeesFromFirestore } from '@/lib/firestoreService';
+import { addEmployeeToFirestore, updateEmployeeInFirestore, deleteEmployeeFromFirestore, addOrUpdateAccessLogInFirestore, updateEmployeeIdInFirestore, listenToEmployeesFromFirestore, setSearchTermInFirestore, listenToSearchTermFromFirestore } from '@/lib/firestoreService';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { format, parseISO } from 'date-fns';
@@ -535,6 +535,21 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     const [isMicPermissionDenied, setIsMicPermissionDenied] = useState(false);
     const recognitionRef = useRef<any>(null);
 
+    useEffect(() => {
+        if (!user) return;
+        const unsubscribe = listenToSearchTermFromFirestore(user.username, (newSearchTerm) => {
+            setSearchTerm(newSearchTerm);
+        });
+        return () => unsubscribe();
+    }, [user]);
+
+    const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (user) {
+            const newSearchTerm = event.target.value;
+            setSearchTerm(newSearchTerm); // Update local state immediately for responsiveness
+            setSearchTermInFirestore(user.username, newSearchTerm);
+        }
+    };
     const getPresenceStatus = (employeeId: string) => {
         const lastLog = accessLogs
             .filter(log => log.personId === employeeId && log.personType === 'employee')
@@ -685,7 +700,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
 
         if (!recognitionRef.current) {
             recognitionRef.current = new SpeechRecognition();
-            recognitionRef.current.continuous = true;
+            recognitionRef.current.continuous = false; // Process one command at a time
             recognitionRef.current.lang = 'pt-BR';
             recognitionRef.current.interimResults = false;
         }
@@ -693,34 +708,36 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         const recognition = recognitionRef.current;
 
         recognition.onresult = (event: any) => {
+            if (!user) return;
             let transcript = '';
             for (let i = event.resultIndex; i < event.results.length; ++i) {
                 transcript += event.results[i][0].transcript;
             }
             transcript = transcript.trim().toLowerCase();
             
-            if (!transcript.startsWith('ok')) {
-                return;
-            }
-            
-            transcript = transcript.replace(/^ok\s*(buscar\s*)?/, '');
-
-            if (transcript.startsWith('soletrar ')) {
-                const toSpell = transcript.substring('soletrar '.length);
-                const spelledTerm = toSpell.replace(/\s/g, ''); // Remove spaces
-                setSearchTerm(spelledTerm);
-            } else if (transcript.startsWith('registrar ')) {
-                 const toRegister = transcript.substring('registrar '.length);
-                 const employee = employees.find(e => removeAccents(e.name.toLowerCase()) === removeAccents(toRegister) || e.id.toLowerCase() === toRegister);
-                 if (employee) {
-                    handleManualEntry(employee);
-                 } else {
-                    toast({variant: 'destructive', title: 'Funcionário não encontrado', description: `Não foi possível encontrar "${toRegister}".`})
-                 }
-            } else if (transcript === 'limpar') {
-                setSearchTerm('');
-            } else {
-                setSearchTerm(transcript);
+            if (transcript.startsWith('ok')) {
+                let command = transcript.substring(3).trim(); // "ok " é 3 caracteres
+                
+                if (command.startsWith('buscar ')) {
+                    const searchTerm = command.substring(7);
+                    setSearchTermInFirestore(user.username, searchTerm);
+                } else if (command.startsWith('soletrar ')) {
+                    const toSpell = command.substring(9);
+                    const spelledTerm = toSpell.replace(/\s/g, ''); // Remove spaces
+                    setSearchTermInFirestore(user.username, spelledTerm);
+                } else if (command.startsWith('registrar ')) {
+                     const toRegister = command.substring(10);
+                     const employee = employees.find(e => removeAccents(e.name.toLowerCase()) === removeAccents(toRegister) || e.id.toLowerCase() === toRegister);
+                     if (employee) {
+                        handleManualEntry(employee);
+                     } else {
+                        toast({variant: 'destructive', title: 'Funcionário não encontrado', description: `Não foi possível encontrar "${toRegister}".`})
+                     }
+                } else if (command === 'limpar') {
+                    setSearchTermInFirestore(user.username, '');
+                } else {
+                    setSearchTermInFirestore(user.username, command);
+                }
             }
         };
 
@@ -728,17 +745,22 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
              if (event.error === 'not-allowed') {
                 setIsMicPermissionDenied(true);
                 setIsListening(false);
-            } else if (event.error === 'no-speech' || event.error === 'aborted') {
-                return; 
-            }
-            console.error('Speech recognition error', event.error);
+                toast({ variant: 'destructive', title: 'Permissão negada', description: 'Ative a permissão do microfone nas configurações do navegador.' });
+             } else if (event.error === 'no-speech' || event.error === 'aborted') {
+                // Ignore these common errors, they just mean listening timed out
+                return;
+             } else {
+                console.error('Speech recognition error', event.error);
+             }
         };
         
         recognition.onend = () => {
             if (isListening && !isMicPermissionDenied) {
+                // Automatically restart listening if the button is still on
                 try {
                     recognition.start();
                 } catch(e) {
+                    // This can happen if it's already starting, safe to ignore
                     console.warn('Speech recognition restart failed, may already be active.', e);
                 }
             }
@@ -756,6 +778,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         
         return () => {
             if (recognitionRef.current) {
+                // Clean up all listeners to prevent memory leaks
                 recognitionRef.current.onresult = null;
                 recognitionRef.current.onerror = null;
                 recognitionRef.current.onend = null;
@@ -763,7 +786,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             }
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isListening, isMicPermissionDenied, employees, toast]);
+    }, [isListening, isMicPermissionDenied, employees, toast, user]);
 
 
   return (
@@ -783,7 +806,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 <Input
                     placeholder="Buscar..."
                     value={searchTerm}
-                    onChange={(event) => setSearchTerm(event.target.value)}
+                    onChange={handleSearchChange}
                     className="max-w-full sm:max-w-sm"
                 />
                  <TooltipProvider>
@@ -974,3 +997,4 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
     </div>
   );
 }
+

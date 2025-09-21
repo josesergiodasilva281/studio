@@ -10,6 +10,25 @@ const VISITORS_COLLECTION = 'visitors';
 const CARS_COLLECTION = 'cars';
 const ACCESS_LOGS_COLLECTION = 'accessLogs';
 const CAR_LOGS_COLLECTION = 'carLogs';
+const SEARCH_STATE_COLLECTION = 'searchState';
+
+// --- Estado da Busca Sincronizada ---
+
+export const setSearchTermInFirestore = async (username: string, term: string): Promise<void> => {
+    const searchStateRef = doc(db, SEARCH_STATE_COLLECTION, username);
+    await setDoc(searchStateRef, { term });
+};
+
+export const listenToSearchTermFromFirestore = (username: string, callback: (term: string) => void): () => void => {
+    const searchStateRef = doc(db, SEARCH_STATE_COLLECTION, username);
+    return onSnapshot(searchStateRef, (doc) => {
+        if (doc.exists()) {
+            callback(doc.data().term || '');
+        } else {
+            callback('');
+        }
+    });
+};
 
 // --- Funcionários ---
 
