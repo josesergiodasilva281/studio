@@ -524,22 +524,6 @@ function EditEmployeeDialog({
     )
 }
 
-type FilterType = 'all' | 'id' | 'name' | 'department' | 'plate' | 'ramal' | 'portaria' | 'status' | 'presence';
-
-const searchKeywords: Record<string, FilterType> = {
-    matrícula: 'id',
-    matricula: 'id',
-    nome: 'name',
-    setor: 'department',
-    placa: 'plate',
-    ramal: 'ramal',
-    portaria: 'portaria',
-    status: 'status',
-    presença: 'presence',
-    presenca: 'presence',
-};
-
-
 function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen, accessLogs, setAccessLogs, role }: { employees: Employee[], setEmployees: (employees: Employee[]) => void, isAddEmployeeDialogOpen: boolean, setIsAddEmployeeDialogOpen: Dispatch<SetStateAction<boolean>>, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>>, role: 'rh' | 'portaria' }) {
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
@@ -548,104 +532,23 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     const { user } = useAuth();
     const [isListening, setIsListening] = useState(false);
     const recognitionRef = useRef<any>(null);
-    
-    // Function to remove accents and convert to lower case
-    const normalizeString = (str: string) => {
-        if (!str) return "";
-        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    };
 
-    const handleManualEntry = async (employee: Employee) => {
-        if (!user) return;
-
-        if (!isEmployeeEffectivelyActive(employee)) {
-            toast({ variant: 'destructive', title: 'Acesso Negado', description: `Funcionário ${employee.name} está inativo.` });
-            return;
-        }
-
-        const openLog = accessLogs.find(
-            log => log.personId === employee.id && log.exitTimestamp === null
-        );
-
-        if (openLog) {
-            toast({
-                title: "Acesso já registrado",
-                description: `${employee.name} já possui um registro de entrada.`,
-                variant: 'default'
-            });
-        } else {
-            // Registering an entry
-            const registeredBy = getRegisteredBy();
-            const newLog: AccessLog = {
-                id: `log-${Date.now()}`,
-                personId: employee.id,
-                personName: employee.name,
-                personType: 'employee',
-                entryTimestamp: new Date().toISOString(),
-                exitTimestamp: null,
-                registeredBy,
-                photoDataUrl: employee.photoDataUrl || '',
-            };
-            await addOrUpdateAccessLogInFirestore((newLog));
-            setAccessLogs(prevLogs => [newLog, ...prevLogs]);
-            toast({
-                title: "Acesso Registrado: Entrada",
-                description: `${employee.name} - ${new Date(newLog.entryTimestamp).toLocaleString('pt-BR')}`,
-                variant: 'default'
-            });
-            // Clear search after successful registration
-            setSearchTerm('');
-        }
-    };
-    
     const filteredEmployees = employees.filter(employee => {
-        const normalizedSearchTerm = normalizeString(searchTerm);
-
-        if (!normalizedSearchTerm) return true;
-
-        let currentFilter: FilterType = 'all';
-        let currentSearchValue = normalizedSearchTerm;
-
-        const firstWord = normalizedSearchTerm.split(' ')[0];
-        if (searchKeywords[firstWord]) {
-            currentFilter = searchKeywords[firstWord];
-            currentSearchValue = normalizedSearchTerm.substring(firstWord.length).trim();
-        }
-
-        const searchWords = currentSearchValue.split(' ').filter(w => w.length > 0);
+        const searchTermLower = searchTerm.toLowerCase();
         const presenceStatus = getPresenceStatus(employee.id);
 
-        const checkField = (field: keyof Employee | 'presence') => {
-            let value: string | undefined | null;
-            if (field === 'presence') {
-                value = presenceStatus;
-            } else {
-                value = employee[field];
-            }
-
-            const normalizedValue = value ? normalizeString(String(value)) : '';
-            const normalizedSearch = normalizeString(currentSearchValue).replace(/\s/g, '');
-            
-            return normalizedValue.replace(/\s/g, '').includes(normalizedSearch);
-        };
-
-        if (currentFilter !== 'all') {
-            return checkField(currentFilter);
-        }
-        
         return (
-            checkField('id') ||
-            checkField('name') ||
-            checkField('department') ||
-            checkField('plate') ||
-            checkField('ramal') ||
-            checkField('portaria') ||
-            checkField('status') ||
-            checkField('presence')
+            employee.id.toLowerCase().includes(searchTermLower) ||
+            employee.name.toLowerCase().includes(searchTermLower) ||
+            employee.department.toLowerCase().includes(searchTermLower) ||
+            employee.plate.toLowerCase().includes(searchTermLower) ||
+            employee.ramal.toLowerCase().includes(searchTermLower) ||
+            (employee.portaria && employee.portaria.toLowerCase().includes(searchTermLower)) ||
+            employee.status.toLowerCase().includes(searchTermLower) ||
+            presenceStatus.toLowerCase().includes(searchTermLower)
         );
     });
-    
-    
+
     const getRegisteredBy = (): 'RH' | 'P1' | 'P2' | 'Supervisor' => {
         if (!user) return 'P1'; // Should not happen
         if (user.role === 'rh') return 'RH';
@@ -717,6 +620,47 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         return 'Dentro';
     };
 
+    const handleManualEntry = async (employee: Employee) => {
+        if (!user) return;
+
+        if (!isEmployeeEffectivelyActive(employee)) {
+            toast({ variant: 'destructive', title: 'Acesso Negado', description: `Funcionário ${employee.name} está inativo.` });
+            return;
+        }
+
+        const openLog = accessLogs.find(
+            log => log.personId === employee.id && log.exitTimestamp === null
+        );
+
+        if (openLog) {
+            toast({
+                title: "Acesso já registrado",
+                description: `${employee.name} já possui um registro de entrada.`,
+                variant: 'default'
+            });
+        } else {
+            // Registering an entry
+            const registeredBy = getRegisteredBy();
+            const newLog: AccessLog = {
+                id: `log-${Date.now()}`,
+                personId: employee.id,
+                personName: employee.name,
+                personType: 'employee',
+                entryTimestamp: new Date().toISOString(),
+                exitTimestamp: null,
+                registeredBy,
+                photoDataUrl: employee.photoDataUrl || '',
+            };
+            await addOrUpdateAccessLogInFirestore((newLog));
+            setAccessLogs(prevLogs => [newLog, ...prevLogs]);
+            toast({
+                title: "Acesso Registrado: Entrada",
+                description: `${employee.name} - ${new Date(newLog.entryTimestamp).toLocaleString('pt-BR')}`,
+                variant: 'default'
+            });
+        }
+    };
+
     const toggleListening = () => {
         setIsListening(prevState => !prevState);
     };
@@ -742,9 +686,6 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
 
         recognition.onerror = (event) => {
             console.error('Speech recognition error', event.error);
-             if (event.error !== 'aborted') {
-                 toast({ variant: 'destructive', title: 'Erro no reconhecimento de voz', description: `Erro: ${event.error}` });
-            }
         };
 
         recognition.onend = () => {
@@ -771,7 +712,6 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     }, [isListening]);
 
 
-
   return (
     <>
       <Card>
@@ -781,7 +721,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         <CardContent>
            <div className="flex items-center py-4 gap-2">
                 <Input
-                    placeholder="Buscar... (Ex: nome joão, placa xyz)"
+                    placeholder="Buscar..."
                     value={searchTerm}
                     onChange={(event) => setSearchTerm(event.target.value)}
                     className="max-w-full sm:max-w-sm"
@@ -849,12 +789,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                                 </DialogContent>
                             </Dialog>
                         </TableCell>
-                        <TableCell 
-                            className="cursor-pointer hover:underline"
-                            onClick={() => handleManualEntry(employee)}
-                        >
-                            {employee.id}
-                        </TableCell>
+                        <TableCell>{employee.id}</TableCell>
                         <TableCell>{employee.name}</TableCell>
                         <TableCell>{employee.department}</TableCell>
                         <TableCell>{employee.plate}</TableCell>
