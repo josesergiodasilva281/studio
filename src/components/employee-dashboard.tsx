@@ -16,7 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from './ui/button';
-import { Pencil, Trash2, GanttChartSquare, Camera, Home, Building, LogIn, CalendarIcon, User, Crop } from 'lucide-react';
+import { Pencil, Trash2, GanttChartSquare, Camera, Home, Building, LogIn, CalendarIcon, User, Crop, Mic } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -546,6 +546,8 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     const [searchTerm, setSearchTerm] = useState('');
     const { toast } = useToast();
     const { user } = useAuth();
+    const [isListening, setIsListening] = useState(false);
+    const recognitionRef = useRef<any>(null);
     
     // Function to remove accents and convert to lower case
     const normalizeString = (str: string) => {
@@ -604,7 +606,6 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         let currentFilter: FilterType = 'all';
         let currentSearchValue = normalizedSearchTerm;
 
-        // Check for column-specific search syntax (e.g., "placa abc-1234")
         const firstWord = normalizedSearchTerm.split(' ')[0];
         if (searchKeywords[firstWord]) {
             currentFilter = searchKeywords[firstWord];
@@ -623,22 +624,15 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             }
 
             const normalizedValue = value ? normalizeString(String(value)) : '';
-            const normalizedSearch = normalizeString(currentSearchValue);
-
-            // For name, check if all search words are included in the value
-            if (field === 'name') {
-                return searchWords.every(word => normalizedValue.includes(word));
-            }
+            const normalizedSearch = normalizeString(currentSearchValue).replace(/\s/g, '');
             
-            // For other fields, compare without spaces for better acronym/plate matching
-            return normalizedValue.replace(/\s/g, '').includes(normalizedSearch.replace(/\s/g, ''));
+            return normalizedValue.replace(/\s/g, '').includes(normalizedSearch);
         };
 
         if (currentFilter !== 'all') {
             return checkField(currentFilter);
         }
         
-        // 'all' fields search (global search)
         return (
             checkField('id') ||
             checkField('name') ||
@@ -679,19 +673,15 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
 
     const handleSave = async (employeeToSave: Employee, oldId: string) => {
         try {
-            // If status is Active, clear the inactivity date
             if (employeeToSave.status === 'Ativo') {
                 employeeToSave.inactiveUntil = null;
             }
 
             if (oldId !== employeeToSave.id) {
-                // ID has changed, we need to migrate
                 await updateEmployeeIdInFirestore(oldId, employeeToSave);
-                // Update local state by replacing the old employee with the new one
                 setEmployees(prevEmployees => prevEmployees.map(e => (e.id === oldId ? employeeToSave : e)));
 
             } else {
-                 // ID has not changed, just update
                 await updateEmployeeInFirestore(employeeToSave);
                 setEmployees(employees.map(e => e.id === employeeToSave.id ? employeeToSave : e));
             }
@@ -727,6 +717,60 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         return 'Dentro';
     };
 
+    const toggleListening = () => {
+        setIsListening(prevState => !prevState);
+    };
+
+    useEffect(() => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            toast({ variant: 'destructive', title: 'Navegador incompatível', description: 'A busca por voz não é suportada neste navegador.' });
+            return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.lang = 'pt-BR';
+        recognition.interimResults = false;
+        
+        recognitionRef.current = recognition;
+
+        recognition.onresult = (event) => {
+            const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
+            setSearchTerm(transcript);
+        };
+
+        recognition.onerror = (event) => {
+            console.error('Speech recognition error', event.error);
+             if (event.error !== 'aborted') {
+                 toast({ variant: 'destructive', title: 'Erro no reconhecimento de voz', description: `Erro: ${event.error}` });
+            }
+        };
+
+        recognition.onend = () => {
+            if (isListening) {
+                recognition.start(); // Keep listening if it's supposed to be on
+            }
+        };
+
+        return () => {
+            recognition.stop();
+        };
+
+    }, [toast, isListening]);
+    
+    useEffect(() => {
+        const recognition = recognitionRef.current;
+        if (recognition) {
+            if (isListening) {
+                recognition.start();
+            } else {
+                recognition.stop();
+            }
+        }
+    }, [isListening]);
+
+
 
   return (
     <>
@@ -742,6 +786,16 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                     onChange={(event) => setSearchTerm(event.target.value)}
                     className="max-w-full sm:max-w-sm"
                 />
+                 <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={toggleListening}
+                    className={cn(
+                        isListening && 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                    )}
+                >
+                    <Mic className="h-4 w-4" />
+                </Button>
           </div>
           <div className="rounded-md border">
             <div className="relative w-full overflow-auto">
