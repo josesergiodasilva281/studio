@@ -621,28 +621,23 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             const searchWords = currentSearchValue.split(' ').filter(w => w.length > 0);
             const presenceStatus = getPresenceStatus(employee.id);
 
-            // A helper to check a field. It now normalizes both the field value and the search value
-            // by removing spaces, which helps with voice transcriptions like "D I M".
             const checkField = (field: keyof Employee | 'presence') => {
-                const valueToSearch = currentSearchValue.replace(/\s/g, ''); // Remove spaces from search term
-                
+                let value: string | undefined | null;
                 if (field === 'presence') {
-                     // Normalize and remove spaces
-                    const normalizedPresence = normalizeString(presenceStatus).replace(/\s/g, '');
-                    return normalizedPresence.includes(valueToSearch);
+                    value = presenceStatus;
+                } else {
+                    value = employee[field];
                 }
 
-                const value = employee[field];
-                // Normalize and remove spaces from the employee data field
-                const normalizedValue = value ? normalizeString(String(value)).replace(/\s/g, '') : '';
-                
+                const normalizedValue = value ? normalizeString(String(value)) : '';
+                const normalizedSearch = normalizeString(currentSearchValue);
+
                 if (field === 'name') {
-                     // For name, check if all search words are present, after normalizing them
-                    const normalizedFullName = normalizeString(String(employee.name));
-                    return searchWords.every(word => normalizedFullName.includes(word));
+                    return searchWords.every(word => normalizedValue.includes(word));
                 }
 
-                return normalizedValue.includes(valueToSearch);
+                // For other fields, including soletrar, compare without spaces
+                return normalizedValue.replace(/\s/g, '').includes(normalizedSearch.replace(/\s/g, ''));
             };
 
             if (currentFilter !== 'all') {
@@ -706,9 +701,14 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             recognitionRef.current.onresult = (event: any) => {
                 const lastResultIndex = event.results.length - 1;
                 const transcript = normalizeString(event.results[lastResultIndex][0].transcript.trim());
+                const originalTranscript = event.results[lastResultIndex][0].transcript.trim();
 
                 const processCommand = (command: string) => {
-                    if (command.startsWith('registrar')) {
+                     if (command.startsWith('soletrar')) {
+                        const toSpell = command.substring('soletrar'.length).trim();
+                        const spelledTerm = toSpell.replace(/\s/g, '');
+                        setSearchTerm(spelledTerm);
+                    } else if (command.startsWith('registrar')) {
                         const target = command.substring('registrar'.length).trim();
                         let employeeToRegister: Employee | undefined;
 
@@ -747,20 +747,15 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                         setSearchTerm('');
                     } else {
                         // Default to search
-                        setSearchTerm(event.results[lastResultIndex][0].transcript.trim());
+                        setSearchTerm(originalTranscript);
                     }
                 };
 
-                const commandPrefixes = ['ok ', 'okay ', 'registrar', 'limpar'];
+                const commandPrefixes = ['ok ', 'okay '];
                 const matchedPrefix = commandPrefixes.find(p => transcript.startsWith(p));
 
                 if(matchedPrefix) {
-                    let command;
-                    if (matchedPrefix === 'ok ' || matchedPrefix === 'okay ') {
-                        command = transcript.substring(matchedPrefix.length);
-                    } else {
-                        command = transcript;
-                    }
+                    const command = transcript.substring(matchedPrefix.length);
                     processCommand(command);
                 }
             };
@@ -889,14 +884,6 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
       <Card>
         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <CardTitle>Funcionários</CardTitle>
-          <div className="flex w-full sm:w-auto flex-col sm:flex-row gap-2">
-            <Link href="/employees/history" className="w-full sm:w-auto">
-                <Button variant="outline" className="w-full">
-                <GanttChartSquare className="mr-2 h-4 w-4" />
-                Ver Histórico
-                </Button>
-            </Link>
-          </div>
         </CardHeader>
         <CardContent>
            <div className="flex items-center py-4 gap-2">
