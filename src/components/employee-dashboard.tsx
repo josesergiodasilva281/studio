@@ -762,23 +762,18 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 // This can happen if start() is called while it's already starting. Ignore.
             }
         } else {
-            recognition.stop();
+            if(recognitionRef.current) {
+                recognitionRef.current.stop();
+            }
         }
         
-        // Cleanup on unmount or when listening is toggled off
+        // Cleanup on unmount
         return () => {
             if (recognitionRef.current) {
-                recognitionRef.current.onresult = null;
-                recognitionRef.current.onerror = null;
-                recognitionRef.current.onend = null;
-                // Ensure it's stopped when component unmounts or isListening becomes false
-                if (recognitionRef.current.stop) {
-                    recognitionRef.current.stop();
-                }
+                recognitionRef.current.stop();
             }
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isListening]);
+    }, [isListening, isMicPermissionDenied, employees, toast]);
 
 
   return (
@@ -786,6 +781,12 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
       <Card>
         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <CardTitle>Funcionários</CardTitle>
+           <Link href="/employees/history">
+              <Button variant="outline">
+                <GanttChartSquare className="mr-2 h-4 w-4" />
+                Histórico
+              </Button>
+            </Link>
         </CardHeader>
         <CardContent>
            <div className="flex items-center py-4 gap-2">
@@ -1008,6 +1009,7 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
     
 
     
+
 
 
 
