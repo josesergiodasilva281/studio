@@ -534,7 +534,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     const [isListening, setIsListening] = useState(false);
     const [isMicPermissionDenied, setIsMicPermissionDenied] = useState(false);
     const recognitionRef = useRef<any>(null);
-    
+
     const getPresenceStatus = (employeeId: string) => {
         const lastLog = accessLogs
             .filter(log => log.personId === employeeId && log.personType === 'employee')
@@ -545,53 +545,27 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         }
         return 'Dentro';
     };
-
+    
     const filteredEmployees = employees.filter(employee => {
-        let normalizedSearchTerm = removeAccents(searchTerm.toLowerCase());
+        const normalizedSearchTerm = removeAccents(searchTerm.toLowerCase()).replace(/\s/g, '');
+        if (!normalizedSearchTerm) return true;
+
         const presenceStatus = getPresenceStatus(employee.id);
-        
-        // If search term is made of single chars separated by space, join them
-        // e.g. "e h x" becomes "ehx"
-        if (normalizedSearchTerm.match(/^(?:\w\s+)+\w$/)) {
-           normalizedSearchTerm = normalizedSearchTerm.replace(/\s/g, '');
-        }
 
-        // Column-specific search
-        const searchParts = normalizedSearchTerm.split(' ');
-        const columnName = searchParts[0];
-        const searchValue = searchParts.slice(1).join(' ');
-
-        const columnMap: { [key: string]: keyof Employee | 'presenca' } = {
-            matricula: 'id',
-            nome: 'name',
-            setor: 'department',
-            placa: 'plate',
-            ramal: 'ramal',
-            portaria: 'portaria',
-            status: 'status',
-            presenca: 'presenca'
+        const checkMatch = (value: string | undefined | null) => {
+            if (!value) return false;
+            return removeAccents(value.toLowerCase()).replace(/\s/g, '').includes(normalizedSearchTerm);
         };
 
-        const targetColumn = columnMap[columnName];
-        if(targetColumn && searchValue) {
-             if (targetColumn === 'presenca') {
-                return removeAccents(presenceStatus.toLowerCase()).includes(searchValue);
-             }
-             const employeeValue = employee[targetColumn] as string | undefined;
-             return employeeValue && removeAccents(employeeValue.toLowerCase()).includes(searchValue);
-        }
-
-
-        // General search
         return (
-            removeAccents(employee.id.toLowerCase()).includes(normalizedSearchTerm) ||
-            removeAccents(employee.name.toLowerCase()).includes(normalizedSearchTerm) ||
-            removeAccents(employee.department.toLowerCase()).includes(normalizedSearchTerm) ||
-            removeAccents(employee.plate.toLowerCase()).includes(normalizedSearchTerm) ||
-            removeAccents(employee.ramal.toLowerCase()).includes(normalizedSearchTerm) ||
-            (employee.portaria && removeAccents(employee.portaria.toLowerCase()).includes(normalizedSearchTerm)) ||
-            removeAccents(employee.status.toLowerCase()).includes(normalizedSearchTerm) ||
-            removeAccents(presenceStatus.toLowerCase()).includes(normalizedSearchTerm)
+            checkMatch(employee.id) ||
+            checkMatch(employee.name) ||
+            checkMatch(employee.department) ||
+            checkMatch(employee.plate) ||
+            checkMatch(employee.ramal) ||
+            checkMatch(employee.portaria) ||
+            checkMatch(employee.status) ||
+            checkMatch(presenceStatus)
         );
     });
 
@@ -1034,6 +1008,7 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
     
 
     
+
 
 
 
