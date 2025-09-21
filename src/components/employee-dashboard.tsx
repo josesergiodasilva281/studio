@@ -668,51 +668,57 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     useEffect(() => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
-            toast({ variant: 'destructive', title: 'Navegador incompatível', description: 'A busca por voz não é suportada neste navegador.' });
+            if (isListening) {
+                toast({ variant: 'destructive', title: 'Navegador incompatível', description: 'A busca por voz não é suportada neste navegador.' });
+                setIsListening(false);
+            }
             return;
         }
 
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.lang = 'pt-BR';
-        recognition.interimResults = false;
-        
-        recognitionRef.current = recognition;
+        if (!recognitionRef.current) {
+            const recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.lang = 'pt-BR';
+            recognition.interimResults = false;
+            recognitionRef.current = recognition;
+        }
 
-        recognition.onresult = (event) => {
+        const recognition = recognitionRef.current;
+
+        recognition.onresult = (event: any) => {
             const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
             setSearchTerm(transcript);
         };
 
-        recognition.onerror = (event) => {
-            if (event.error === 'no-speech') {
-                return;
+        recognition.onerror = (event: any) => {
+            if (event.error === 'no-speech' || event.error === 'aborted') {
+                return; // Ignore common, non-critical errors
             }
             console.error('Speech recognition error', event.error);
         };
-
+        
         recognition.onend = () => {
             if (isListening) {
-                recognition.start(); // Keep listening if it's supposed to be on
+                try {
+                    recognition.start(); // Keep listening if it's supposed to be on
+                } catch(e) {
+                    // Cacth error if recognition is already active.
+                }
             }
         };
+
+        if (isListening) {
+            recognition.start();
+        } else {
+            recognition.stop();
+        }
 
         return () => {
-            recognition.stop();
-        };
-
-    }, [toast, isListening]);
-    
-    useEffect(() => {
-        const recognition = recognitionRef.current;
-        if (recognition) {
-            if (isListening) {
-                recognition.start();
-            } else {
-                recognition.stop();
+            if (recognitionRef.current) {
+                recognitionRef.current.stop();
             }
-        }
-    }, [isListening]);
+        };
+    }, [isListening, toast]);
 
 
   return (
