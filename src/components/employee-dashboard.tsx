@@ -16,7 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from './ui/button';
-import { Pencil, Trash2, GanttChartSquare, Camera, Home, Building, LogIn, CalendarIcon, User, Crop, Mic, MicOff } from 'lucide-react';
+import { Pencil, Trash2, GanttChartSquare, Camera, Home, Building, LogIn, CalendarIcon, User, Crop } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,7 +51,6 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Alert, AlertTitle, AlertDescription } from './ui/alert';
 import ReactCrop, { type Crop as CropType, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 
 // Helper function to check if an employee should be considered active
@@ -547,11 +546,6 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     const [searchTerm, setSearchTerm] = useState('');
     const { toast } = useToast();
     const { user } = useAuth();
-    const [isListening, setIsListening] = useState(false);
-    const [isMicPermissionDenied, setIsMicPermissionDenied] = useState(false);
-    const recognitionRef = useRef<any>(null);
-    const recognitionStartedRef = useRef(false);
-    const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
     
     // Function to remove accents and convert to lower case
     const normalizeString = (str: string) => {
@@ -602,8 +596,10 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         }
     };
     
-    useEffect(() => {
+    const filteredEmployees = employees.filter(employee => {
         const normalizedSearchTerm = normalizeString(searchTerm);
+
+        if (!normalizedSearchTerm) return true;
 
         let currentFilter: FilterType = 'all';
         let currentSearchValue = normalizedSearchTerm;
@@ -615,192 +611,45 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             currentSearchValue = normalizedSearchTerm.substring(firstWord.length).trim();
         }
 
-        const results = employees.filter(employee => {
-            if (!currentSearchValue) return true;
+        const searchWords = currentSearchValue.split(' ').filter(w => w.length > 0);
+        const presenceStatus = getPresenceStatus(employee.id);
 
-            const searchWords = currentSearchValue.split(' ').filter(w => w.length > 0);
-            const presenceStatus = getPresenceStatus(employee.id);
+        const checkField = (field: keyof Employee | 'presence') => {
+            let value: string | undefined | null;
+            if (field === 'presence') {
+                value = presenceStatus;
+            } else {
+                value = employee[field];
+            }
 
-            const checkField = (field: keyof Employee | 'presence') => {
-                let value: string | undefined | null;
-                if (field === 'presence') {
-                    value = presenceStatus;
-                } else {
-                    value = employee[field];
-                }
+            const normalizedValue = value ? normalizeString(String(value)) : '';
+            const normalizedSearch = normalizeString(currentSearchValue);
 
-                const normalizedValue = value ? normalizeString(String(value)) : '';
-                const normalizedSearch = normalizeString(currentSearchValue);
-
-                if (field === 'name') {
-                    return searchWords.every(word => normalizedValue.includes(word));
-                }
-
-                // For other fields, including soletrar, compare without spaces
-                return normalizedValue.replace(/\s/g, '').includes(normalizedSearch.replace(/\s/g, ''));
-            };
-
-            if (currentFilter !== 'all') {
-                return checkField(currentFilter);
+            // For name, check if all search words are included in the value
+            if (field === 'name') {
+                return searchWords.every(word => normalizedValue.includes(word));
             }
             
-            // 'all' fields search (global search)
-            return (
-                checkField('id') ||
-                checkField('name') ||
-                checkField('department') ||
-                checkField('plate') ||
-                checkField('ramal') ||
-                checkField('portaria') ||
-                checkField('status') ||
-                checkField('presence')
-            );
-        });
-        setFilteredEmployees(results);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchTerm, employees, accessLogs]);
-    
-    useEffect(() => {
-        // @ts-ignore
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            // Do not toast here, just disable the feature silently.
-            console.warn('Speech recognition not supported in this browser.');
-            return;
-        }
-
-        if (!recognitionRef.current) {
-            recognitionRef.current = new SpeechRecognition();
-            recognitionRef.current.continuous = true;
-            recognitionRef.current.lang = 'pt-BR';
-            recognitionRef.current.interimResults = false;
-            recognitionRef.current.maxAlternatives = 1;
-        
-            recognitionRef.current.onstart = () => {
-                setIsListening(true);
-                recognitionStartedRef.current = true;
-                setIsMicPermissionDenied(false);
-            };
-
-            recognitionRef.current.onend = () => {
-                setIsListening(false);
-                recognitionStartedRef.current = false;
-                // Automatically restart listening, but with a small delay and a check
-                setTimeout(() => {
-                    try {
-                        if (recognitionRef.current && !recognitionStartedRef.current) {
-                            recognitionRef.current.start();
-                        }
-                    } catch (e) {
-                         // This can happen if the component unmounts, it's safe to ignore.
-                         console.info("Could not restart recognition on end, likely component unmounted.", e);
-                    }
-                }, 500);
-            };
-
-            recognitionRef.current.onresult = (event: any) => {
-                const lastResultIndex = event.results.length - 1;
-                const transcript = normalizeString(event.results[lastResultIndex][0].transcript.trim());
-                const originalTranscript = event.results[lastResultIndex][0].transcript.trim();
-
-                const processCommand = (command: string) => {
-                     if (command.startsWith('soletrar')) {
-                        const toSpell = command.substring('soletrar'.length).trim();
-                        const spelledTerm = toSpell.replace(/\s/g, '');
-                        setSearchTerm(spelledTerm);
-                    } else if (command.startsWith('registrar')) {
-                        const target = command.substring('registrar'.length).trim();
-                        let employeeToRegister: Employee | undefined;
-
-                        if (target) {
-                            // Direct registration: "ok, registrar josé"
-                            const normalizedTarget = normalizeString(target);
-                            const potentialMatches = employees.filter(emp => 
-                                normalizeString(emp.name).includes(normalizedTarget) ||
-                                normalizeString(emp.id).includes(normalizedTarget)
-                            );
-                            if (potentialMatches.length === 1) {
-                                employeeToRegister = potentialMatches[0];
-                            } else if (potentialMatches.length > 1) {
-                                toast({
-                                    variant: 'destructive',
-                                    title: 'Múltiplos funcionários encontrados',
-                                    description: `Seja mais específico. Encontrados: ${potentialMatches.map(p => p.name).join(', ')}.`,
-                                });
-                                return;
-                            }
-                        } else if (filteredEmployees.length === 1) {
-                            // Contextual registration: "ok, registrar" (after a search)
-                            employeeToRegister = filteredEmployees[0];
-                        }
-
-                        if (employeeToRegister) {
-                            handleManualEntry(employeeToRegister);
-                        } else {
-                            toast({
-                                variant: 'destructive',
-                                title: 'Funcionário não encontrado',
-                                description: target ? `Nenhum funcionário correspondente a "${target}" foi encontrado.` : 'Busque por um funcionário antes de usar o comando "registrar".',
-                            });
-                        }
-                    } else if (command.startsWith('limpar')) {
-                        setSearchTerm('');
-                    } else {
-                        // Default to search
-                        setSearchTerm(originalTranscript);
-                    }
-                };
-
-                const commandPrefixes = ['ok ', 'okay '];
-                const matchedPrefix = commandPrefixes.find(p => transcript.startsWith(p));
-
-                if(matchedPrefix) {
-                    const command = transcript.substring(matchedPrefix.length);
-                    processCommand(command);
-                }
-            };
-            
-            recognitionRef.current.onerror = (event: any) => {
-                recognitionStartedRef.current = false;
-                 if (event.error === 'aborted' || event.error === 'no-speech' || event.error === 'network') {
-                    // These errors are benign in a continuous listening setup.
-                    // The onend event will handle restarting, so we can ignore logging them as errors.
-                    return;
-                }
-                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-                    setIsMicPermissionDenied(true);
-                    toast({
-                        variant: 'destructive',
-                        title: 'Permissão do Microfone Negada',
-                        description: 'Por favor, permita o acesso ao microfone nas configurações do seu navegador.',
-                    });
-                } else {
-                     console.error('Speech recognition error', event.error);
-                }
-            };
-        }
-
-        // Start listening
-        try {
-            if (recognitionRef.current && !recognitionStartedRef.current) {
-                recognitionRef.current.start();
-            }
-        } catch (e: any) {
-             if (e.name !== 'InvalidStateError') { // This error happens if it's already started, which is fine
-                console.error("Could not start recognition on mount", e);
-             }
-        }
-
-        return () => {
-            if (recognitionRef.current) {
-                recognitionRef.current.onend = null; // Prevent restart on unmount
-                recognitionRef.current.stop();
-                recognitionRef.current = null;
-                recognitionStartedRef.current = false;
-            }
+            // For other fields, compare without spaces for better acronym/plate matching
+            return normalizedValue.replace(/\s/g, '').includes(normalizedSearch.replace(/\s/g, ''));
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [toast, filteredEmployees, employees]); // Added employees to dependency array for direct registration search
+
+        if (currentFilter !== 'all') {
+            return checkField(currentFilter);
+        }
+        
+        // 'all' fields search (global search)
+        return (
+            checkField('id') ||
+            checkField('name') ||
+            checkField('department') ||
+            checkField('plate') ||
+            checkField('ramal') ||
+            checkField('portaria') ||
+            checkField('status') ||
+            checkField('presence')
+        );
+    });
     
     
     const getRegisteredBy = (): 'RH' | 'P1' | 'P2' | 'Supervisor' => {
@@ -839,7 +688,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 // ID has changed, we need to migrate
                 await updateEmployeeIdInFirestore(oldId, employeeToSave);
                 // Update local state by replacing the old employee with the new one
-                setEmployees(employees.map(e => (e.id === oldId ? employeeToSave : e)));
+                setEmployees(prevEmployees => prevEmployees.map(e => (e.id === oldId ? employeeToSave : e)));
 
             } else {
                  // ID has not changed, just update
@@ -887,37 +736,12 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         </CardHeader>
         <CardContent>
            <div className="flex items-center py-4 gap-2">
-            <Input
-                placeholder="Use 'ok, [busca]' ou 'placa [placa]', 'nome [nome]'"
-                value={searchTerm}
-                onChange={(event) => {
-                    setSearchTerm(event.target.value)
-                }}
-                className="max-w-full sm:max-w-sm"
-            />
-            <TooltipProvider>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                         <Button 
-                            variant="outline" 
-                            size="icon" 
-                            className={cn(isListening && "bg-red-500 hover:bg-red-600 text-white animate-pulse", isMicPermissionDenied && "bg-yellow-500 hover:bg-yellow-600 text-black")}
-                            title="Status do reconhecimento de voz"
-                        >
-                            {isMicPermissionDenied ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        {isMicPermissionDenied 
-                            ? <p>Permissão negada. Clique no cadeado na barra de endereço.</p>
-                            : isListening 
-                            ? <p>Ouvindo... Diga "ok, [comando]".</p>
-                            : <p>Reconhecimento de voz inativo.</p>
-                        }
-                    </TooltipContent>
-                </Tooltip>
-            </TooltipProvider>
-
+                <Input
+                    placeholder="Buscar... (Ex: nome joão, placa xyz)"
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                    className="max-w-full sm:max-w-sm"
+                />
           </div>
           <div className="rounded-md border">
             <div className="relative w-full overflow-auto">
