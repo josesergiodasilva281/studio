@@ -762,17 +762,21 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 setIsMicPermissionDenied(true);
                 setIsListening(false); // Turn off if permission is denied
             } else if (event.error === 'no-speech' || event.error === 'aborted') {
+                // These errors are normal, just ignore them to allow continuous listening.
                 return; 
             }
             console.error('Speech recognition error', event.error);
         };
         
         recognition.onend = () => {
+            // If listening is still supposed to be active, restart it.
+            // This handles cases where the browser stops recognition after a period of silence.
             if (isListening) {
                 try {
                     recognition.start();
                 } catch(e) {
-                    // Catch error if recognition is already active, which can happen.
+                    // This can happen if start() is called while it's already starting. Ignore.
+                    console.warn('Speech recognition restart failed, may already be active.', e);
                 }
             }
         };
@@ -781,20 +785,21 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             try {
                recognition.start();
             } catch(e) {
-                // Recognition might already be active
+                // This can happen if start() is called while it's already starting. Ignore.
             }
         } else {
             recognition.stop();
         }
         
-        // Cleanup on unmount
+        // Cleanup on unmount or when listening is toggled off
         return () => {
             if (recognitionRef.current) {
                 recognitionRef.current.onresult = null;
                 recognitionRef.current.onerror = null;
                 recognitionRef.current.onend = null;
-                if (isListening) {
-                  recognitionRef.current.stop();
+                // Ensure it's stopped when component unmounts or isListening becomes false
+                if (recognitionRef.current.stop) {
+                    recognitionRef.current.stop();
                 }
             }
         };
@@ -1029,6 +1034,7 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
     
 
     
+
 
 
 
