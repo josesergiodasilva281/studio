@@ -18,7 +18,7 @@ import { Button } from './ui/button';
 import { PlusCircle, Camera } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from './ui/dialog';
 import { useAuth } from '@/context/auth-context';
-import { getEmployeesFromFirestore, getVisitorsFromFirestore } from '@/lib/firestoreService';
+import { listenToEmployeesFromFirestore, listenToVisitorsFromFirestore } from '@/lib/firestoreService';
 import { isEmployeeEffectivelyActive } from './employee-dashboard';
 
 
@@ -127,27 +127,16 @@ export function AccessControlManager({
     const [barcodeScanInput, setBarcodeScanInput] = useState('');
     const barcodeScanTimer = useRef<NodeJS.Timeout | null>(null);
 
-    // Fetch all necessary data from Firestore
+    // Fetch all necessary data from Firestore in real-time
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const [firestoreEmployees, firestoreVisitors] = await Promise.all([
-                    getEmployeesFromFirestore(),
-                    getVisitorsFromFirestore()
-                ]);
-                setEmployees(firestoreEmployees);
-                setVisitors(firestoreVisitors);
-            } catch (error) {
-                console.error("Error fetching data from Firestore:", error);
-                toast({ variant: 'destructive', title: 'Erro ao carregar dados' });
-            }
-        };
+        const unsubscribeEmployees = listenToEmployeesFromFirestore(setEmployees);
+        const unsubscribeVisitors = listenToVisitorsFromFirestore(setVisitors);
 
-        fetchData();
-        // This is a simple way to keep it in sync. For a real-time app, you'd use onSnapshot.
-        const interval = setInterval(fetchData, 30000); // Re-fetch every 30 seconds
-        return () => clearInterval(interval);
-    }, [toast]);
+        return () => {
+            unsubscribeEmployees();
+            unsubscribeVisitors();
+        };
+    }, []);
 
     const processScan = (scannedCode: string) => {
         if (!scannedCode) return;

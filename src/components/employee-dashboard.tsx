@@ -42,7 +42,7 @@ import { Badge } from './ui/badge';
 import type { Employee, AccessLog } from '@/lib/types';
 import Link from 'next/link';
 import { useAuth } from '@/context/auth-context';
-import { getEmployeesFromFirestore, addEmployeeToFirestore, updateEmployeeInFirestore, deleteEmployeeFromFirestore, addInitialEmployeesToFirestore, addOrUpdateAccessLogInFirestore, updateEmployeeIdInFirestore } from '@/lib/firestoreService';
+import { addEmployeeToFirestore, updateEmployeeInFirestore, deleteEmployeeFromFirestore, addOrUpdateAccessLogInFirestore, updateEmployeeIdInFirestore, listenToEmployeesFromFirestore } from '@/lib/firestoreService';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { format, parseISO } from 'date-fns';
@@ -586,7 +586,6 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     const handleDeleteClick = async (employeeId: string) => {
         try {
             await deleteEmployeeFromFirestore(employeeId);
-            setEmployees(employees.filter(e => e.id !== employeeId));
             toast({ title: 'Funcionário excluído com sucesso!' });
         } catch (error) {
             toast({ variant: 'destructive', title: 'Erro ao excluir funcionário' });
@@ -602,11 +601,9 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
 
             if (oldId !== employeeToSave.id) {
                 await updateEmployeeIdInFirestore(oldId, employeeToSave);
-                setEmployees(prevEmployees => prevEmployees.map(e => (e.id === oldId ? employeeToSave : e)));
 
             } else {
                 await updateEmployeeInFirestore(employeeToSave);
-                setEmployees(employees.map(e => e.id === employeeToSave.id ? employeeToSave : e));
             }
             
             setIsEditDialogOpen(false);
@@ -621,7 +618,6 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     const handleAddNewEmployee = async (employee: Employee) => {
         try {
             await addEmployeeToFirestore(employee);
-            setEmployees([employee, ...employees]);
             toast({ title: 'Funcionário adicionado com sucesso!' });
         } catch (error) {
             toast({ variant: 'destructive', title: 'Erro ao adicionar funcionário' });
@@ -661,7 +657,6 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 photoDataUrl: employee.photoDataUrl || '',
             };
             await addOrUpdateAccessLogInFirestore((newLog));
-            setAccessLogs(prevLogs => [newLog, ...prevLogs]);
             toast({
                 title: "Acesso Registrado: Entrada",
                 description: `${employee.name} - ${new Date(newLog.entryTimestamp).toLocaleString('pt-BR')}`,
@@ -679,7 +674,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     };
 
     useEffect(() => {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
         if (!SpeechRecognition) {
             if (isListening) {
                 toast({ variant: 'destructive', title: 'Navegador incompatível', description: 'A busca por voz não é suportada neste navegador.' });
@@ -689,11 +684,10 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         }
 
         if (!recognitionRef.current) {
-            const recognition = new SpeechRecognition();
-            recognition.continuous = true;
-            recognition.lang = 'pt-BR';
-            recognition.interimResults = false;
-            recognitionRef.current = recognition;
+            recognitionRef.current = new SpeechRecognition();
+            recognitionRef.current.continuous = true;
+            recognitionRef.current.lang = 'pt-BR';
+            recognitionRef.current.interimResults = false;
         }
 
         const recognition = recognitionRef.current;
@@ -709,7 +703,6 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 return;
             }
             
-            // Remove "ok" and optionally "buscar"
             transcript = transcript.replace(/^ok\s*(buscar\s*)?/, '');
 
             if (transcript.startsWith('soletrar ')) {
@@ -734,22 +727,18 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         recognition.onerror = (event: any) => {
              if (event.error === 'not-allowed') {
                 setIsMicPermissionDenied(true);
-                setIsListening(false); // Turn off if permission is denied
+                setIsListening(false);
             } else if (event.error === 'no-speech' || event.error === 'aborted') {
-                // These errors are normal, just ignore them to allow continuous listening.
                 return; 
             }
             console.error('Speech recognition error', event.error);
         };
         
         recognition.onend = () => {
-            // If listening is still supposed to be active, restart it.
-            // This handles cases where the browser stops recognition after a period of silence.
-            if (isListening) {
+            if (isListening && !isMicPermissionDenied) {
                 try {
                     recognition.start();
                 } catch(e) {
-                    // This can happen if start() is called while it's already starting. Ignore.
                     console.warn('Speech recognition restart failed, may already be active.', e);
                 }
             }
@@ -759,20 +748,21 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             try {
                recognition.start();
             } catch(e) {
-                // This can happen if start() is called while it's already starting. Ignore.
+                // Ignore if it's already starting
             }
         } else {
-            if(recognitionRef.current) {
-                recognitionRef.current.stop();
-            }
+            recognition.stop();
         }
         
-        // Cleanup on unmount
         return () => {
             if (recognitionRef.current) {
+                recognitionRef.current.onresult = null;
+                recognitionRef.current.onerror = null;
+                recognitionRef.current.onend = null;
                 recognitionRef.current.stop();
             }
         };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isListening, isMicPermissionDenied, employees, toast]);
 
 
@@ -807,12 +797,12 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                                     isListening && 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
                                 )}
                             >
-                                {isMicPermissionDenied ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                                {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                             </Button>
                         </TooltipTrigger>
                         {isMicPermissionDenied ? (
                              <TooltipContent>
-                                <p>Permissão do microfone negada. Clique no ícone de cadeado na barra de endereço para permitir.</p>
+                                <p>Permissão do microfone negada.</p>
                             </TooltipContent>
                         ) : (
                              <TooltipContent>
@@ -952,32 +942,16 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
 
 export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen, accessLogs, setAccessLogs }: { role: 'rh' | 'portaria', isAddEmployeeDialogOpen: boolean, setIsAddEmployeeDialogOpen: Dispatch<SetStateAction<boolean>>, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>> }) {
     const [employees, setEmployees] = useState<Employee[]>([]);
-    const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const initializeData = async () => {
-            try {
-                let firestoreEmployees = await getEmployeesFromFirestore();
-
-                if (firestoreEmployees.length === 0) {
-                    toast({ title: "Configurando...", description: "Adicionando funcionários iniciais ao banco de dados." });
-                    await addInitialEmployeesToFirestore();
-                    firestoreEmployees = await getEmployeesFromFirestore(); // Fetch again after adding
-                }
-                
-                setEmployees(firestoreEmployees);
-
-            } catch (error) {
-                console.error("Error during data initialization:", error);
-                toast({ variant: 'destructive', title: 'Erro de Dados', description: 'Não foi possível carregar os dados dos funcionários.' });
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        initializeData();
-    }, [toast]);
+      setIsLoading(true);
+      const unsubscribe = listenToEmployeesFromFirestore((firestoreEmployees) => {
+        setEmployees(firestoreEmployees);
+        setIsLoading(false);
+      });
+      return () => unsubscribe();
+    }, []);
 
 
   return (
@@ -1000,18 +974,3 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
     </div>
   );
 }
-
-
-    
-
-    
-
-    
-
-    
-
-
-
-
-
-

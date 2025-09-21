@@ -7,7 +7,7 @@ import { Header } from '@/components/header';
 import type { AccessLog, Visitor } from '@/lib/types';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
-import { getVisitorsFromFirestore, getAccessLogsFromFirestore, addOrUpdateVisitorInFirestore, addOrUpdateAccessLogInFirestore, deleteVisitorFromFirestore } from '@/lib/firestoreService';
+import { addOrUpdateVisitorInFirestore, addOrUpdateAccessLogInFirestore, deleteVisitorFromFirestore, listenToVisitorsFromFirestore, listenToAccessLogsFromFirestore } from '@/lib/firestoreService';
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -22,25 +22,23 @@ export default function DashboardPage() {
     }
   }, [user, router]);
 
-  const fetchData = async () => {
-    setIsLoading(true);
-    try {
-        const [visitorsData, logsData] = await Promise.all([
-            getVisitorsFromFirestore(),
-            getAccessLogsFromFirestore(100)
-        ]);
-        setVisitors(visitorsData);
-        setAccessLogs(logsData.filter(log => log.personType === 'visitor'));
-    } catch (error) {
-        console.error("Error fetching data:", error);
-    } finally {
-        setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
-    if(user?.role === 'rh') {
-        fetchData();
+    if (user?.role === 'rh') {
+      setIsLoading(true);
+
+      const unsubscribeVisitors = listenToVisitorsFromFirestore((visitorsData) => {
+        setVisitors(visitorsData);
+        setIsLoading(false);
+      });
+      
+      const unsubscribeLogs = listenToAccessLogsFromFirestore((logsData) => {
+        setAccessLogs(logsData.filter(log => log.personType === 'visitor'));
+      }, 100);
+      
+      return () => {
+        unsubscribeVisitors();
+        unsubscribeLogs();
+      };
     }
   }, [user]);
 

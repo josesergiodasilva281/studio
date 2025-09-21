@@ -7,7 +7,7 @@ import { Header } from '@/components/header';
 import type { Car, CarLog } from '@/lib/types';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
-import { getCarsFromFirestore, getCarLogsFromFirestore, addOrUpdateCarInFirestore, deleteCarFromFirestore, addOrUpdateCarLogInFirestore } from '@/lib/firestoreService';
+import { addOrUpdateCarInFirestore, deleteCarFromFirestore, addOrUpdateCarLogInFirestore, listenToCarsFromFirestore, listenToCarLogsFromFirestore } from '@/lib/firestoreService';
 
 export default function CarsPage() {
   const { user } = useAuth();
@@ -22,25 +22,23 @@ export default function CarsPage() {
     }
   }, [user, router]);
   
-  const fetchData = async () => {
-    setIsLoading(true);
-    try {
-        const [carsData, carLogsData] = await Promise.all([
-            getCarsFromFirestore(),
-            getCarLogsFromFirestore(100)
-        ]);
-        setCars(carsData);
-        setCarLogs(carLogsData);
-    } catch (error) {
-        console.error("Error fetching car data:", error);
-    } finally {
-        setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
-    if(user?.role === 'rh') {
-        fetchData();
+    if (user?.role === 'rh') {
+      setIsLoading(true);
+
+      const unsubscribeCars = listenToCarsFromFirestore((carsData) => {
+        setCars(carsData);
+        setIsLoading(false);
+      });
+
+      const unsubscribeCarLogs = listenToCarLogsFromFirestore((carLogsData) => {
+        setCarLogs(carLogsData);
+      }, 100);
+
+      return () => {
+        unsubscribeCars();
+        unsubscribeCarLogs();
+      };
     }
   }, [user]);
 

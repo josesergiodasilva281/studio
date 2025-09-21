@@ -24,7 +24,7 @@ import Link from 'next/link';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { cn, removeAccents } from '@/lib/utils';
-import { getAccessLogsFromFirestore, getEmployeesFromFirestore, deleteAccessLogsInFirestore, addOrUpdateAccessLogInFirestore } from '@/lib/firestoreService';
+import { listenToAccessLogsFromFirestore, listenToEmployeesFromFirestore, deleteAccessLogsInFirestore, addOrUpdateAccessLogInFirestore } from '@/lib/firestoreService';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { useAuth } from '@/context/auth-context';
@@ -48,25 +48,24 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
     const { user } = useAuth();
     const { toast } = useToast();
 
-    const loadData = async () => {
-        setIsLoading(true);
-        try {
-            const [logs, emps] = await Promise.all([
-                getAccessLogsFromFirestore(500), // Fetch more for history
-                getEmployeesFromFirestore()
-            ]);
-            setAccessLogs(logs.filter(log => log.personType === 'employee'));
-            setEmployees(emps);
-        } catch (error) {
-            console.error("Error reading from Firestore", error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    // Load data from Firestore on initial render
+    // Load data from Firestore in real-time
     useEffect(() => {
-        loadData();
+        setIsLoading(true);
+
+        const unsubscribeLogs = listenToAccessLogsFromFirestore((logs) => {
+            setAccessLogs(logs.filter(log => log.personType === 'employee'));
+            if (isLoading) setIsLoading(false);
+        }, 500);
+
+        const unsubscribeEmployees = listenToEmployeesFromFirestore((emps) => {
+            setEmployees(emps);
+        });
+
+        return () => {
+            unsubscribeLogs();
+            unsubscribeEmployees();
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
     
     const handleRegisterExit = async (log: AccessLog) => {
@@ -94,8 +93,7 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
 
         try {
             await addOrUpdateAccessLogInFirestore(updatedLog);
-            // Update local state to reflect the change immediately
-            setAccessLogs(prevLogs => prevLogs.map(l => l.id === updatedLog.id ? updatedLog : l));
+            // Local state is updated automatically by the listener, but we can show a toast.
             toast({
                 title: "Acesso Registrado: Saída",
                 description: `${log.personName} - ${new Date().toLocaleString('pt-BR')}`,
@@ -169,8 +167,7 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
                 title: 'Registros Apagados!',
                 description: `${selectedLogIds.length} registro(s) foram removidos do histórico.`,
             });
-            // Recarregar os dados para atualizar a tabela
-            loadData();
+            // The listener will automatically update the UI. We just need to clear the selection.
             setSelectedLogIds([]); // Limpar seleção
         } catch (error) {
             console.error('Error deleting selected logs:', error);

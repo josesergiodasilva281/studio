@@ -24,7 +24,7 @@ import { Calendar as CalendarIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { cn, removeAccents } from '@/lib/utils';
-import { getCarLogsFromFirestore } from '@/lib/firestoreService';
+import { listenToCarLogsFromFirestore } from '@/lib/firestoreService';
 
 
 export function CarAccessLogTable({ readOnly = false }: { readOnly?: boolean }) {
@@ -36,19 +36,13 @@ export function CarAccessLogTable({ readOnly = false }: { readOnly?: boolean }) 
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const loadData = async () => {
-            setIsLoading(true);
-            try {
-                const storedLogs = await getCarLogsFromFirestore(500);
-                setCarLogs(storedLogs);
-            } catch (error) {
-                console.error("Error reading from Firestore", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        
-        loadData();
+        setIsLoading(true);
+        const unsubscribe = listenToCarLogsFromFirestore((logs) => {
+            setCarLogs(logs);
+            setIsLoading(false);
+        }, 500);
+
+        return () => unsubscribe();
     }, []);
     
     const filteredLogs = carLogs.filter(log => {

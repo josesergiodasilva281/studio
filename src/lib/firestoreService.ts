@@ -1,7 +1,7 @@
 
 
 import { db } from './firebase';
-import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch, query, orderBy, limit, where, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, deleteDoc, writeBatch, query, orderBy, limit, where, getDoc, onSnapshot } from 'firebase/firestore';
 import type { Employee, Visitor, Car, AccessLog, CarLog } from './types';
 
 // --- Coleções ---
@@ -13,16 +13,12 @@ const CAR_LOGS_COLLECTION = 'carLogs';
 
 // --- Funcionários ---
 
-const initialEmployees: Omit<Employee, 'id' | 'photoDataUrl'>[] = [
-  { name: 'João da Silva', department: 'Produção', plate: 'ABC-1234', ramal: '2101', status: 'Ativo', portaria: 'P1' },
-  { name: 'Maria Oliveira', department: 'Logística', plate: 'DEF-5678', ramal: '2102', status: 'Ativo', portaria: 'P2' },
-  { name: 'Pedro Souza', department: 'Administrativo', plate: 'GHI-9012', ramal: '2103', status: 'Inativo', inactiveUntil: null },
-];
-
-export const getEmployeesFromFirestore = async (): Promise<Employee[]> => {
+export const listenToEmployeesFromFirestore = (callback: (employees: Employee[]) => void): () => void => {
     const q = query(collection(db, EMPLOYEES_COLLECTION), orderBy('name'));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
+    return onSnapshot(q, (querySnapshot) => {
+        const employees = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
+        callback(employees);
+    });
 };
 
 export const addEmployeeToFirestore = async (employee: Employee): Promise<void> => {
@@ -43,24 +39,23 @@ export const updateEmployeeIdInFirestore = async (oldId: string, newEmployeeData
         throw new Error("Funcionário original não encontrado.");
     }
     
-    // 1. Crie o novo documento do funcionário
-    const newDocRef = doc(db, EMPLOYEES_COLLECTION, newEmployeeData.id);
-    await setDoc(newDocRef, newEmployeeData);
+    const batch = writeBatch(db);
 
-    // 2. Encontre e atualize todos os logs de acesso
+    // Create the new employee document
+    const newDocRef = doc(db, EMPLOYEES_COLLECTION, newEmployeeData.id);
+    batch.set(newDocRef, newEmployeeData);
+
+    // Find and update all access logs
     const logsQuery = query(collection(db, ACCESS_LOGS_COLLECTION), where("personId", "==", oldId));
     const logsSnapshot = await getDocs(logsQuery);
-
-    const batch = writeBatch(db);
     logsSnapshot.forEach(logDoc => {
         const logRef = doc(db, ACCESS_LOGS_COLLECTION, logDoc.id);
         batch.update(logRef, { personId: newEmployeeData.id });
     });
     
-    // 3. Exclua o documento antigo do funcionário
+    // Delete the old employee document
     batch.delete(oldDocRef);
     
-    // 4. Commit todas as alterações
     await batch.commit();
 }
 
@@ -69,45 +64,18 @@ export const deleteEmployeeFromFirestore = async (employeeId: string): Promise<v
     await deleteDoc(doc(db, EMPLOYEES_COLLECTION, employeeId));
 };
 
-export const addInitialEmployeesToFirestore = async (): Promise<void> => {
-    const batch = writeBatch(db);
-    initialEmployees.forEach((employeeData, index) => {
-        const id = (index + 1).toString();
-        const employee: Partial<Employee> = { ...employeeData, status: 'Ativo', photoDataUrl: '' };
-         if (employeeData.name === 'Pedro Souza') {
-            employee.status = 'Inativo';
-        }
-        const docRef = doc(db, EMPLOYEES_COLLECTION, id);
-        batch.set(docRef, {id, ...employee });
-    });
-    await batch.commit();
-};
-
-export const bulkUpdateEmployeesInFirestore = async (employees: Employee[]): Promise<void> => {
-    const batch = writeBatch(db);
-    employees.forEach((employee) => {
-        // If ID is empty, it's a new employee from a 4-column CSV. Generate a new doc ref.
-        const docRef = employee.id ? doc(db, EMPLOYEES_COLLECTION, employee.id) : doc(collection(db, EMPLOYEES_COLLECTION));
-        
-        // The document data should include the newly generated ID.
-        const employeeData = { ...employee, id: docRef.id };
-
-        batch.set(docRef, employeeData, { merge: true });
-    });
-    await batch.commit();
-};
-
-
 // --- Visitantes ---
 
-export const getVisitorsFromFirestore = async (): Promise<Visitor[]> => {
+export const listenToVisitorsFromFirestore = (callback: (visitors: Visitor[]) => void): () => void => {
     const q = query(collection(db, VISITORS_COLLECTION), orderBy('name'));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Visitor));
+    return onSnapshot(q, (querySnapshot) => {
+        const visitors = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Visitor));
+        callback(visitors);
+    });
 };
 
 export const addOrUpdateVisitorInFirestore = async (visitor: Visitor): Promise<void> => {
-    await setDoc(doc(db, VISITORS_COLLECTION, visitor.id), visitor);
+    await setDoc(doc(db, VISITORS_COLLECTION, visitor.id), visitor, { merge: true });
 };
 
 export const deleteVisitorFromFirestore = async (visitorId: string): Promise<void> => {
@@ -116,14 +84,16 @@ export const deleteVisitorFromFirestore = async (visitorId: string): Promise<voi
 
 // --- Carros ---
 
-export const getCarsFromFirestore = async (): Promise<Car[]> => {
+export const listenToCarsFromFirestore = (callback: (cars: Car[]) => void): () => void => {
     const q = query(collection(db, CARS_COLLECTION), orderBy('fleet'));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Car));
+    return onSnapshot(q, (querySnapshot) => {
+        const cars = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Car));
+        callback(cars);
+    });
 };
 
 export const addOrUpdateCarInFirestore = async (car: Car): Promise<void> => {
-    await setDoc(doc(db, CARS_COLLECTION, car.id), car);
+    await setDoc(doc(db, CARS_COLLECTION, car.id), car, { merge: true });
 };
 
 export const deleteCarFromFirestore = async (carId: string): Promise<void> => {
@@ -132,14 +102,16 @@ export const deleteCarFromFirestore = async (carId: string): Promise<void> => {
 
 // --- Logs de Acesso (Pessoas) ---
 
-export const getAccessLogsFromFirestore = async (count: number = 50): Promise<AccessLog[]> => {
+export const listenToAccessLogsFromFirestore = (callback: (logs: AccessLog[]) => void, count: number = 50): () => void => {
     const q = query(collection(db, ACCESS_LOGS_COLLECTION), orderBy('entryTimestamp', 'desc'), limit(count));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AccessLog));
+    return onSnapshot(q, (querySnapshot) => {
+        const logs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AccessLog));
+        callback(logs);
+    });
 };
 
 export const addOrUpdateAccessLogInFirestore = async (log: AccessLog): Promise<void> => {
-    await setDoc(doc(db, ACCESS_LOGS_COLLECTION, log.id), log);
+    await setDoc(doc(db, ACCESS_LOGS_COLLECTION, log.id), log, { merge: true });
 };
 
 export const deleteAccessLogsInFirestore = async (logIds: string[]): Promise<void> => {
@@ -157,15 +129,14 @@ export const deleteAccessLogsInFirestore = async (logIds: string[]): Promise<voi
 
 // --- Logs de Carros ---
 
-export const getCarLogsFromFirestore = async (count: number = 50): Promise<CarLog[]> => {
+export const listenToCarLogsFromFirestore = (callback: (logs: CarLog[]) => void, count: number = 50): () => void => {
     const q = query(collection(db, CAR_LOGS_COLLECTION), orderBy('startTime', 'desc'), limit(count));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CarLog));
+    return onSnapshot(q, (querySnapshot) => {
+        const logs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CarLog));
+        callback(logs);
+    });
 };
 
 export const addOrUpdateCarLogInFirestore = async (log: CarLog): Promise<void> => {
-    await setDoc(doc(db, CAR_LOGS_COLLECTION, log.id), log);
+    await setDoc(doc(db, CAR_LOGS_COLLECTION, log.id), log, { merge: true });
 };
-
-
-    

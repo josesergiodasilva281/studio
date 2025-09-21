@@ -8,7 +8,7 @@ import { EmployeeDashboard } from '@/components/employee-dashboard';
 import type { AccessLog } from '@/lib/types';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
-import { getAccessLogsFromFirestore, addOrUpdateAccessLogInFirestore } from '@/lib/firestoreService';
+import { addOrUpdateAccessLogInFirestore, listenToAccessLogsFromFirestore } from '@/lib/firestoreService';
 
 export default function Home() {
   const { user } = useAuth();
@@ -23,20 +23,16 @@ export default function Home() {
     }
   }, [user, router]);
 
-  const fetchAccessLogs = async () => {
-    try {
-      const logs = await getAccessLogsFromFirestore(100); // Fetch last 100 logs
-      setAccessLogs(logs);
-    } catch (error) {
-      console.error("Error fetching access logs:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   useEffect(() => {
     if (user?.role === 'rh') {
-        fetchAccessLogs();
+      setIsLoading(true);
+      const unsubscribe = listenToAccessLogsFromFirestore((logs) => {
+        setAccessLogs(logs);
+        setIsLoading(false);
+      }, 100);
+
+      return () => unsubscribe();
     }
   }, [user]);
 

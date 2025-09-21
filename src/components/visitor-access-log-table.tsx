@@ -26,7 +26,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { cn, removeAccents } from '@/lib/utils';
-import { getAccessLogsFromFirestore } from '@/lib/firestoreService';
+import { listenToAccessLogsFromFirestore } from '@/lib/firestoreService';
 
 
 export function VisitorAccessLogTable({ readOnly = false }: { readOnly?: boolean }) {
@@ -37,21 +37,15 @@ export function VisitorAccessLogTable({ readOnly = false }: { readOnly?: boolean
     const [date, setDate] = useState<DateRange | undefined>(undefined);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Load data from localStorage on initial render
+    // Load data from Firestore in real-time
     useEffect(() => {
-        const loadData = async () => {
-            setIsLoading(true);
-            try {
-                const storedLogs = await getAccessLogsFromFirestore(500);
-                setAccessLogs(storedLogs.filter((log: AccessLog) => log.personType === 'visitor'));
-            } catch (error) {
-                console.error("Error reading from Firestore", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        
-        loadData();
+        setIsLoading(true);
+        const unsubscribe = listenToAccessLogsFromFirestore((storedLogs) => {
+            setAccessLogs(storedLogs.filter((log: AccessLog) => log.personType === 'visitor'));
+            setIsLoading(false);
+        }, 500);
+
+        return () => unsubscribe();
     }, []);
     
     const filteredLogs: AccessLog[] = accessLogs

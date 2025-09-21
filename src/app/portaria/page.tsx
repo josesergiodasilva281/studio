@@ -13,16 +13,16 @@ import { useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Users, CarIcon, Shield } from 'lucide-react';
 import { 
-    getAccessLogsFromFirestore, 
     addOrUpdateAccessLogInFirestore,
-    getVisitorsFromFirestore,
     addOrUpdateVisitorInFirestore,
     deleteVisitorFromFirestore,
-    getCarsFromFirestore,
-    getCarLogsFromFirestore,
     addOrUpdateCarInFirestore,
     deleteCarFromFirestore,
-    addOrUpdateCarLogInFirestore
+    addOrUpdateCarLogInFirestore,
+    listenToAccessLogsFromFirestore,
+    listenToVisitorsFromFirestore,
+    listenToCarsFromFirestore,
+    listenToCarLogsFromFirestore
 } from '@/lib/firestoreService';
 
 
@@ -45,36 +45,47 @@ export default function PortariaPage() {
   }, [user, router]);
 
 
-  // Load all data from Firestore on initial render
+  // Load all data from Firestore on initial render using listeners
   useEffect(() => {
-    const fetchData = async () => {
-        setIsLoading(true);
-        try {
-            const [
-                logsData,
-                visitorsData,
-                carsData,
-                carLogsData
-            ] = await Promise.all([
-                getAccessLogsFromFirestore(200), // Fetch more logs for a complete view
-                getVisitorsFromFirestore(),
-                getCarsFromFirestore(),
-                getCarLogsFromFirestore(100)
-            ]);
-
-            setAccessLogs(logsData);
-            setVisitors(visitorsData);
-            setCars(carsData);
-            setCarLogs(carLogsData);
-
-        } catch (error) {
-            console.error("Error reading from Firestore", error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
     if (user?.role === 'portaria') {
-        fetchData();
+        setIsLoading(true);
+        let loadedCount = 0;
+        const totalToLoad = 4;
+        
+        const onDataLoaded = () => {
+            loadedCount++;
+            if (loadedCount === totalToLoad) {
+                setIsLoading(false);
+            }
+        };
+
+        const unsubAccessLogs = listenToAccessLogsFromFirestore((data) => {
+            setAccessLogs(data);
+            onDataLoaded();
+        }, 200);
+
+        const unsubVisitors = listenToVisitorsFromFirestore((data) => {
+            setVisitors(data);
+            onDataLoaded();
+        });
+
+        const unsubCars = listenToCarsFromFirestore((data) => {
+            setCars(data);
+            onDataLoaded();
+        });
+
+        const unsubCarLogs = listenToCarLogsFromFirestore((data) => {
+            setCarLogs(data);
+            onDataLoaded();
+        }, 100);
+
+        // Cleanup function to unsubscribe from all listeners on component unmount
+        return () => {
+            unsubAccessLogs();
+            unsubVisitors();
+            unsubCars();
+            unsubCarLogs();
+        };
     }
   }, [user]);
 
