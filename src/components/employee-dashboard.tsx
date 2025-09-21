@@ -525,7 +525,7 @@ function EditEmployeeDialog({
     )
 }
 
-function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen, accessLogs, setAccessLogs, role }: { employees: Employee[], setEmployees: (employees: Employee[]) => void, isAddEmployeeDialogOpen: boolean, setIsAddEmployeeDialogOpen: Dispatch<SetStateAction<boolean>>, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>>, role: 'rh' | 'portaria' }) {
+function EmployeeTable({ employees, isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen, accessLogs, setAccessLogs, role }: { employees: Employee[], isAddEmployeeDialogOpen: boolean, setIsAddEmployeeDialogOpen: Dispatch<SetStateAction<boolean>>, accessLogs: AccessLog[], setAccessLogs: Dispatch<SetStateAction<AccessLog[]>>, role: 'rh' | 'portaria' }) {
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -550,6 +550,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             setSearchTermInFirestore(user.username, newSearchTerm);
         }
     };
+    
     const getPresenceStatus = (employeeId: string) => {
         const lastLog = accessLogs
             .filter(log => log.personId === employeeId && log.personType === 'employee')
@@ -725,14 +726,14 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                     const toSpell = command.substring(9);
                     const spelledTerm = toSpell.replace(/\s/g, ''); // Remove spaces
                     setSearchTermInFirestore(user.username, spelledTerm);
-                } else if (command.startsWith('registrar ')) {
-                     const toRegister = command.substring(10);
-                     const employee = employees.find(e => removeAccents(e.name.toLowerCase()) === removeAccents(toRegister) || e.id.toLowerCase() === toRegister);
-                     if (employee) {
-                        handleManualEntry(employee);
-                     } else {
-                        toast({variant: 'destructive', title: 'Funcionário não encontrado', description: `Não foi possível encontrar "${toRegister}".`})
-                     }
+                } else if (command === 'registrar') {
+                    if (filteredEmployees.length === 1) {
+                        handleManualEntry(filteredEmployees[0]);
+                    } else if (filteredEmployees.length > 1) {
+                        toast({variant: 'destructive', title: 'Busca Ambigua', description: `Múltiplos funcionários encontrados. Por favor, refine sua busca.`})
+                    } else {
+                        toast({variant: 'destructive', title: 'Nenhum funcionário encontrado', description: `Nenhum funcionário corresponde à busca atual.`})
+                    }
                 } else if (command === 'limpar') {
                     setSearchTermInFirestore(user.username, '');
                 } else {
@@ -751,6 +752,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 return;
              } else {
                 console.error('Speech recognition error', event.error);
+                toast({ variant: 'destructive', title: 'Erro no Reconhecimento de Voz', description: `Erro: ${event.error}` });
              }
         };
         
@@ -773,7 +775,9 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 // Ignore if it's already starting
             }
         } else {
-            recognition.stop();
+            if (recognitionRef.current) {
+               recognitionRef.current.stop();
+            }
         }
         
         return () => {
@@ -786,7 +790,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             }
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isListening, isMicPermissionDenied, employees, toast, user]);
+    }, [isListening, isMicPermissionDenied, user, filteredEmployees]);
 
 
   return (
@@ -986,7 +990,6 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
         ) : (
             <EmployeeTable 
                 employees={employees} 
-                setEmployees={setEmployees} 
                 isAddEmployeeDialogOpen={isAddEmployeeDialogOpen}
                 setIsAddEmployeeDialogOpen={setIsAddEmployeeDialogOpen}
                 accessLogs={accessLogs}
@@ -997,4 +1000,5 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
     </div>
   );
 }
+
 
