@@ -25,7 +25,7 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { cn } from '@/lib/utils';
+import { cn, removeAccents } from '@/lib/utils';
 import { getAccessLogsFromFirestore } from '@/lib/firestoreService';
 
 
@@ -67,19 +67,19 @@ export function VisitorAccessLogTable({ readOnly = false }: { readOnly?: boolean
             }
 
             if (!searchTerm) return true; // Return all logs if search is empty
-            const searchTermLower = searchTerm.toLowerCase();
+            const normalizedSearchTerm = removeAccents(searchTerm.toLowerCase());
 
             return (
-                (log.personName && log.personName.toLowerCase().includes(searchTermLower)) ||
-                (log.rg && log.rg.toLowerCase().includes(searchTermLower)) ||
-                (log.cpf && log.cpf.toLowerCase().includes(searchTermLower)) ||
-                (log.company && log.company.toLowerCase().includes(searchTermLower)) ||
-                (log.plate && log.plate.toLowerCase().includes(searchTermLower)) ||
-                (log.responsible && log.responsible.toLowerCase().includes(searchTermLower)) ||
-                (log.reason && log.reason.toLowerCase().includes(searchTermLower)) ||
-                (log.entryTimestamp && format(parseISO(log.entryTimestamp), 'dd/MM/yyyy HH:mm').includes(searchTermLower)) ||
-                (log.exitTimestamp && format(parseISO(log.exitTimestamp), 'dd/MM/yyyy HH:mm').includes(searchTermLower)) ||
-                (log.registeredBy && log.registeredBy.toLowerCase().includes(searchTermLower))
+                (log.personName && removeAccents(log.personName.toLowerCase()).includes(normalizedSearchTerm)) ||
+                (log.rg && removeAccents(log.rg.toLowerCase()).includes(normalizedSearchTerm)) ||
+                (log.cpf && removeAccents(log.cpf.toLowerCase()).includes(normalizedSearchTerm)) ||
+                (log.company && removeAccents(log.company.toLowerCase()).includes(normalizedSearchTerm)) ||
+                (log.plate && removeAccents(log.plate.toLowerCase()).includes(normalizedSearchTerm)) ||
+                (log.responsible && removeAccents(log.responsible.toLowerCase()).includes(normalizedSearchTerm)) ||
+                (log.reason && removeAccents(log.reason.toLowerCase()).includes(normalizedSearchTerm)) ||
+                (log.entryTimestamp && format(parseISO(log.entryTimestamp), 'dd/MM/yyyy HH:mm').includes(normalizedSearchTerm)) ||
+                (log.exitTimestamp && format(parseISO(log.exitTimestamp), 'dd/MM/yyyy HH:mm').includes(normalizedSearchTerm)) ||
+                (log.registeredBy && removeAccents(log.registeredBy.toLowerCase()).includes(normalizedSearchTerm))
             );
         });
 

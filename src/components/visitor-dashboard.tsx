@@ -45,6 +45,7 @@ import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { useAuth } from '@/context/auth-context';
 import ReactCrop, { type Crop as CropType, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
+import { removeAccents } from '@/lib/utils';
 
 
 const emptyVisitor: Visitor = {
@@ -449,16 +450,16 @@ function VisitorTable({
     }
 
     const filteredVisitors = searchTerm ? visitors.filter(visitor => {
-        const searchTermLower = searchTerm.toLowerCase();
+        const normalizedSearchTerm = removeAccents(searchTerm.toLowerCase());
         return (
-            visitor.id.toLowerCase().includes(searchTermLower) ||
-            visitor.name.toLowerCase().includes(searchTermLower) ||
-            (visitor.rg && visitor.rg.toLowerCase().includes(searchTermLower)) ||
-            (visitor.cpf && visitor.cpf.toLowerCase().includes(searchTermLower)) ||
-            (visitor.company && visitor.company.toLowerCase().includes(searchTermLower)) ||
-            (visitor.plate && visitor.plate.toLowerCase().includes(searchTermLower)) ||
-            (visitor.responsible && visitor.responsible.toLowerCase().includes(searchTermLower)) ||
-            (visitor.reason && visitor.reason.toLowerCase().includes(searchTermLower))
+            removeAccents(visitor.id.toLowerCase()).includes(normalizedSearchTerm) ||
+            removeAccents(visitor.name.toLowerCase()).includes(normalizedSearchTerm) ||
+            (visitor.rg && removeAccents(visitor.rg.toLowerCase()).includes(normalizedSearchTerm)) ||
+            (visitor.cpf && removeAccents(visitor.cpf.toLowerCase()).includes(normalizedSearchTerm)) ||
+            (visitor.company && removeAccents(visitor.company.toLowerCase()).includes(normalizedSearchTerm)) ||
+            (visitor.plate && removeAccents(visitor.plate.toLowerCase()).includes(normalizedSearchTerm)) ||
+            (visitor.responsible && removeAccents(visitor.responsible.toLowerCase()).includes(normalizedSearchTerm)) ||
+            (visitor.reason && removeAccents(visitor.reason.toLowerCase()).includes(normalizedSearchTerm))
         );
     }) : visitors.filter(v => getPresenceStatus(v.id) === 'Dentro');
 
@@ -823,3 +824,4 @@ export function VisitorDashboard({
     </div>
   );
 }
+

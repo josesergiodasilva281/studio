@@ -23,7 +23,7 @@ import { Button } from './ui/button';
 import Link from 'next/link';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { cn } from '@/lib/utils';
+import { cn, removeAccents } from '@/lib/utils';
 import { getAccessLogsFromFirestore, getEmployeesFromFirestore, deleteAccessLogsInFirestore, addOrUpdateAccessLogInFirestore } from '@/lib/firestoreService';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
@@ -134,17 +134,17 @@ export function EmployeeAccessLogTable({ readOnly = false }: { readOnly?: boolea
 
             // Search term filtering
             if (!searchTerm) return true;
-            const searchTermLower = searchTerm.toLowerCase();
+            const normalizedSearchTerm = removeAccents(searchTerm.toLowerCase());
 
             return (
-                log.personName.toLowerCase().includes(searchTermLower) ||
-                log.personId.toLowerCase().includes(searchTermLower) ||
-                (log.department && log.department.toLowerCase().includes(searchTermLower)) ||
-                (log.plate && log.plate.toLowerCase().includes(searchTermLower)) ||
-                (log.ramal && log.ramal.toLowerCase().includes(searchTermLower)) ||
-                log.entryTimestamp.toLowerCase().includes(searchTermLower) ||
-                (log.exitTimestamp && log.exitTimestamp.toLowerCase().includes(searchTermLower)) ||
-                (log.registeredBy && log.registeredBy.toLowerCase().includes(searchTermLower))
+                removeAccents(log.personName.toLowerCase()).includes(normalizedSearchTerm) ||
+                removeAccents(log.personId.toLowerCase()).includes(normalizedSearchTerm) ||
+                (log.department && removeAccents(log.department.toLowerCase()).includes(normalizedSearchTerm)) ||
+                (log.plate && removeAccents(log.plate.toLowerCase()).includes(normalizedSearchTerm)) ||
+                (log.ramal && removeAccents(log.ramal.toLowerCase()).includes(normalizedSearchTerm)) ||
+                removeAccents(log.entryTimestamp.toLowerCase()).includes(normalizedSearchTerm) ||
+                (log.exitTimestamp && removeAccents(log.exitTimestamp.toLowerCase()).includes(normalizedSearchTerm)) ||
+                (log.registeredBy && removeAccents(log.registeredBy.toLowerCase()).includes(normalizedSearchTerm))
             );
         });
 

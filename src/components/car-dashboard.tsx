@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState, Dispatch, SetStateAction } from 'react';
@@ -40,6 +41,7 @@ import { Badge } from './ui/badge';
 import type { Car, CarLog } from '@/lib/types';
 import Link from 'next/link';
 import { useAuth } from '@/context/auth-context';
+import { removeAccents } from '@/lib/utils';
 
 const emptyCar: Omit<Car, 'id' | 'status' | 'lastDriverName' | 'lastKm'> = {
     fleet: '',
@@ -349,16 +351,16 @@ function CarTable({
     };
 
     const filteredCars = cars.filter(car => {
-        const searchTermLower = searchTerm.toLowerCase();
+        const normalizedSearchTerm = removeAccents(searchTerm.toLowerCase());
         const lastLog = carLogs.find(log => log.carId === car.id && log.endTime === null);
         const driverName = lastLog ? lastLog.driverName : '';
 
         return (
-            car.id.toLowerCase().includes(searchTermLower) ||
-            driverName.toLowerCase().includes(searchTermLower) ||
-            car.fleet.toLowerCase().includes(searchTermLower) ||
-            car.status.toLowerCase().includes(searchTermLower) ||
-            (car.lastDriverName && car.lastDriverName.toLowerCase().includes(searchTermLower))
+            removeAccents(car.id.toLowerCase()).includes(normalizedSearchTerm) ||
+            removeAccents(driverName.toLowerCase()).includes(normalizedSearchTerm) ||
+            removeAccents(car.fleet.toLowerCase()).includes(normalizedSearchTerm) ||
+            removeAccents(car.status.toLowerCase()).includes(normalizedSearchTerm) ||
+            (car.lastDriverName && removeAccents(car.lastDriverName.toLowerCase()).includes(normalizedSearchTerm))
         );
     });
 

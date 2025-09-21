@@ -23,7 +23,7 @@ import Link from 'next/link';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
-import { cn } from '@/lib/utils';
+import { cn, removeAccents } from '@/lib/utils';
 import { getCarLogsFromFirestore } from '@/lib/firestoreService';
 
 
@@ -64,16 +64,16 @@ export function CarAccessLogTable({ readOnly = false }: { readOnly?: boolean }) 
 
         // Search term filtering
         if (!searchTerm) return true;
-        const searchTermLower = searchTerm.toLowerCase();
+        const normalizedSearchTerm = removeAccents(searchTerm.toLowerCase());
         return (
-            (log.carId && log.carId.toLowerCase().includes(searchTermLower)) ||
-            (log.carFleet && log.carFleet.toLowerCase().includes(searchTermLower)) ||
-            (log.driverName && log.driverName.toLowerCase().includes(searchTermLower)) ||
-            (log.returnDriverName && log.returnDriverName.toLowerCase().includes(searchTermLower)) ||
-            (log.startKm && log.startKm.toString().toLowerCase().includes(searchTermLower)) ||
-            (log.endKm && log.endKm.toString().toLowerCase().includes(searchTermLower)) ||
-            (log.startRegisteredBy && log.startRegisteredBy.toLowerCase().includes(searchTermLower)) ||
-            (log.endRegisteredBy && log.endRegisteredBy.toLowerCase().includes(searchTermLower))
+            (log.carId && removeAccents(log.carId.toLowerCase()).includes(normalizedSearchTerm)) ||
+            (log.carFleet && removeAccents(log.carFleet.toLowerCase()).includes(normalizedSearchTerm)) ||
+            (log.driverName && removeAccents(log.driverName.toLowerCase()).includes(normalizedSearchTerm)) ||
+            (log.returnDriverName && removeAccents(log.returnDriverName.toLowerCase()).includes(normalizedSearchTerm)) ||
+            (log.startKm && log.startKm.toString().toLowerCase().includes(normalizedSearchTerm)) ||
+            (log.endKm && log.endKm.toString().toLowerCase().includes(normalizedSearchTerm)) ||
+            (log.startRegisteredBy && removeAccents(log.startRegisteredBy.toLowerCase()).includes(normalizedSearchTerm)) ||
+            (log.endRegisteredBy && removeAccents(log.endRegisteredBy.toLowerCase()).includes(normalizedSearchTerm))
         );
     });
 

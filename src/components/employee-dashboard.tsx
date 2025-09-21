@@ -16,7 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from './ui/button';
-import { Pencil, Trash2, GanttChartSquare, Camera, Home, Building, LogIn, CalendarIcon, User, Crop, Mic } from 'lucide-react';
+import { Pencil, Trash2, GanttChartSquare, Camera, Home, Building, LogIn, CalendarIcon, User, Crop, Mic, MicOff } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,11 +46,12 @@ import { getEmployeesFromFirestore, addEmployeeToFirestore, updateEmployeeInFire
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { format, parseISO } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, removeAccents } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Alert, AlertTitle, AlertDescription } from './ui/alert';
 import ReactCrop, { type Crop as CropType, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 
 // Helper function to check if an employee should be considered active
@@ -531,8 +532,9 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     const { toast } = useToast();
     const { user } = useAuth();
     const [isListening, setIsListening] = useState(false);
+    const [isMicPermissionDenied, setIsMicPermissionDenied] = useState(false);
     const recognitionRef = useRef<any>(null);
-
+    
     const getPresenceStatus = (employeeId: string) => {
         const lastLog = accessLogs
             .filter(log => log.personId === employeeId && log.personType === 'employee')
@@ -545,18 +547,45 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     };
 
     const filteredEmployees = employees.filter(employee => {
-        const searchTermLower = searchTerm.toLowerCase();
+        const normalizedSearchTerm = removeAccents(searchTerm.toLowerCase());
         const presenceStatus = getPresenceStatus(employee.id);
+        
+        // Column-specific search
+        const searchParts = normalizedSearchTerm.split(' ');
+        const columnName = searchParts[0];
+        const searchValue = searchParts.slice(1).join(' ');
 
+        const columnMap: { [key: string]: keyof Employee | 'presenca' } = {
+            matricula: 'id',
+            nome: 'name',
+            setor: 'department',
+            placa: 'plate',
+            ramal: 'ramal',
+            portaria: 'portaria',
+            status: 'status',
+            presenca: 'presenca'
+        };
+
+        const targetColumn = columnMap[columnName];
+        if(targetColumn && searchValue) {
+             if (targetColumn === 'presenca') {
+                return removeAccents(presenceStatus.toLowerCase()).includes(searchValue);
+             }
+             const employeeValue = employee[targetColumn] as string | undefined;
+             return employeeValue && removeAccents(employeeValue.toLowerCase()).includes(searchValue);
+        }
+
+
+        // General search
         return (
-            employee.id.toLowerCase().includes(searchTermLower) ||
-            employee.name.toLowerCase().includes(searchTermLower) ||
-            employee.department.toLowerCase().includes(searchTermLower) ||
-            employee.plate.toLowerCase().includes(searchTermLower) ||
-            employee.ramal.toLowerCase().includes(searchTermLower) ||
-            (employee.portaria && employee.portaria.toLowerCase().includes(searchTermLower)) ||
-            employee.status.toLowerCase().includes(searchTermLower) ||
-            presenceStatus.toLowerCase().includes(searchTermLower)
+            removeAccents(employee.id.toLowerCase()).includes(normalizedSearchTerm) ||
+            removeAccents(employee.name.toLowerCase()).includes(normalizedSearchTerm) ||
+            removeAccents(employee.department.toLowerCase()).includes(normalizedSearchTerm) ||
+            removeAccents(employee.plate.toLowerCase()).includes(normalizedSearchTerm) ||
+            removeAccents(employee.ramal.toLowerCase()).includes(normalizedSearchTerm) ||
+            (employee.portaria && removeAccents(employee.portaria.toLowerCase()).includes(normalizedSearchTerm)) ||
+            removeAccents(employee.status.toLowerCase()).includes(normalizedSearchTerm) ||
+            removeAccents(presenceStatus.toLowerCase()).includes(normalizedSearchTerm)
         );
     });
 
@@ -662,6 +691,10 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     };
 
     const toggleListening = () => {
+        if (isMicPermissionDenied) {
+             toast({ variant: 'destructive', title: 'Permissão negada', description: 'Ative a permissão do microfone nas configurações do navegador.' });
+             return;
+        }
         setIsListening(prevState => !prevState);
     };
 
@@ -677,7 +710,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
 
         if (!recognitionRef.current) {
             const recognition = new SpeechRecognition();
-            recognition.continuous = false;
+            recognition.continuous = true; // Keep listening
             recognition.lang = 'pt-BR';
             recognition.interimResults = false;
             recognitionRef.current = recognition;
@@ -686,38 +719,71 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         const recognition = recognitionRef.current;
 
         recognition.onresult = (event: any) => {
-            const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
-            setSearchTerm(transcript);
+            let transcript = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                transcript += event.results[i][0].transcript;
+            }
+            transcript = transcript.trim().toLowerCase();
+            
+            // Check for "soletrar" command
+            if (transcript.startsWith('ok soletrar ')) {
+                const toSpell = transcript.substring('ok soletrar '.length);
+                const spelledTerm = toSpell.replace(/\s/g, ''); // Remove spaces
+                setSearchTerm(spelledTerm);
+            } else if (transcript.startsWith('ok registrar ')) {
+                 const toRegister = transcript.substring('ok registrar '.length);
+                 const employee = employees.find(e => removeAccents(e.name.toLowerCase()) === removeAccents(toRegister) || e.id.toLowerCase() === toRegister);
+                 if (employee) {
+                    handleManualEntry(employee);
+                 } else {
+                    toast({variant: 'destructive', title: 'Funcionário não encontrado', description: `Não foi possível encontrar "${toRegister}".`})
+                 }
+            } else if (transcript === 'ok limpar') {
+                setSearchTerm('');
+            } else {
+                setSearchTerm(transcript);
+            }
         };
 
         recognition.onerror = (event: any) => {
-            if (event.error === 'no-speech' || event.error === 'aborted') {
-                return; // Ignore common, non-critical errors
+             if (event.error === 'not-allowed') {
+                setIsMicPermissionDenied(true);
+                setIsListening(false); // Turn off if permission is denied
+            } else if (event.error === 'no-speech' || event.error === 'aborted') {
+                // Ignore these common errors
+                return; 
             }
             console.error('Speech recognition error', event.error);
         };
         
         recognition.onend = () => {
             if (isListening) {
+                // Keep listening if the toggle is still on
                 try {
-                    recognition.start(); // Keep listening if it's supposed to be on
+                    recognition.start();
                 } catch(e) {
-                    // Cacth error if recognition is already active.
+                    // Catch error if recognition is already active, which can happen.
                 }
             }
         };
 
         if (isListening) {
-            recognition.start();
+            try {
+               recognition.start();
+            } catch(e) {
+                // Recognition might already be active
+            }
         } else {
             recognition.stop();
         }
-
+        
+        // Cleanup on unmount
         return () => {
             if (recognitionRef.current) {
                 recognitionRef.current.stop();
             }
         };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isListening, toast]);
 
 
@@ -735,16 +801,27 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                     onChange={(event) => setSearchTerm(event.target.value)}
                     className="max-w-full sm:max-w-sm"
                 />
-                 <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={toggleListening}
-                    className={cn(
-                        isListening && 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
-                    )}
-                >
-                    <Mic className="h-4 w-4" />
-                </Button>
+                 <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={toggleListening}
+                                className={cn(
+                                    isListening && 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                                )}
+                            >
+                                {isMicPermissionDenied ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                            </Button>
+                        </TooltipTrigger>
+                        {isMicPermissionDenied && (
+                            <TooltipContent>
+                                <p>Permissão do microfone negada. Clique no ícone de cadeado na barra de endereço para permitir.</p>
+                            </TooltipContent>
+                        )}
+                    </Tooltip>
+                </TooltipProvider>
           </div>
           <div className="rounded-md border">
             <div className="relative w-full overflow-auto">
@@ -933,3 +1010,4 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
     
 
     
+
