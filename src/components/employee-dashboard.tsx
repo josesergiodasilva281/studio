@@ -685,6 +685,9 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         };
 
         recognition.onerror = (event) => {
+            if (event.error === 'no-speech') {
+                return;
+            }
             console.error('Speech recognition error', event.error);
         };
 
