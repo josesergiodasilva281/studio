@@ -533,6 +533,17 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
     const [isListening, setIsListening] = useState(false);
     const recognitionRef = useRef<any>(null);
 
+    const getPresenceStatus = (employeeId: string) => {
+        const lastLog = accessLogs
+            .filter(log => log.personId === employeeId && log.personType === 'employee')
+            .sort((a, b) => new Date(b.entryTimestamp).getTime() - new Date(a.entryTimestamp).getTime())[0];
+
+        if (!lastLog || lastLog.exitTimestamp !== null) {
+            return 'Fora';
+        }
+        return 'Dentro';
+    };
+
     const filteredEmployees = employees.filter(employee => {
         const searchTermLower = searchTerm.toLowerCase();
         const presenceStatus = getPresenceStatus(employee.id);
@@ -607,17 +618,6 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             toast({ variant: 'destructive', title: 'Erro ao adicionar funcionário' });
             console.error(error);
         }
-    };
-
-    const getPresenceStatus = (employeeId: string) => {
-        const lastLog = accessLogs
-            .filter(log => log.personId === employeeId && log.personType === 'employee')
-            .sort((a, b) => new Date(b.entryTimestamp).getTime() - new Date(a.entryTimestamp).getTime())[0];
-
-        if (!lastLog || lastLog.exitTimestamp !== null) {
-            return 'Fora';
-        }
-        return 'Dentro';
     };
 
     const handleManualEntry = async (employee: Employee) => {
