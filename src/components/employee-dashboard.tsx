@@ -716,7 +716,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
 
         if (!recognitionRef.current) {
             const recognition = new SpeechRecognition();
-            recognition.continuous = true; // Keep listening
+            recognition.continuous = true;
             recognition.lang = 'pt-BR';
             recognition.interimResults = false;
             recognitionRef.current = recognition;
@@ -731,20 +731,26 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
             }
             transcript = transcript.trim().toLowerCase();
             
-            // Check for "soletrar" command
-            if (transcript.startsWith('ok soletrar ')) {
-                const toSpell = transcript.substring('ok soletrar '.length);
+            if (!transcript.startsWith('ok')) {
+                return;
+            }
+            
+            // Remove "ok" and optionally "buscar"
+            transcript = transcript.replace(/^ok\s*(buscar\s*)?/, '');
+
+            if (transcript.startsWith('soletrar ')) {
+                const toSpell = transcript.substring('soletrar '.length);
                 const spelledTerm = toSpell.replace(/\s/g, ''); // Remove spaces
                 setSearchTerm(spelledTerm);
-            } else if (transcript.startsWith('ok registrar ')) {
-                 const toRegister = transcript.substring('ok registrar '.length);
+            } else if (transcript.startsWith('registrar ')) {
+                 const toRegister = transcript.substring('registrar '.length);
                  const employee = employees.find(e => removeAccents(e.name.toLowerCase()) === removeAccents(toRegister) || e.id.toLowerCase() === toRegister);
                  if (employee) {
                     handleManualEntry(employee);
                  } else {
                     toast({variant: 'destructive', title: 'Funcionário não encontrado', description: `Não foi possível encontrar "${toRegister}".`})
                  }
-            } else if (transcript === 'ok limpar') {
+            } else if (transcript === 'limpar') {
                 setSearchTerm('');
             } else {
                 setSearchTerm(transcript);
@@ -756,7 +762,6 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                 setIsMicPermissionDenied(true);
                 setIsListening(false); // Turn off if permission is denied
             } else if (event.error === 'no-speech' || event.error === 'aborted') {
-                // Ignore these common errors
                 return; 
             }
             console.error('Speech recognition error', event.error);
@@ -764,7 +769,6 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         
         recognition.onend = () => {
             if (isListening) {
-                // Keep listening if the toggle is still on
                 try {
                     recognition.start();
                 } catch(e) {
@@ -786,11 +790,16 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
         // Cleanup on unmount
         return () => {
             if (recognitionRef.current) {
-                recognitionRef.current.stop();
+                recognitionRef.current.onresult = null;
+                recognitionRef.current.onerror = null;
+                recognitionRef.current.onend = null;
+                if (isListening) {
+                  recognitionRef.current.stop();
+                }
             }
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isListening, toast]);
+    }, [isListening]);
 
 
   return (
@@ -827,7 +836,7 @@ function EmployeeTable({ employees, setEmployees, isAddEmployeeDialogOpen, setIs
                             </TooltipContent>
                         ) : (
                              <TooltipContent>
-                                <p>{isListening ? 'Parar de ouvir' : 'Buscar por voz'}</p>
+                                <p>{isListening ? 'Parar de ouvir' : 'Buscar por voz (Ex: "ok buscar João")'}</p>
                             </TooltipContent>
                         )}
                     </Tooltip>
@@ -1020,5 +1029,6 @@ export function EmployeeDashboard({ role = 'rh', isAddEmployeeDialogOpen, setIsA
     
 
     
+
 
 
